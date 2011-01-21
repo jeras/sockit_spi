@@ -1,5 +1,5 @@
 [timestart] 0
-[size] 1366 694
+[size] 1366 691
 [pos] -1 -1
 *-10.111133 750 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
@@ -8,15 +8,6 @@ spi_tb.spi.clk
 spi_tb.spi.rst
 @800200
 -Avalon MM
-@28
-spi_tb.spi.a_write
-spi_tb.spi.a_read
-@22
-spi_tb.spi.a_writedata[31:0]
-spi_tb.spi.a_readdata[31:0]
-@28
-spi_tb.spi.a_waitrequest
-spi_tb.spi.a_interrupt
 @1000200
 -Avalon MM
 @800200
@@ -36,7 +27,6 @@ spi_tb.spi.div_ena
 -SPI slave select
 @22
 spi_tb.spi.reg_ss[7:0]
-spi_tb.spi.ss_n[7:0]
 @1000200
 -SPI slave select
 @800200
@@ -76,47 +66,16 @@ spi_tb.spi.clk_l
 -shift register
 @800200
 -SPI IO
+@1401200
+-group_end
 @28
-spi_tb.spi.sclk_i
-spi_tb.spi.sclk_e
-spi_tb.spi.sclk_o
+spi_tb.spi_sclk
 @22
-spi_tb.spi.sio_i[3:0]
-spi_tb.spi.sio_o[3:0]
-@c00022
-spi_tb.spi.sio_e[3:0]
+spi_tb.spi_ss_n[7:0]
 @28
-(0)spi_tb.spi.sio_e[3:0]
-(1)spi_tb.spi.sio_e[3:0]
-(2)spi_tb.spi.sio_e[3:0]
-(3)spi_tb.spi.sio_e[3:0]
-@1401200
--group_end
-@1000200
--SPI IO
-@800200
--SPI slave model
-@28
-spi_tb.Flash.bit
-@c00022
-spi_tb.Flash.byte[7:0]
-@28
-(0)spi_tb.Flash.byte[7:0]
-(1)spi_tb.Flash.byte[7:0]
-(2)spi_tb.Flash.byte[7:0]
-(3)spi_tb.Flash.byte[7:0]
-(4)spi_tb.Flash.byte[7:0]
-(5)spi_tb.Flash.byte[7:0]
-(6)spi_tb.Flash.byte[7:0]
-(7)spi_tb.Flash.byte[7:0]
-@1401200
--group_end
-@28
-spi_tb.Flash.miso
-spi_tb.Flash.mosi
-spi_tb.Flash.sclk
-spi_tb.Flash.ss_n
-@1000200
--SPI slave model
+spi_tb.spi_mosi
+spi_tb.spi_miso
+spi_tb.spi_wp_n
+spi_tb.spi_hold_n
 [pattern_trace] 1
 [pattern_trace] 0

@@ -54,15 +54,15 @@ module spi #(
   output wire           bus_irq,  // interrupt request
   // SPI signals (at a higher level should be connected to tristate IO pads)
   // serial clock
-  input  wire           sclk_i,  // input (clock loopback)
-  output wire           sclk_o,  // output
-  output wire           sclk_e,  // output enable
+  input  wire           spi_sclk_i,  // input (clock loopback)
+  output wire           spi_sclk_o,  // output
+  output wire           spi_sclk_e,  // output enable
   // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
-  input  wire     [3:0] sio_i,   // input (clock loopback)
-  output wire     [3:0] sio_o,   // output
-  output wire     [3:0] sio_e,   // output enable
+  input  wire     [3:0] spi_sio_i,   // input (clock loopback)
+  output wire     [3:0] spi_sio_o,   // output
+  output wire     [3:0] spi_sio_e,   // output enable
   // active low slave select signal
-  output wire [SSW-1:0] ss_n
+  output wire [SSW-1:0] spi_ss_n
 );
 
 //////////////////////////////////////////////////////////////////////////////
@@ -103,7 +103,7 @@ wire         ctl_run;  // transfer running status
 assign bus_rdt = (bus_adr == 2'h0) ? {{16-SSW{1'b0}}, reg_ss, {16-DRW{1'b0}}, reg_div} :
                  (bus_adr == 2'h1) ? {cfg_bit, cfg_3wr, cfg_oen, cfg_dir, cfg_cpol, cfg_cpha} :
                  (bus_adr == 2'h2) ? {24'h000000, ctl_cnb}:
-                                               reg_s;
+                                     reg_s;
 
 assign bus_wrq = 1'b0;
 assign bus_irq   = 1'b0;
@@ -210,7 +210,7 @@ if (rst)
 else if (bus_wen & (bus_adr == 0) & ~bus_wrq)
   reg_ss <= bus_wdt [32-SSW-1:16];
 
-assign ss_n = ctl_ss ? ~reg_ss : ~{SSW{1'b0}};
+assign spi_ss_n = ctl_ss ? ~reg_ss : ~{SSW{1'b0}};
 
 //////////////////////////////////////////////////////////////////////////////
 // spi shift register                                                       //
@@ -235,23 +235,23 @@ always @(posedge clk_l)
 if (~cfg_cpha)  reg_i <= spi_mi;
 
 // spi clock output pin
-assign sclk_o = div_byp ? cfg_cpol ^ (ctl_run & ~clk) : div_clk;
+assign spi_sclk_o = div_byp ? cfg_cpol ^ (ctl_run & ~clk) : div_clk;
 
 // loop clock
-assign clk_l  = sclk_i ^ cfg_cpol;
+assign clk_l  = spi_sclk_i ^ cfg_cpol;
 
 // the serial input depends on the used protocol (SPI, 3 wire)
-assign spi_mi   = cfg_3wr ? sio_i[0] : sio_i[1];
+assign spi_mi   = cfg_3wr ? spi_sio_i[0] : spi_sio_i[1];
 
 assign ser_i    = ~cfg_cpha ? reg_i : spi_mi;
-assign sio_o[0] = ~cfg_cpha ? ser_o : reg_o;
-assign sio_e[0] = cfg_oen;
+assign spi_sio_o[0] = ~cfg_cpha ? ser_o : reg_o;
+assign spi_sio_e[0] = cfg_oen;
 
 // temporary IO handler
 
-assign sclk_e     = 1'b1;
-assign sio_o[3:1] = 3'b11x;
-assign sio_e[3:1] = 3'b110;
+assign spi_sclk_e     = 1'b1;
+assign spi_sio_o[3:1] = 3'b11x;
+assign spi_sio_e[3:1] = 3'b110;
 
 
 endmodule

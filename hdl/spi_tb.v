@@ -49,16 +49,20 @@ wire           avalon_transfer;
 reg  [ADW-1:0] data;
 
 // SPI signals
-wire [SSW-1:0] ss_n;
-wire           sclk;
-wire           mosi;
-wire           miso;
-wire           wp_n;
-wire           hold_n;
+wire [SSW-1:0] spi_ss_n;
+wire           spi_sclk;
+wire           spi_mosi;
+wire           spi_miso;
+wire           spi_wp_n;
+wire           spi_hold_n;
 
 // IO buffer signals
-wire           sclk_i, sclk_o, sclk_e;
-wire     [3:0] sio_i,  sio_o,  sio_e;
+wire           spi_sclk_i,
+               spi_sclk_o,
+               spi_sclk_e;
+wire     [3:0] spi_sio_i,
+               spi_sio_o,
+               spi_sio_e;
 
 //////////////////////////////////////////////////////////////////////////////
 // testbench                                                                //
@@ -160,15 +164,15 @@ spi #(
   .bus_irq    (avalon_interrupt  ),
   // SPI signals (should be connected to tristate IO pads)
   // serial clock
-  .sclk_i     (sclk_i),
-  .sclk_o     (sclk_o),
-  .sclk_e     (sclk_e),
+  .spi_sclk_i     (spi_sclk_i),
+  .spi_sclk_o     (spi_sclk_o),
+  .spi_sclk_e     (spi_sclk_e),
   // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
-  .sio_i      (sio_i),
-  .sio_o      (sio_o),
-  .sio_e      (sio_e),
+  .spi_sio_i      (spi_sio_i),
+  .spi_sio_o      (spi_sio_o),
+  .spi_sio_e      (spi_sio_e),
   // active low slave select signal
-  .ss_n       (ss_n)
+  .spi_ss_n       (spi_ss_n)
 );
 
 //////////////////////////////////////////////////////////////////////////////
@@ -176,19 +180,19 @@ spi #(
 //////////////////////////////////////////////////////////////////////////////
 
 // clock
-bufif1 onewire_buffer (sclk, sclk_o, sclk_e);
-assign sclk_i =        sclk;
+bufif1 onewire_buffer (spi_sclk, spi_sclk_o, spi_sclk_e);
+assign spi_sclk_i =    spi_sclk;
 
 // data
-bufif1 onewire_buffer [3:0] ({hold_n, wp_n, miso, mosi}, sio_o, sio_e);
-assign sio_i =               {hold_n, wp_n, miso, mosi};
+bufif1 onewire_buffer [3:0] ({spi_hold_n, spi_wp_n, spi_miso, spi_mosi}, spi_sio_o, spi_sio_e);
+assign spi_sio_i =           {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
 
 //////////////////////////////////////////////////////////////////////////////
 // SPI slave (serial Flash)                                                 //
 //////////////////////////////////////////////////////////////////////////////
 
 // loopback for debug purposes
-//assign miso = ~ss_n[0] ? mosi : 1'bz;
+//assign spi_miso = ~spi_ss_n[0] ? spi_mosi : 1'bz;
 
 //`define Test_s25fl129p00
 `define Test_spi_slave_model
@@ -196,10 +200,10 @@ assign sio_i =               {hold_n, wp_n, miso, mosi};
 `ifdef Test_spi_slave_model
 // SPI slave model
 spi_slave_model Flash (
-  .ss_n    (ss_n[0]),
-  .sclk    (sclk),
-  .mosi    (mosi),
-  .miso    (miso)
+  .ss_n    (spi_ss_n[0]),
+  .sclk    (spi_sclk),
+  .mosi    (spi_mosi),
+  .miso    (spi_miso)
 );
 `endif
 
@@ -208,12 +212,12 @@ spi_slave_model Flash (
 s25fl129p00 #(
   .mem_file_name ("none")
 ) Flash (
-  .SCK     (sclk),
-  .SI      (mosi),
-  .CSNeg   (ss_n[0]),
-  .HOLDNeg (hold_n),
-  .WPNeg   (wp_n),
-  .SO      (miso)
+  .SCK     (spi_sclk),
+  .SI      (spi_mosi),
+  .CSNeg   (spi_ss_n[0]),
+  .HOLDNeg (spi_hold_n),
+  .WPNeg   (spi_wp_n),
+  .SO      (spi_miso)
 );
 `endif
 
@@ -222,12 +226,12 @@ s25fl129p00 #(
 s25fl032a #(
   .mem_file_name ("none")
 ) Flash (
-  .SCK     (sclk),
-  .SI      (mosi),
-  .CSNeg   (ss_n[0]),
+  .SCK     (spi_sclk),
+  .SI      (spi_mosi),
+  .CSNeg   (spi_ss_n[0]),
   .HOLDNeg (1'b1),
   .WNeg    (1'b1),
-  .SO      (miso)
+  .SO      (spi_miso)
 );
 `endif
 
@@ -235,12 +239,12 @@ s25fl032a #(
 // Numonyx serial Flash
 m25p80 
 Flash (
-  .c         (sclk),
-  .data_in   (mosi),
-  .s         (ss_n[1]),
+  .c         (spi_sclk),
+  .data_in   (spi_mosi),
+  .s         (spi_ss_n[1]),
   .w         (1'b1),
   .hold      (1'b1),
-  .data_out  (miso)
+  .data_out  (spi_miso)
 );
 defparam Flash.mem_access.initfile = "hdl/bench/numonyx/initM25P80.txt";
 `endif

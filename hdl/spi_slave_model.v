@@ -1,11 +1,14 @@
 module spi_slave_model #(
-  parameter CPOL = 0,
-  parameter CPHA = 0
+  parameter CPOL = 0,  // polarity
+  parameter CPHA = 0,  // phase
+  parameter MODE = 1   // mode (0-3wire, 1-SPI, 2-duo, 3-quad)
 )(
-  input  ss_n,
-  input  sclk,
-  input  mosi,
-  output miso
+  input wire ss_n,   //
+  input wire sclk,   // serial clock
+  inout wire mosi,   // master output slave input  / SIO[0]
+  inout wire miso,   // maste input slave output   / SIO[1]
+  inout wire wp_n,   // write protect (active low) / SIO[2]
+  inout wire hold_n  // clock hold (active low)    / SIO[3]
 );
 
 reg       bit;
