@@ -51,12 +51,14 @@ reg  [ADW-1:0] data;
 // SPI signals
 wire [SSW-1:0] ss_n;
 wire           sclk;
-wire           miso;
 wire           mosi;
-// SPI mosi tristate buffer signals
-wire           mosi_i;
-wire           mosi_o;
-wire           mosi_e;
+wire           miso;
+wire           wp_n;
+wire           hold_n;
+
+// IO buffer signals
+wire           sclk_i, sclk_o, sclk_e;
+wire     [3:0] sio_i,  sio_o,  sio_e;
 
 //////////////////////////////////////////////////////////////////////////////
 // testbench                                                                //
@@ -72,26 +74,24 @@ end
 initial    clk <= 1'b1;
 always  #5 clk <= ~clk;
 
-// reset generation
-initial begin
-  rst = 1'b1;
-  repeat (2) @ (posedge clk); #1;
-  rst = 1'b0;
-end
-
-// avalon cycles
+// test sequence
 initial begin
   avalon_write <= 1'b0;
   avalon_read  <= 1'b0;
+  // reset generation
+  rst = 1'b1;
+  repeat (2) @ (posedge clk); #1;
+  rst = 1'b0;
   repeat (4) @ (posedge clk);
+
   // write slave select and clock divider
   avalon_cycle (1, 4'h0, 4'hf, 32'h0001_0003, data);
   // write configuration
-  avalon_cycle (1, 4'h4, 4'hf, 32'h0000_000c, data);
+  avalon_cycle (1, 4'h1, 4'hf, 32'h0000_000c, data);
   // write data register
-  avalon_cycle (1, 4'hc, 4'hf, 32'h0123_4567, data);
+  avalon_cycle (1, 4'h3, 4'hf, 32'h0123_4567, data);
   // write control register (enable a chip and start a 4 byte cycle)
-  avalon_cycle (1, 4'h8, 4'hf, 32'h8000_0004, data);
+  avalon_cycle (1, 4'h2, 4'hf, 32'h8000_0004, data);
   repeat (500) @ (posedge clk);
   $finish();
 end
@@ -148,45 +148,40 @@ spi #(
   .DR0        ( 0)   // default clock division factor
 ) spi (
   // system signals (used by the CPU bus interface)
-  .clk            (clk),
-  .rst            (rst),
+  .clk        (clk),
+  .rst        (rst),
   // avalon interface
-  .a_write        (avalon_write      ),
-  .a_read         (avalon_read       ),
-  .a_address      (avalon_address    ),
-  .a_writedata    (avalon_writedata  ),
-  .a_readdata     (avalon_readdata   ),
-  .a_waitrequest  (avalon_waitrequest),
-  .a_interrupt    (avalon_interrupt  ),
+  .bus_wen    (avalon_write      ),
+  .bus_ren    (avalon_read       ),
+  .bus_adr    (avalon_address    ),
+  .bus_wdt    (avalon_writedata  ),
+  .bus_rdt    (avalon_readdata   ),
+  .bus_wrq    (avalon_waitrequest),
+  .bus_irq    (avalon_interrupt  ),
   // SPI signals (should be connected to tristate IO pads)
   // serial clock
-  .sclk_i         (sclk),
-  .sclk_o         (sclk),
-  .sclk_e         (sclk_oe),
+  .sclk_i     (sclk_i),
+  .sclk_o     (sclk_o),
+  .sclk_e     (sclk_e),
   // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
-  .sio_i          ({hold_n_i, wp_n_i, miso_i, mosi_i}),
-  .sio_o          ({hold_n_o, wp_n_o, miso_o, mosi_o}),
-  .sio_e          ({hold_n_e, wp_n_e, miso_e, mosi_e}),
+  .sio_i      (sio_i),
+  .sio_o      (sio_o),
+  .sio_e      (sio_e),
   // active low slave select signal
-  .ss_n           (ss_n)
+  .ss_n       (ss_n)
 );
 
 //////////////////////////////////////////////////////////////////////////////
 // SPI tristate buffers                                                     //
 //////////////////////////////////////////////////////////////////////////////
 
-// MOSI
-assign mosi_i   = mosi;
-assign mosi     = mosi_e   ? mosi_o   : 1'bz;
-// MISO
-assign miso_i   = miso;
-assign miso     = miso_e   ? miso_o   : 1'bz;
-// WP_n
-assign wp_n_i   = wp_n;
-assign wp_n     = wp_n_e   ? wp_n_o   : 1'bz;
-// HOLD_n
-assign hold_n_i = hold_n;
-assign hold_n   = hold_n_e ? hold_n_o : 1'bz;
+// clock
+bufif1 onewire_buffer (sclk, sclk_o, sclk_e);
+assign sclk_i =        sclk;
+
+// data
+bufif1 onewire_buffer [3:0] ({hold_n, wp_n, miso, mosi}, sio_o, sio_e);
+assign sio_i =               {hold_n, wp_n, miso, mosi};
 
 //////////////////////////////////////////////////////////////////////////////
 // SPI slave (serial Flash)                                                 //

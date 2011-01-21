@@ -41,17 +41,17 @@ module spi #(
   parameter DRW =  8,  // clock divider register width
   parameter DR0 =  0   // default clock division factor
 )(
-  // system signals (used by the CPU bus interface)
+  // system signals (used by the CPU interface)
   input  wire           clk,
   input  wire           rst,
-  // zbus input interface
-  input  wire           a_write,
-  input  wire           a_read,
-  input  wire     [3:0] a_address,
-  input  wire    [31:0] a_writedata,
-  output wire    [31:0] a_readdata,
-  output wire           a_waitrequest,
-  output wire           a_interrupt,
+  // CPU interface bus
+  input  wire           bus_wen,  // write enable
+  input  wire           bus_ren,  // read enable
+  input  wire     [1:0] bus_adr,  // address
+  input  wire    [31:0] bus_wdt,  // write data
+  output wire    [31:0] bus_rdt,  // read data
+  output wire           bus_wrq,  // wait request
+  output wire           bus_irq,  // interrupt request
   // SPI signals (at a higher level should be connected to tristate IO pads)
   // serial clock
   input  wire           sclk_i,  // input (clock loopback)
@@ -72,8 +72,8 @@ module spi #(
 // clock divider signals
 reg  [DRW-1:0] div_cnt;  // clock divider counter
 reg  [DRW-1:0] reg_div;  // register holding the requested clock division ratio
-wire div_byp;
-reg  div_clk;                  // register storing the SCLK clock value (additional division by two)
+wire           div_byp;
+reg            div_clk;  // register storing the SCLK clock value (additional division by two)
 
 // spi shifter signals
 reg  [32-1:0] reg_s;           // spi data shift register
@@ -100,13 +100,13 @@ wire         ctl_run;  // transfer running status
 //////////////////////////////////////////////////////////////////////////////
 
 // output data multiplexer
-assign a_readdata = (a_address[3:2] == 2'd0) ? {{16-SSW{1'b0}}, reg_ss, {16-DRW{1'b0}}, reg_div} :
-                    (a_address[3:2] == 2'd1) ? {cfg_bit, cfg_3wr, cfg_oen, cfg_dir, cfg_cpol, cfg_cpha} :
-                    (a_address[3:2] == 2'd2) ? {24'h000000, ctl_cnb}:
+assign bus_rdt = (bus_adr == 2'h0) ? {{16-SSW{1'b0}}, reg_ss, {16-DRW{1'b0}}, reg_div} :
+                 (bus_adr == 2'h1) ? {cfg_bit, cfg_3wr, cfg_oen, cfg_dir, cfg_cpol, cfg_cpha} :
+                 (bus_adr == 2'h2) ? {24'h000000, ctl_cnb}:
                                                reg_s;
 
-assign a_waitrequest = 1'b0;
-assign a_interrupt   = 1'b0;
+assign bus_wrq = 1'b0;
+assign bus_irq   = 1'b0;
 
 //////////////////////////////////////////////////////////////////////////////
 // clock divider                                                            //
@@ -116,8 +116,8 @@ assign a_interrupt   = 1'b0;
 always @(posedge clk, posedge rst)
 if (rst)
   reg_div <= DR0;
-else if (a_write & (a_address[3:2] == 0) & ~a_waitrequest)
-  reg_div <= a_writedata[DRW-1:0];
+else if (bus_wen & (bus_adr == 0) & ~bus_wrq)
+  reg_div <= bus_wdt[DRW-1:0];
 
 // divider bypass bit
 assign div_byp = reg_div[7];
@@ -154,13 +154,13 @@ if (rst) begin
   cfg_dir  <= CFG_dir;
   cfg_cpol <= CFG_cpol;
   cfg_cpha <= CFG_cpha;
-end else if (a_write & (a_address[3:2] == 1) & ~a_waitrequest) begin
-  cfg_bit  <= a_writedata [5     ];
-  cfg_3wr  <= a_writedata [ 4    ];
-  cfg_oen  <= a_writedata [  3   ];
-  cfg_dir  <= a_writedata [   2  ];
-  cfg_cpol <= a_writedata [    1 ];
-  cfg_cpha <= a_writedata [     0];
+end else if (bus_wen & (bus_adr == 1) & ~bus_wrq) begin
+  cfg_bit  <= bus_wdt [5     ];
+  cfg_3wr  <= bus_wdt [ 4    ];
+  cfg_oen  <= bus_wdt [  3   ];
+  cfg_dir  <= bus_wdt [   2  ];
+  cfg_cpol <= bus_wdt [    1 ];
+  cfg_cpha <= bus_wdt [     0];
 end
 
 //////////////////////////////////////////////////////////////////////////////
@@ -180,8 +180,8 @@ if (rst)
   ctl_ss <= 0;
 else begin
   // write from the CPU bus has priority
-  if (a_write & (a_address[3:2] == 2) & ~a_waitrequest)
-    ctl_ss <= a_writedata[31];
+  if (bus_wen & (bus_adr == 2) & ~bus_wrq)
+    ctl_ss <= bus_wdt[31];
 end
 
 // transfer length counter
@@ -190,8 +190,8 @@ if (rst)
   ctl_cnb <= 0;
 else begin
   // write from the CPU bus has priority
-  if (a_write & (a_address[3:2] == 2) & ~a_waitrequest)
-    ctl_cnb <= a_writedata[7:0];
+  if (bus_wen & (bus_adr == 2) & ~bus_wrq)
+    ctl_cnb <= bus_wdt[7:0];
   // decrement at the end of each transfer unit (byte by default)
   else if (&cnt_bit & div_ena)
     ctl_cnb <= ctl_cnb - 1;
@@ -207,8 +207,8 @@ assign ctl_run = |ctl_cnb;
 always @(posedge clk, posedge rst)
 if (rst)
   reg_ss <= 'b0;
-else if (a_write & (a_address[3:2] == 0) & ~a_waitrequest)
-  reg_ss <= a_writedata [32-SSW-1:16];
+else if (bus_wen & (bus_adr == 0) & ~bus_wrq)
+  reg_ss <= bus_wdt [32-SSW-1:16];
 
 assign ss_n = ctl_ss ? ~reg_ss : ~{SSW{1'b0}};
 
@@ -218,8 +218,8 @@ assign ss_n = ctl_ss ? ~reg_ss : ~{SSW{1'b0}};
 
 // shift register implementation
 always @(posedge clk)
-if (a_write & (a_address[3:2] == 3) & ~a_waitrequest) begin
-  reg_s <= a_writedata; // TODO add fifo code
+if (bus_wen & (bus_adr == 3) & ~bus_wrq) begin
+  reg_s <= bus_wdt; // TODO add fifo code
 end else if (ctl_run & div_ena) begin
   if (cfg_dir)  reg_s <= {reg_s [30:0], ser_i};
   else          reg_s <= {ser_i, reg_s [31:1]};
