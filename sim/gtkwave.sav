@@ -64,18 +64,17 @@ spi_tb.spi.ser_o
 spi_tb.spi.clk_l
 @1000200
 -shift register
-@800200
+@800201
 -SPI IO
-@1401200
--group_end
-@28
-spi_tb.spi_sclk
-@22
+@23
 spi_tb.spi_ss_n[7:0]
-@28
+@29
+spi_tb.spi_sclk
 spi_tb.spi_mosi
 spi_tb.spi_miso
 spi_tb.spi_wp_n
 spi_tb.spi_hold_n
+@1000201
+-SPI IO
 [pattern_trace] 1
 [pattern_trace] 0

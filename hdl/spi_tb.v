@@ -57,6 +57,9 @@ wire           spi_wp_n;
 wire           spi_hold_n;
 
 // IO buffer signals
+wire [SSW-1:0] spi_ss_i,
+               spi_ss_o,
+               spi_ss_e;
 wire           spi_sclk_i,
                spi_sclk_o,
                spi_sclk_e;
@@ -89,13 +92,11 @@ initial begin
   repeat (4) @ (posedge clk);
 
   // write slave select and clock divider
-  avalon_cycle (1, 4'h0, 4'hf, 32'h0001_0003, data);
-  // write configuration
-  avalon_cycle (1, 4'h1, 4'hf, 32'h0000_000c, data);
+  avalon_cycle (1, 4'h2, 4'hf, 32'hff01_00f0, data);
   // write data register
-  avalon_cycle (1, 4'h3, 4'hf, 32'h0123_4567, data);
+  avalon_cycle (1, 4'h0, 4'hf, 32'h0123_4567, data);
   // write control register (enable a chip and start a 4 byte cycle)
-  avalon_cycle (1, 4'h2, 4'hf, 32'h8000_0004, data);
+  avalon_cycle (1, 4'h1, 4'hf, 32'h8000_0104, data);
   repeat (500) @ (posedge clk);
   $finish();
 end
@@ -138,41 +139,32 @@ endtask
 //////////////////////////////////////////////////////////////////////////////
 
 spi #(
-  // SPI slave select paramaters
-  .SSW  (8),         // slave select register width
-  // SPI interface configuration parameters
-  .CFG_dir    ( 1),  // shift direction (0 - LSB first, 1 - MSB first)
-  .CFG_cpol   ( 0),  // clock polarity
-  .CFG_cpha   ( 0),  // clock phase
-  .CFG_3wr    ( 0),  // duplex type (0 - SPI full duplex, 1 - 3WIRE half duplex (MOSI is shared))
-  // SPI clock divider parameters
-  .PAR_cd_en  ( 1),  // clock divider enable (0 - use full system clock, 1 - use divider)
-  .PAR_cd_ri  ( 1),  // clock divider register inplement (otherwise the default clock division factor is used)
-  .DRW        ( 8),  // clock divider register width
-  .DR0        ( 0)   // default clock division factor
+  .SSW         (SSW)
 ) spi (
   // system signals (used by the CPU bus interface)
-  .clk        (clk),
-  .rst        (rst),
+  .clk         (clk),
+  .rst         (rst),
   // avalon interface
-  .bus_wen    (avalon_write      ),
-  .bus_ren    (avalon_read       ),
-  .bus_adr    (avalon_address    ),
-  .bus_wdt    (avalon_writedata  ),
-  .bus_rdt    (avalon_readdata   ),
-  .bus_wrq    (avalon_waitrequest),
-  .bus_irq    (avalon_interrupt  ),
+  .bus_wen     (avalon_write      ),
+  .bus_ren     (avalon_read       ),
+  .bus_adr     (avalon_address    ),
+  .bus_wdt     (avalon_writedata  ),
+  .bus_rdt     (avalon_readdata   ),
+  .bus_wrq     (avalon_waitrequest),
+  .bus_irq     (avalon_interrupt  ),
   // SPI signals (should be connected to tristate IO pads)
   // serial clock
-  .spi_sclk_i     (spi_sclk_i),
-  .spi_sclk_o     (spi_sclk_o),
-  .spi_sclk_e     (spi_sclk_e),
+  .spi_sclk_i  (spi_sclk_i),
+  .spi_sclk_o  (spi_sclk_o),
+  .spi_sclk_e  (spi_sclk_e),
   // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
-  .spi_sio_i      (spi_sio_i),
-  .spi_sio_o      (spi_sio_o),
-  .spi_sio_e      (spi_sio_e),
+  .spi_sio_i   (spi_sio_i),
+  .spi_sio_o   (spi_sio_o),
+  .spi_sio_e   (spi_sio_e),
   // active low slave select signal
-  .spi_ss_n       (spi_ss_n)
+  .spi_ss_i    (spi_ss_i),
+  .spi_ss_o    (spi_ss_o),
+  .spi_ss_e    (spi_ss_e)
 );
 
 //////////////////////////////////////////////////////////////////////////////
@@ -180,12 +172,16 @@ spi #(
 //////////////////////////////////////////////////////////////////////////////
 
 // clock
-bufif1 onewire_buffer (spi_sclk, spi_sclk_o, spi_sclk_e);
-assign spi_sclk_i =    spi_sclk;
+bufif1 buffer_sclk (spi_sclk, spi_sclk_o, spi_sclk_e);
+assign spi_sclk_i = spi_sclk;
 
 // data
-bufif1 onewire_buffer [3:0] ({spi_hold_n, spi_wp_n, spi_miso, spi_mosi}, spi_sio_o, spi_sio_e);
-assign spi_sio_i =           {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
+bufif1 buffer_sio [3:0] ({spi_hold_n, spi_wp_n, spi_miso, spi_mosi}, spi_sio_o, spi_sio_e);
+assign spi_sio_i =       {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
+
+// slave select (active low)
+bufif1 buffer_ss_n [SSW-1:0] (spi_ss_n, ~spi_ss_o, spi_ss_e);
+assign spi_ss_i =             spi_ss_n;
 
 //////////////////////////////////////////////////////////////////////////////
 // SPI slave (serial Flash)                                                 //
