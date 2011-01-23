@@ -96,7 +96,7 @@ initial begin
   // write data register
   avalon_cycle (1, 4'h0, 4'hf, 32'h0123_4567, data);
   // write control register (enable a chip and start a 4 byte cycle)
-  avalon_cycle (1, 4'h1, 4'hf, 32'h8000_0104, data);
+  avalon_cycle (1, 4'h1, 4'hf, 32'h8000_0108, data);
   repeat (500) @ (posedge clk);
   $finish();
 end
@@ -190,59 +190,50 @@ assign spi_ss_i =             spi_ss_n;
 // loopback for debug purposes
 //assign spi_miso = ~spi_ss_n[0] ? spi_mosi : 1'bz;
 
-//`define Test_s25fl129p00
-`define Test_spi_slave_model
-
-`ifdef Test_spi_slave_model
 // SPI slave model
-spi_slave_model Flash (
+spi_slave_model #(
+  .DLY     (32)
+) Flash_0 (
   .ss_n    (spi_ss_n[0]),
   .sclk    (spi_sclk),
   .mosi    (spi_mosi),
   .miso    (spi_miso)
 );
-`endif
 
-`ifdef Test_s25fl129p00
-// Spansion serial Flash
-s25fl129p00 #(
-  .mem_file_name ("none")
-) Flash (
-  .SCK     (spi_sclk),
-  .SI      (spi_mosi),
-  .CSNeg   (spi_ss_n[0]),
-  .HOLDNeg (spi_hold_n),
-  .WPNeg   (spi_wp_n),
-  .SO      (spi_miso)
-);
-`endif
-
-`ifdef Test_s25fl032a
-// Spansion serial Flash
-s25fl032a #(
-  .mem_file_name ("none")
-) Flash (
-  .SCK     (spi_sclk),
-  .SI      (spi_mosi),
-  .CSNeg   (spi_ss_n[0]),
-  .HOLDNeg (1'b1),
-  .WNeg    (1'b1),
-  .SO      (spi_miso)
-);
-`endif
-
-`ifdef Test_m25p80
-// Numonyx serial Flash
-m25p80 
-Flash (
-  .c         (spi_sclk),
-  .data_in   (spi_mosi),
-  .s         (spi_ss_n[1]),
-  .w         (1'b1),
-  .hold      (1'b1),
-  .data_out  (spi_miso)
-);
-defparam Flash.mem_access.initfile = "hdl/bench/numonyx/initM25P80.txt";
-`endif
+//// Spansion serial Flash
+//s25fl129p00 #(
+//  .mem_file_name ("none")
+//) Flash_1 (
+//  .SCK     (spi_sclk),
+//  .SI      (spi_mosi),
+//  .CSNeg   (spi_ss_n[1]),
+//  .HOLDNeg (spi_hold_n),
+//  .WPNeg   (spi_wp_n),
+//  .SO      (spi_miso)
+//);
+//
+//// Spansion serial Flash
+//s25fl032a #(
+//  .mem_file_name ("none")
+//) Flash_2 (
+//  .SCK     (spi_sclk),
+//  .SI      (spi_mosi),
+//  .CSNeg   (spi_ss_n[2]),
+//  .HOLDNeg (1'b1),
+//  .WNeg    (1'b1),
+//  .SO      (spi_miso)
+//);
+//
+//// Numonyx serial Flash
+//m25p80 
+//Flash_3 (
+//  .c         (spi_sclk),
+//  .data_in   (spi_mosi),
+//  .s         (spi_ss_n[3]),
+//  .w         (1'b1),
+//  .hold      (1'b1),
+//  .data_out  (spi_miso)
+//);
+//defparam Flash.mem_access.initfile = "hdl/bench/numonyx/initM25P80.txt";
 
 endmodule
