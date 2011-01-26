@@ -9,7 +9,8 @@ iverilog -o spi.out \
 ../hdl/sockit_spi.v \
 ../hdl/spi_tb.v \
 ../hdl/spi_slave_model.v
-# MX25L12845E.v # s25fl129p00.v
+#../hdl/MX25L12845E.v \
+#../hdl/s25fl129p00.v
 
 # run the simulation
 vvp spi.out

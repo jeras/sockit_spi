@@ -1,29 +1,29 @@
-//////////////////////////////////////////////////////////////////////////////
-//                                                                          //
-//  Minimalistic SPI (3 wire) interface with Zbus interface                 //
-//                                                                          //
-//  Copyright (C) 2008  Iztok Jeras                                         //
-//                                                                          //
-//////////////////////////////////////////////////////////////////////////////
-//                                                                          //
-//  This RTL is free hardware: you can redistribute it and/or modify        //
-//  it under the terms of the GNU Lesser General Public License             //
-//  as published by the Free Software Foundation, either                    //
-//  version 3 of the License, or (at your option) any later version.        //
-//                                                                          //
-//  This RTL is distributed in the hope that it will be useful,             //
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of          //
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           //
-//  GNU General Public License for more details.                            //
-//                                                                          //
-//  You should have received a copy of the GNU General Public License       //
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.   //
-//                                                                          //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//  SPI (3 wire, dual, quad) master                                           //
+//                                                                            //
+//  Copyright (C) 2008  Iztok Jeras                                           //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//  This RTL is free hardware: you can redistribute it and/or modify          //
+//  it under the terms of the GNU Lesser General Public License               //
+//  as published by the Free Software Foundation, either                      //
+//  version 3 of the License, or (at your option) any later version.          //
+//                                                                            //
+//  This RTL is distributed in the hope that it will be useful,               //
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of            //
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             //
+//  GNU General Public License for more details.                              //
+//                                                                            //
+//  You should have received a copy of the GNU General Public License         //
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.     //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////////////////
-// this file contains the system bus interface and static registers         //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// this file contains the system bus interface and static registers           //
+////////////////////////////////////////////////////////////////////////////////
 
 module spi #(
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
@@ -56,9 +56,9 @@ module spi #(
   output wire [SSW-1:0] spi_ss_e     // output enable
 );
 
-//////////////////////////////////////////////////////////////////////////////
-// local signals                                                            //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// local signals                                                              //
+////////////////////////////////////////////////////////////////////////////////
 
 // bus interface signals
 wire     [3:0] bus_dec;
@@ -95,18 +95,18 @@ reg    [7:0] ctl_cnb;  // counter of transfered data units (bytes by default)
 reg    [2:0] cnt_bit;  // counter of shifted bits
 wire         ctl_run;  // transfer running status
 
-//////////////////////////////////////////////////////////////////////////////
-// address decoder                                                          //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// address decoder                                                            //
+////////////////////////////////////////////////////////////////////////////////
 
 assign bus_dec [0] = (bus_adr == 2'h0);  // data
 assign bus_dec [1] = (bus_adr == 2'h1);  // control/status
 assign bus_dec [2] = (bus_adr == 2'h2);  // configuratio
 assign bus_dec [3] = (bus_adr == 2'h3);  // XIP base address
 
-//////////////////////////////////////////////////////////////////////////////
-// bus read access                                                          //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// bus read access                                                            //
+////////////////////////////////////////////////////////////////////////////////
 
 // output data multiplexer
 assign bus_rdt = bus_dec[0] ? reg_s :
@@ -119,9 +119,9 @@ assign bus_rdt = bus_dec[0] ? reg_s :
 assign bus_wrq = 1'b0;
 assign bus_irq = 1'b0;
 
-//////////////////////////////////////////////////////////////////////////////
-// configuration register                                                   //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// configuration register                                                     //
+////////////////////////////////////////////////////////////////////////////////
 
 always @(posedge clk, posedge rst)
 if (rst) begin
@@ -165,9 +165,9 @@ else if (~|div_cnt)
 
 assign div_ena = div_byp ? 1 : ~|div_cnt & (div_clk ^ cfg_cpol);
 
-//////////////////////////////////////////////////////////////////////////////
-// control/status registers (transfer counter and serial output enable)     //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// control/status registers (transfer counter and serial output enable)       //
+////////////////////////////////////////////////////////////////////////////////
 
 // bit counter
 always @(posedge clk, posedge rst)
@@ -196,9 +196,9 @@ end
 // spi transfer run status
 assign ctl_run = |ctl_cnb;
 
-//////////////////////////////////////////////////////////////////////////////
-// spi shift register                                                       //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// spi shift register                                                         //
+////////////////////////////////////////////////////////////////////////////////
 
 // shift register implementation
 always @(posedge clk)

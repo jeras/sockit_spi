@@ -1,31 +1,33 @@
-//////////////////////////////////////////////////////////////////////////////
-//                                                                          //
-//  Minimalistic SPI (3 wire) interface with Zbus interface                 //
-//                                                                          //
-//  Copyright (C) 2008  Iztok Jeras                                         //
-//                                                                          //
-//////////////////////////////////////////////////////////////////////////////
-//                                                                          //
-//  This RTL is free hardware: you can redistribute it and/or modify        //
-//  it under the terms of the GNU Lesser General Public License             //
-//  as published by the Free Software Foundation, either                    //
-//  version 3 of the License, or (at your option) any later version.        //
-//                                                                          //
-//  This RTL is distributed in the hope that it will be useful,             //
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of          //
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           //
-//  GNU General Public License for more details.                            //
-//                                                                          //
-//  You should have received a copy of the GNU General Public License       //
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.   //
-//                                                                          //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//  SPI (3 wire, dual, quad) testbench                                        //
+//                                                                            //
+//  Copyright (C) 2008  Iztok Jeras                                           //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//  This RTL is free hardware: you can redistribute it and/or modify          //
+//  it under the terms of the GNU Lesser General Public License               //
+//  as published by the Free Software Foundation, either                      //
+//  version 3 of the License, or (at your option) any later version.          //
+//                                                                            //
+//  This RTL is distributed in the hope that it will be useful,               //
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of            //
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             //
+//  GNU General Public License for more details.                              //
+//                                                                            //
+//  You should have received a copy of the GNU General Public License         //
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.     //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+`timescale 1us / 1ns
 
 module spi_tb ();
 
-//////////////////////////////////////////////////////////////////////////////
-// local parameters and signals                                             //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// local parameters and signals                                               //
+////////////////////////////////////////////////////////////////////////////////
 
 localparam ADW = 32;
 localparam AAW = 32;
@@ -67,9 +69,9 @@ wire     [3:0] spi_sio_i,
                spi_sio_o,
                spi_sio_e;
 
-//////////////////////////////////////////////////////////////////////////////
-// testbench                                                                //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// testbench                                                                  //
+////////////////////////////////////////////////////////////////////////////////
 
 // request for a dumpfile
 initial begin
@@ -92,7 +94,7 @@ initial begin
   repeat (4) @ (posedge clk);
 
   // write slave select and clock divider
-  avalon_cycle (1, 4'h2, 4'hf, 32'hff01_00f0, data);
+  avalon_cycle (1, 4'h2, 4'hf, 32'hff02_00f0, data);
   // write data register
   avalon_cycle (1, 4'h0, 4'hf, 32'h0123_4567, data);
   // write control register (enable a chip and start a 4 byte cycle)
@@ -101,9 +103,9 @@ initial begin
   $finish();
 end
 
-//////////////////////////////////////////////////////////////////////////////
-// avalon tasks                                                             //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// avalon tasks                                                               //
+////////////////////////////////////////////////////////////////////////////////
 
 // avalon cycle transfer cycle end status
 assign avalon_transfer = (avalon_read | avalon_write) & ~avalon_waitrequest;
@@ -134,9 +136,9 @@ begin
 end
 endtask
 
-//////////////////////////////////////////////////////////////////////////////
-// spi controller instance                                                  //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// spi controller instance                                                    //
+////////////////////////////////////////////////////////////////////////////////
 
 spi #(
   .SSW         (SSW)
@@ -167,9 +169,9 @@ spi #(
   .spi_ss_e    (spi_ss_e)
 );
 
-//////////////////////////////////////////////////////////////////////////////
-// SPI tristate buffers                                                     //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// SPI tristate buffers                                                       //
+////////////////////////////////////////////////////////////////////////////////
 
 // clock
 bufif1 buffer_sclk (spi_sclk, spi_sclk_o, spi_sclk_e);
@@ -183,18 +185,30 @@ assign spi_sio_i =       {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
 bufif1 buffer_ss_n [SSW-1:0] (spi_ss_n, ~spi_ss_o, spi_ss_e);
 assign spi_ss_i =             spi_ss_n;
 
-//////////////////////////////////////////////////////////////////////////////
-// SPI slave (serial Flash)                                                 //
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// SPI slave (serial Flash)                                                   //
+////////////////////////////////////////////////////////////////////////////////
 
 // loopback for debug purposes
 //assign spi_miso = ~spi_ss_n[0] ? spi_mosi : 1'bz;
 
 // SPI slave model
 spi_slave_model #(
-  .DLY     (32)
-) Flash_0 (
+  .DLY     (32),
+  .MODE    (2'd0)
+) slave_3wire (
   .ss_n    (spi_ss_n[0]),
+  .sclk    (spi_sclk),
+  .mosi    (spi_mosi),
+  .miso    (spi_miso)
+);
+
+// SPI slave model
+spi_slave_model #(
+  .DLY     (32),
+  .MODE    (2'd1)
+) slave_spi (
+  .ss_n    (spi_ss_n[1]),
   .sclk    (spi_sclk),
   .mosi    (spi_mosi),
   .miso    (spi_miso)
