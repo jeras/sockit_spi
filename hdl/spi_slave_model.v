@@ -43,7 +43,7 @@ localparam IOW = MODE[1] ? (MODE[0] ? 4 : 2) : 1;
 wire              clk;    // local clock
 wire              rst;    // local reset
 
-reg               oen;    // output enable
+wire              oen;    // output enable
 
 wire    [IOW-1:0] sig_i;  // input signal vector
 reg     [IOW-1:0] reg_i;  // input register
@@ -54,15 +54,15 @@ wire    [IOW-1:0] sig_o;  // output signal vector
 integer           cnt_c;  // clock period counter
 
 // local clock and reset
-assign clk = sclk;
+assign clk = sclk ^ CPOL;
 assign rst = ss_n;
 
 // input signal vector
 generate case (MODE)
-  0 :  assign sig_i = {                    mosi};
-  1 :  assign sig_i = {                    mosi};
-  2 :  assign sig_i = {              miso, mosi};
-  3 :  assign sig_i = {hold_n, wp_n, miso, mosi};
+  2'd0 :  assign sig_i = {                    mosi};
+  2'd1 :  assign sig_i = {                    mosi};
+  2'd2 :  assign sig_i = {              miso, mosi};
+  2'd3 :  assign sig_i = {hold_n, wp_n, miso, mosi};
 endcase endgenerate
 
 // clock period counter
@@ -71,20 +71,20 @@ if (rst)  cnt_c  <= 0;
 else      cnt_c  <= cnt_c + 1;
 
 // output enable handler
-initial oen = 1'b1;
+assign oen = ~ss_n & (cnt_c > DLY);
 
 // input register
-always @ (posedge  sclk, posedge rst)
+always @ (negedge clk, posedge rst)
 if (rst)  reg_i  <= {IOW{1'bx}};
 else      reg_i  <= sig_i;
 
 // data shift register
-always @ (posedge ~sclk, posedge rst)
+always @ (posedge clk, posedge rst)
 if (rst)  reg_d <= {DLY{1'bx}};
 else      reg_d <= {reg_d[DLY-1-IOW:0], CPHA ? sig_i : reg_i};
 
 // output register
-always @ (posedge  sclk, posedge rst)
+always @ (negedge clk, posedge rst)
 if (rst)  reg_o  <= {IOW{1'bx}};
 else      reg_o  <= reg_d[DLY-1-IOW+:IOW];
 
@@ -93,12 +93,10 @@ assign sig_o = CPHA ? reg_o : reg_d[DLY-1-IOW+:IOW];
 
 // output drivers
 generate case (MODE)
-//  0 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz,     1'bz, sig_o[0]} : 4'bzzzz;
-  1 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz, sig_o[0],     1'bz} : 4'bzzzz;
-//  2 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz, sig_o[1], sig_o[0]} : 4'bzzzz;
-//  3 :  assign {hold_n, wp_n, miso, mosi} = oen ? {sig_o[3], sig_o[2], sig_o[1], sig_o[0]} : 4'bzzzz;
+  2'd0 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz,     1'bz, sig_o[0]} : 4'bzzzz;
+  2'd1 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz, sig_o[0],     1'bz} : 4'bzzzz;
+  2'd2 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz, sig_o[1], sig_o[0]} : 4'bzzzz;
+  2'd3 :  assign {hold_n, wp_n, miso, mosi} = oen ? {sig_o[3], sig_o[2], sig_o[1], sig_o[0]} : 4'bzzzz;
 endcase endgenerate
-
-initial $display ("MODE = %d, IOW = %d", MODE, IOW);
 
 endmodule

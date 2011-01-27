@@ -93,6 +93,8 @@ initial begin
   rst = 1'b0;
   repeat (4) @ (posedge clk);
 
+  // enable slave select
+  avalon_cycle (1, 4'h2, 4'hf, 32'hff00_0000, data);
   // write slave select and clock divider
   avalon_cycle (1, 4'h2, 4'hf, 32'hff02_00f0, data);
   // write data register
