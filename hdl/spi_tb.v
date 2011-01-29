@@ -93,14 +93,12 @@ initial begin
   rst = 1'b0;
   repeat (4) @ (posedge clk);
 
-  // enable slave select
-  avalon_cycle (1, 4'h2, 4'hf, 32'hff00_0000, data);
   // write slave select and clock divider
-  avalon_cycle (1, 4'h2, 4'hf, 32'hff02_00f0, data);
+  avalon_cycle (1, 4'h2, 4'hf, 32'h0200_0f40, data);
   // write data register
   avalon_cycle (1, 4'h0, 4'hf, 32'h0123_4567, data);
   // write control register (enable a chip and start a 4 byte cycle)
-  avalon_cycle (1, 4'h1, 4'hf, 32'h8000_0108, data);
+  avalon_cycle (1, 4'h1, 4'hf, 32'h8000_708, data);
   repeat (500) @ (posedge clk);
   $finish();
 end

@@ -1,7 +1,7 @@
-[timestart] 92000
+[timestart] 0
 [size] 1366 691
 [pos] -1 -1
-*-18.077904 730000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.077904 1360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.spi.clk
@@ -30,19 +30,22 @@ spi_tb.spi.div_ena
 @28
 spi_tb.spi.cfg_3wr
 spi_tb.spi.cfg_bit
-spi_tb.spi.cfg_cpha
-spi_tb.spi.cfg_cpol
 spi_tb.spi.cfg_dir
 @1401200
 -configuration
 @800200
 -control
 @28
-spi_tb.spi.cnt_bit[2:0]
+spi_tb.spi.ctl_cbt[2:0]
 @22
-spi_tb.spi.ctl_cnb[7:0]
+spi_tb.spi.ctl_cby[7:0]
 @28
 spi_tb.spi.ctl_run
+spi_tb.spi.ctl_oen
+spi_tb.spi.ctl_run
+spi_tb.spi.ctl_sse
+@29
+spi_tb.spi.ctl_ssc
 @1000200
 -control
 @800200
