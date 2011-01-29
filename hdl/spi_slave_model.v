@@ -24,10 +24,11 @@
 `timescale 1us / 1ns
 
 module spi_slave_model #(
-  parameter DLY  = 8,     // data delay
-  parameter CPOL = 1'b0,  // polarity
-  parameter CPHA = 1'b0,  // phase
-  parameter MODE = 2'd1   // mode (0-3wire, 1-SPI, 2-duo, 3-quad)
+  parameter DLY  = 8,            // data delay
+  parameter MODE_DAT = 2'd1,     // mode data (0-3wire, 1-SPI, 2-duo, 3-quad)
+  parameter MODE_CLK = 2'd0,     // mode clock {CPOL, CPHA}
+  parameter CPOL = MODE_CLK[1],  // clock polarity
+  parameter CPHA = MODE_CLK[0]   // clock phase
 )(
   input wire ss_n,   // slave select  (active low)
   input wire sclk,   // serial clock
@@ -38,7 +39,7 @@ module spi_slave_model #(
 );
 
 // IO data width
-localparam IOW = MODE[1] ? (MODE[0] ? 4 : 2) : 1;
+localparam IOW = MODE_DAT[1] ? (MODE_DAT[0] ? 4 : 2) : 1;
 
 wire              clk;    // local clock
 wire              rst;    // local reset
@@ -58,7 +59,7 @@ assign clk = sclk ^ CPOL;
 assign rst = ss_n;
 
 // input signal vector
-generate case (MODE)
+generate case (MODE_DAT)
   2'd0 :  assign sig_i = {                    mosi};
   2'd1 :  assign sig_i = {                    mosi};
   2'd2 :  assign sig_i = {              miso, mosi};
@@ -92,7 +93,7 @@ else      reg_o  <= reg_d[DLY-1-IOW+:IOW];
 assign sig_o = CPHA ? reg_o : reg_d[DLY-1-IOW+:IOW];
 
 // output drivers
-generate case (MODE)
+generate case (MODE_DAT)
   2'd0 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz,     1'bz, sig_o[0]} : 4'bzzzz;
   2'd1 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz, sig_o[0],     1'bz} : 4'bzzzz;
   2'd2 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz, sig_o[1], sig_o[0]} : 4'bzzzz;
