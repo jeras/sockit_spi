@@ -38,33 +38,36 @@ module spi_slave_model #(
   inout wire hold_n  // clock hold    (active low) / SIO[3]
 );
 
-// IO data width
-localparam IOW = MODE_DAT[1] ? (MODE_DAT[0] ? 4 : 2) : 1;
+////////////////////////////////////////////////////////////////////////////////
+// local signals                                                              //
+////////////////////////////////////////////////////////////////////////////////
 
-wire              clk;    // local clock
-wire              rst;    // local reset
+// system signals
+wire          clk;    // local clock
+wire          rst;    // local reset
 
-wire              oen;    // output enable
+integer       cnt_c;  // clock period counter
 
-wire    [IOW-1:0] sig_i;  // input signal vector
-reg     [IOW-1:0] reg_i;  // input register
-reg [DLY*IOW-1:0] reg_d;  // data shift register
-reg     [IOW-1:0] reg_o;  // output register
-wire    [IOW-1:0] sig_o;  // output signal vector
+// mode signals
+reg     [1:0] mode;   // mode data
+integer       shw;    // shift width
+wire          oen;    // output enable
 
-integer           cnt_c;  // clock period counter
+// spi signals
+reg     [3:0] sig_i;  // input signal vector
+reg     [3:0] reg_i;  // input register
+reg [DLY-1:0] reg_d;  // data shift register
+reg     [3:0] reg_o;  // output register
+wire    [3:0] sig_o;  // output signal vector
+reg     [3:0] sio;    // serial input output
+
+////////////////////////////////////////////////////////////////////////////////
+// mode control                                                               //
+////////////////////////////////////////////////////////////////////////////////
 
 // local clock and reset
 assign clk = sclk ^ CPOL;
 assign rst = ss_n;
-
-// input signal vector
-generate case (MODE_DAT)
-  2'd0 :  assign sig_i = {                    mosi};
-  2'd1 :  assign sig_i = {                    mosi};
-  2'd2 :  assign sig_i = {              miso, mosi};
-  2'd3 :  assign sig_i = {hold_n, wp_n, miso, mosi};
-endcase endgenerate
 
 // clock period counter
 always @ (posedge clk, posedge rst)          
@@ -74,30 +77,52 @@ else      cnt_c  <= cnt_c + 1;
 // output enable handler
 assign oen = ~ss_n & (cnt_c > DLY);
 
+//always @ (*)  mode = MODE_DAT[1] ? ((cnt_c > DLY) ? MODE_DAT : 2'd1) : MODE_DAT;
+initial mode = MODE_DAT;
+
+////////////////////////////////////////////////////////////////////////////////
+// spi data flow                                                              //
+////////////////////////////////////////////////////////////////////////////////
+
+// input signal vector
+always @ (*) case (mode)
+  2'd0 :  sig_i = {  1'bx, 1'bx, 1'bx, mosi};
+  2'd1 :  sig_i = {  1'bx, 1'bx, 1'bx, mosi};
+  2'd2 :  sig_i = {  1'bx, 1'bx, miso, mosi};
+  2'd3 :  sig_i = {hold_n, wp_n, miso, mosi};
+endcase
+
 // input register
 always @ (negedge clk, posedge rst)
-if (rst)  reg_i  <= {IOW{1'bx}};
+if (rst)  reg_i  <= 4'bxxxx;
 else      reg_i  <= sig_i;
 
 // data shift register
 always @ (posedge clk, posedge rst)
 if (rst)  reg_d <= {DLY{1'bx}};
-else      reg_d <= {reg_d[DLY-1-IOW:0], CPHA ? sig_i : reg_i};
+else case (mode)
+  2'd0 :  reg_d <= {reg_d[DLY-1-1:0], CPHA ? sig_i [0:0] : reg_i [0:0]};
+  2'd1 :  reg_d <= {reg_d[DLY-1-1:0], CPHA ? sig_i [0:0] : reg_i [0:0]};
+  2'd2 :  reg_d <= {reg_d[DLY-2-1:0], CPHA ? sig_i [1:0] : reg_i [1:0]};
+  2'd3 :  reg_d <= {reg_d[DLY-4-1:0], CPHA ? sig_i [3:0] : reg_i [3:0]};
+endcase
 
 // output register
 always @ (negedge clk, posedge rst)
-if (rst)  reg_o  <= {IOW{1'bx}};
-else      reg_o  <= reg_d[DLY-1-IOW+:IOW];
+if (rst)  reg_o  <= 4'bxxxx;
+else      reg_o  <= reg_d[DLY-4-1+:4];
 
 // output signal vector
-assign sig_o = CPHA ? reg_o : reg_d[DLY-1-IOW+:IOW];
+assign sig_o = CPHA ? reg_o : reg_d[DLY-4-1+:4];
 
 // output drivers
-generate case (MODE_DAT)
-  2'd0 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz,     1'bz, sig_o[0]} : 4'bzzzz;
-  2'd1 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz, sig_o[0],     1'bz} : 4'bzzzz;
-  2'd2 :  assign {hold_n, wp_n, miso, mosi} = oen ? {    1'bz,     1'bz, sig_o[1], sig_o[0]} : 4'bzzzz;
-  2'd3 :  assign {hold_n, wp_n, miso, mosi} = oen ? {sig_o[3], sig_o[2], sig_o[1], sig_o[0]} : 4'bzzzz;
-endcase endgenerate
+always @ (*) case (mode)
+  2'd0 :  sio = oen ? {    1'bz,     1'bz,     1'bz, sig_o[3]} : 4'bzzzz;
+  2'd1 :  sio = oen ? {    1'bz,     1'bz, sig_o[3],     1'bz} : 4'bzzzz;
+  2'd2 :  sio = oen ? {    1'bz,     1'bz, sig_o[3], sig_o[2]} : 4'bzzzz;
+  2'd3 :  sio = oen ? {sig_o[3], sig_o[2], sig_o[1], sig_o[0]} : 4'bzzzz;
+endcase
+
+assign {hold_n, wp_n, miso, mosi} = sio;
 
 endmodule
