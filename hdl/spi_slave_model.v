@@ -50,7 +50,9 @@ integer       cnt_c;  // clock period counter
 
 // mode signals
 reg     [1:0] mode;   // mode data
-integer       shw;    // shift width
+
+wire          oen_s;
+reg           oen_r;
 wire          oen;    // output enable
 
 // spi signals
@@ -70,12 +72,17 @@ assign clk = sclk ^ CPOL;
 assign rst = ss_n;
 
 // clock period counter
-always @ (posedge clk, posedge rst)          
-if (rst)  cnt_c  <= 0;                
+always @ (negedge clk, posedge rst)
+if (rst)  cnt_c  <= 0;
 else      cnt_c  <= cnt_c + 1;
 
-// output enable handler
-assign oen = ~ss_n & (cnt_c > DLY);
+// output enable signal
+assign oen_s = ~ss_n & (cnt_c >= DLY);
+
+// output enable register
+always @ (posedge clk, posedge rst)
+if (rst)  oen_r <= 1'b0;
+else      oen_r <= oen_s;
 
 //always @ (*)  mode = MODE_DAT[1] ? ((cnt_c > DLY) ? MODE_DAT : 2'd1) : MODE_DAT;
 initial mode = MODE_DAT;
@@ -93,12 +100,12 @@ always @ (*) case (mode)
 endcase
 
 // input register
-always @ (negedge clk, posedge rst)
+always @ (posedge clk, posedge rst)
 if (rst)  reg_i  <= 4'bxxxx;
 else      reg_i  <= sig_i;
 
 // data shift register
-always @ (posedge clk, posedge rst)
+always @ (negedge clk, posedge rst)
 if (rst)  reg_d <= {DLY{1'bx}};
 else case (mode)
   2'd0 :  reg_d <= {reg_d[DLY-1-1:0], CPHA ? sig_i [0:0] : reg_i [0:0]};
@@ -108,12 +115,15 @@ else case (mode)
 endcase
 
 // output register
-always @ (negedge clk, posedge rst)
+always @ (posedge clk, posedge rst)
 if (rst)  reg_o  <= 4'bxxxx;
-else      reg_o  <= reg_d[DLY-4-1+:4];
+else      reg_o  <= reg_d[DLY-4+:4];
 
 // output signal vector
-assign sig_o = CPHA ? reg_o : reg_d[DLY-4-1+:4];
+assign sig_o = CPHA ? reg_o : reg_d[DLY-4+:4];
+
+// output enable
+assign oen   = CPHA ? oen_r : oen_s;
 
 // output drivers
 always @ (*) case (mode)
@@ -123,6 +133,7 @@ always @ (*) case (mode)
   2'd3 :  sio = oen ? {sig_o[3], sig_o[2], sig_o[1], sig_o[0]} : 4'bzzzz;
 endcase
 
+// output data
 assign {hold_n, wp_n, miso, mosi} = sio;
 
 endmodule

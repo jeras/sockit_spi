@@ -1,7 +1,7 @@
 [timestart] 0
 [size] 1366 691
 [pos] -1 -1
-*-19.077904 1360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.077904 160000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.spi.clk
@@ -44,7 +44,6 @@ spi_tb.spi.ctl_run
 spi_tb.spi.ctl_oen
 spi_tb.spi.ctl_run
 spi_tb.spi.ctl_sse
-@29
 spi_tb.spi.ctl_ssc
 @1000200
 -control
@@ -84,5 +83,17 @@ spi_tb.spi_wp_n
 spi_tb.spi_hold_n
 @1000200
 -SPI IO
+@800023
+spi_tb.slave_spi.reg_i[3:0]
+@29
+(0)spi_tb.slave_spi.reg_i[3:0]
+(1)spi_tb.slave_spi.reg_i[3:0]
+(2)spi_tb.slave_spi.reg_i[3:0]
+(3)spi_tb.slave_spi.reg_i[3:0]
+@1001201
+-group_end
+@22
+spi_tb.slave_spi.reg_d[31:0]
+spi_tb.slave_spi.reg_o[3:0]
 [pattern_trace] 1
 [pattern_trace] 0
