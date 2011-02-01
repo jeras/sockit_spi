@@ -87,7 +87,8 @@ reg           div_clk;  // register storing the SCLK clock value (additional div
 
 // spi shift transfer control registers
 reg           ctl_ssc;  // slave select clear
-reg           ctl_sse;  // slave select clear
+reg           ctl_sse;  // slave select enable
+reg           ctl_ren;  // data read enable
 reg           ctl_oen;  // data output enable
 reg     [7:0] ctl_cby;  // counter of bytes (default transfere units)
 reg     [2:0] ctl_cbt;  // counter of shifted bits
@@ -117,7 +118,8 @@ assign bus_dec [3] = (bus_adr == 2'h3);  // XIP base address
 // output data multiplexer
 assign bus_rdt = bus_dec[0] ? ser_dat
                : bus_dec[1] ? {23'h000000,
-                               ctl_ssc, ctl_cce, ctl_oen, ctl_cby}
+                               ctl_ssc, ctl_cce, ctl_ren, ctl_oen,
+                                                          ctl_cby}
                : bus_dec[2] ? {                           cfg_sso,
                                                           cfg_div,
                                cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
@@ -199,13 +201,15 @@ always @(posedge clk, posedge rst)
 if (rst) begin
   ctl_ssc <= 1'b0;
   ctl_sse <= 1'b0;
+  ctl_ren <= 1'b0;
   ctl_oen <= 1'b0;
   ctl_cby <= 8'd0;
 end else begin
   // write from the CPU bus has priority
   if (bus_wen & bus_dec[1] & ~bus_wrq) begin
-    ctl_ssc <= bus_wdt[   10];
-    ctl_sse <= bus_wdt[    9];
+    ctl_ssc <= bus_wdt[11   ];
+    ctl_sse <= bus_wdt[ 10  ];
+    ctl_ren <= bus_wdt[   9 ];
     ctl_oen <= bus_wdt[    8];
     ctl_cby <= bus_wdt[ 7: 0];
   // decrement at the end of each transfer unit (byte by default)
