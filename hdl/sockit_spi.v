@@ -29,7 +29,8 @@ module spi #(
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
   parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
   parameter SDW     = 32,            // shift register data width
-  parameter SSW     = 8              // slave select width
+  parameter CBW     =  8,            // counter of bytes width
+  parameter SSW     =  8             // slave select width
 )(
   // system signals (used by the CPU interface)
   input  wire           clk,         // clock
@@ -89,6 +90,7 @@ reg            div_clk;  // register storing the SCLK clock value (additional di
 reg            ctl_ssc;  // slave select clear
 reg            ctl_sse;  // slave select enable
 reg            ctl_ien;  // data input  enable
+reg            ctl_oec;  // data output enable
 reg            ctl_oen;  // data output enable
 reg      [7:0] ctl_cby;  // counter of bytes (default transfere units)
 reg      [2:0] ctl_cbt;  // counter of shifted bits
@@ -129,9 +131,9 @@ assign bus_dec [3] = (bus_adr == 2'h3);  // XIP base address
 
 // output data multiplexer
 assign bus_rdt = bus_dec[0] ? ser_dat
-               : bus_dec[1] ? {23'h000000,
-                               ctl_ssc, ctl_cce, ctl_ien, ctl_oen,
-                                                          ctl_cby}
+               : bus_dec[1] ? {  8'h00,   6'h00, ctl_ssc, ctl_sse,
+                                  1'b0, ctl_ien, ctl_oec, ctl_oen,
+                               {16-CBW{1'b0}},            ctl_cby}
                : bus_dec[2] ? {                           cfg_sso,
                                                           cfg_div,
                                cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
@@ -206,21 +208,20 @@ if (rst) begin
   ctl_ssc <= 1'b0;
   ctl_sse <= 1'b0;
   ctl_ien <= 1'b0;
-  ctl_oen <= 1'b0;
-  ctl_cby <= 8'd0;
+  ctl_oec <= 1'b0;
+  ctl_cby <=  'd0;
 end else begin
   // write from the CPU bus has priority
   if (bus_wen & bus_dec[1] & ~bus_wrq) begin
-    ctl_ssc <= bus_wdt[11   ];
-    ctl_sse <= bus_wdt[ 10  ];
-    ctl_ien <= bus_wdt[   9 ];
-    ctl_oen <= bus_wdt[    8];
-    ctl_cby <= bus_wdt[ 7: 0];
+    ctl_ssc <= bus_wdt[21     ];
+    ctl_sse <= bus_wdt[ 20    ];
+    ctl_ien <= bus_wdt[   18  ];
+    ctl_oec <= bus_wdt[    17 ];
+    ctl_cby <= bus_wdt[CBW-1:0];
   // decrement at the end of each transfer unit (byte by default)
   end else if (&ctl_cbt & div_ena) begin
-    ctl_sse <= ctl_sse & ~((ctl_cby == 8'd1) & ctl_ssc);
-    ctl_oen <= ctl_sse &  ~(ctl_cby == 8'd1)           ;
-    ctl_cby <= ctl_cby - 8'd1;
+    ctl_sse <= ctl_sse & ~((ctl_cby == 'd1) & ctl_ssc);
+    ctl_cby <= ctl_cby - 'd1;
   end
 end
 
@@ -277,18 +278,18 @@ end
 // output mixer
 always @ (*)
 if (ctl_beg) begin
-  case (cfg_iow)                                      // MSB first              LSB first
-    2'd0 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1      ] : buf_dat[  0]};
-    2'd1 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1      ] : buf_dat[  0]};
-    2'd2 :  ser_dto = {cfg_hlo, cfg_wpo,       cfg_dir ? buf_dat[SDW-1:SDW-2] : buf_dat[1:0]};
-    2'd3 :  ser_dto = {                        cfg_dir ? buf_dat[SDW-1:SDW-4] : buf_dat[3:0]};
+  case (cfg_iow)                                      // MSB first                        LSB first
+    2'd0 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
+    2'd1 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
+    2'd2 :  ser_dto = {cfg_hlo, cfg_wpo,       cfg_dir ? buf_dat[SDW-2             +:2] : buf_dat[0           +:2]};
+    2'd3 :  ser_dto = {                        cfg_dir ? buf_dat[SDW-4             +:4] : buf_dat[0           +:4]};
   endcase
 end else begin
-  case (cfg_iow)                                      // MSB first              LSB first
-    2'd0 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1      ] : ser_dat[  0]};
-    2'd1 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1      ] : ser_dat[  0]};
-    2'd2 :  ser_dto = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dat[SDW-1:SDW-2] : ser_dat[1:0]};
-    2'd3 :  ser_dto = {                        cfg_dir ? ser_dat[SDW-1:SDW-4] : ser_dat[3:0]};
+  case (cfg_iow)                                      // MSB first                        LSB first
+    2'd0 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_cbt[1:0]+:1] : ser_dat[ctl_cbt[1:0]+:1]};
+    2'd1 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_cbt[1:0]+:1] : ser_dat[ctl_cbt[1:0]+:1]};
+    2'd2 :  ser_dto = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dat[SDW-2-ctl_cbt[1]*2+:2] : ser_dat[ctl_cbt[1]*2+:2]};
+    2'd3 :  ser_dto = {                        cfg_dir ? ser_dat[SDW-4-0           +:4] : ser_dat[0           +:4]};
   endcase
 end
 
@@ -296,10 +297,10 @@ end
 always @ (*)
 begin
   case (cfg_iow)
-    2'd0 :  ser_dte = {cfg_hle, cfg_wpe, 1'b0, ctl_oen};
-    2'd1 :  ser_dte = {cfg_hle, cfg_wpe, 1'b0, ctl_oen};
-    2'd2 :  ser_dte = {cfg_hle, cfg_wpe,       ctl_oen};
-    2'd3 :  ser_dte = {                        ctl_oen};
+    2'd0 :  ser_dte = {cfg_hle, cfg_wpe, 1'b0, ctl_beg ? bus_wdt[16] : ~ctl_oec};
+    2'd1 :  ser_dte = {cfg_hle, cfg_wpe, 1'b0, ctl_beg ? bus_wdt[16] : ~ctl_oec};
+    2'd2 :  ser_dte = {cfg_hle, cfg_wpe,       ctl_beg ? bus_wdt[16] : ~ctl_oec};
+    2'd3 :  ser_dte = {                        ctl_beg ? bus_wdt[16] : ~ctl_oec};
   endcase
 end
 
@@ -324,12 +325,12 @@ if (~cfg_pha & ctl_run & div_ena)  ser_pri <= spi_sio_i;
 // phase multiplexer input
 // direct register input
 always @ (posedge clk)
-if (~cfg_pha & ctl_run & div_ena)  ser_dri <= cfg_pha ? ser_pri : spi_sio_i;
+if            (ctl_run & div_ena)  ser_dri <= cfg_pha ? ser_pri : spi_sio_i;
 
 
 // direct register output
 always @ (posedge clk)
-if  (cfg_pha & ctl_run & div_ena)  ser_dro <= ser_dto;
+if            (ctl_run & div_ena)  ser_dro <= ser_dto;
 
 // phase register output
 always @ (negedge clk)
@@ -343,7 +344,7 @@ assign spi_sio_o = cfg_pha ? ser_pro : ser_dro;
 always @ (posedge clk, posedge rst)
 if  (rst)                          ser_dre <= 4'b0000;
 else
-if  (cfg_pha & ctl_run & div_ena)  ser_dre <= ser_dte;
+if            (ctl_beg | ctl_end)  ser_dre <= ser_dte;
 
 // phase register output enable
 always @ (negedge clk, posedge rst)

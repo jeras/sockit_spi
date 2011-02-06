@@ -1,7 +1,7 @@
 [timestart] 0
 [size] 1366 691
 [pos] -1 -1
-*-17.077904 160000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.077904 80000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.spi.clk
@@ -28,7 +28,6 @@ spi_tb.spi.div_ena
 @c00200
 -configuration
 @28
-spi_tb.spi.cfg_3wr
 spi_tb.spi.cfg_bit
 spi_tb.spi.cfg_dir
 @1401200
@@ -49,15 +48,6 @@ spi_tb.spi.ctl_ssc
 -control
 @800200
 -shift register
-@28
-spi_tb.spi.reg_i
-@22
-spi_tb.spi.reg_s[31:0]
-@28
-spi_tb.spi.reg_o
-spi_tb.spi.ser_i
-spi_tb.spi.ser_o
-spi_tb.spi.clk_l
 @1000200
 -shift register
 @800200
@@ -83,17 +73,55 @@ spi_tb.spi_wp_n
 spi_tb.spi_hold_n
 @1000200
 -SPI IO
-@800023
+@800022
 spi_tb.slave_spi.reg_i[3:0]
-@29
+@28
 (0)spi_tb.slave_spi.reg_i[3:0]
 (1)spi_tb.slave_spi.reg_i[3:0]
 (2)spi_tb.slave_spi.reg_i[3:0]
 (3)spi_tb.slave_spi.reg_i[3:0]
-@1001201
+@1001200
 -group_end
 @22
 spi_tb.slave_spi.reg_d[31:0]
 spi_tb.slave_spi.reg_o[3:0]
+spi_tb.spi.buf_dat[31:0]
+@28
+spi_tb.spi.ctl_beg
+spi_tb.spi.ctl_end
+@22
+spi_tb.spi.ser_dat[31:0]
+@800022
+spi_tb.spi.ser_dto[3:0]
+@28
+(0)spi_tb.spi.ser_dto[3:0]
+(1)spi_tb.spi.ser_dto[3:0]
+(2)spi_tb.spi.ser_dto[3:0]
+(3)spi_tb.spi.ser_dto[3:0]
+@1001200
+-group_end
+@28
+spi_tb.spi.cfg_dir
+spi_tb.spi.cfg_iow[1:0]
+@800023
+spi_tb.spi.ser_dte[3:0]
+@29
+(0)spi_tb.spi.ser_dte[3:0]
+(1)spi_tb.spi.ser_dte[3:0]
+(2)spi_tb.spi.ser_dte[3:0]
+(3)spi_tb.spi.ser_dte[3:0]
+@1001201
+-group_end
+@c00022
+spi_tb.spi.ser_dre[3:0]
+@28
+(0)spi_tb.spi.ser_dre[3:0]
+(1)spi_tb.spi.ser_dre[3:0]
+(2)spi_tb.spi.ser_dre[3:0]
+(3)spi_tb.spi.ser_dre[3:0]
+@1401200
+-group_end
+@28
+spi_tb.spi.ctl_oec
 [pattern_trace] 1
 [pattern_trace] 0

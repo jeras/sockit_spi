@@ -98,7 +98,7 @@ initial begin
   // write data register
   avalon_cycle (1, 4'h0, 4'hf, 32'h0123_4567, data);
   // write control register (enable a chip and start a 4 byte cycle)
-  avalon_cycle (1, 4'h1, 4'hf, 32'h8000_0708, data);
+  avalon_cycle (1, 4'h1, 4'hf, 32'h0037_0008, data);
   repeat (500) @ (posedge clk);
   $finish();
 end
@@ -130,6 +130,9 @@ begin
   // end Avalon cycle
   avalon_read       <= 1'b0;
   avalon_write      <= 1'b0;
+  avalon_address    <=  'dx;
+  avalon_byteenable <=  'dx;
+  avalon_writedata  <=  'dx;
   // read data
   rdt = avalon_readdata;
   $display ("Avalon MM cycle end  : T=%10tns, readdata=%08x", $time/1000.0, rdt);
