@@ -320,21 +320,21 @@ assign spi_sclk_e = cfg_coe;
 
 // phase register input
 always @ (negedge clk)
-if (~cfg_pha & ctl_run & div_ena)  ser_pri <= spi_sio_i;
+if (~cfg_pha & div_ena)  ser_pri <= spi_sio_i;
 
 // phase multiplexer input
 // direct register input
 always @ (posedge clk)
-if            (ctl_run & div_ena)  ser_dri <= cfg_pha ? ser_pri : spi_sio_i;
+if            (div_ena)  ser_dri <= cfg_pha ? ser_pri : spi_sio_i;
 
 
 // direct register output
 always @ (posedge clk)
-if            (ctl_run & div_ena)  ser_dro <= ser_dto;
+if            (div_ena)  ser_dro <= ser_dto;
 
 // phase register output
 always @ (negedge clk)
-if  (cfg_pha & ctl_run & div_ena)  ser_pro <= ser_dro;
+if  (cfg_pha & div_ena)  ser_pro <= ser_dro;
 
 // phase multiplexer output
 assign spi_sio_o = cfg_pha ? ser_pro : ser_dro;
@@ -342,15 +342,15 @@ assign spi_sio_o = cfg_pha ? ser_pro : ser_dro;
 
 // direct register output enable
 always @ (posedge clk, posedge rst)
-if  (rst)                          ser_dre <= 4'b0000;
+if  (rst)                ser_dre <= 4'b0000;
 else
-if            (ctl_beg | ctl_end)  ser_dre <= ser_dte;
+if  (ctl_beg | ctl_end)  ser_dre <= ser_dte;
 
 // phase register output enable
 always @ (negedge clk, posedge rst)
-if  (rst)                          ser_pre <= 4'b0000;
+if  (rst)                ser_pre <= 4'b0000;
 else
-if  (cfg_pha & ctl_run & div_ena)  ser_pre <= ser_dre;
+if  (cfg_pha & div_ena)  ser_pre <= ser_dre;
 
 // phase multiplexer output enable
 assign spi_sio_e = cfg_pha ? ser_pre : ser_dre;
