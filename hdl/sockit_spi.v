@@ -224,6 +224,9 @@ end else begin
   end
 end
 
+// spi transfer beginning
+assign ctl_beg = bus_wen & bus_dec[1] & ~bus_wrq;
+
 // TODO, should probably be a register
 // spi transfer run status
 assign ctl_run = |ctl_cby;
