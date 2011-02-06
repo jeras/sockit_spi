@@ -155,14 +155,14 @@ if (rst) begin
   {                           cfg_div} <= CFG_RST [23:16];
   {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= CFG_RST [15:12];
   {                           cfg_xip} <= CFG_RST [11: 8];
-  {cfg_coe, cfg_sse,          cfg_iow} <= CFG_RST [ 6: 4];
+  {cfg_coe, cfg_sse,          cfg_iow} <= CFG_RST [ 7: 4];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
 end else if (bus_wen & bus_dec[2] & ~bus_wrq) begin
   {                           cfg_sso} <= bus_wdt [31:24];
   {                           cfg_div} <= bus_wdt [23:16];
-  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= bus_wdt [11: 8];
+  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= bus_wdt [15:12];
   {                           cfg_xip} <= bus_wdt [11: 8];
-  {cfg_coe, cfg_sse,          cfg_iow} <= bus_wdt [ 6: 4];
+  {cfg_coe, cfg_sse,          cfg_iow} <= bus_wdt [ 7: 4];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= bus_wdt [ 3: 0];
 end
 
@@ -171,7 +171,7 @@ end
 //////////////////////////////////////////////////////////////////////////////
 
 // divider bypass bit
-assign div_byp = cfg_div [5];
+assign div_byp = ~|cfg_div;
 
 // clock counter
 always @(posedge clk, posedge rst)
@@ -314,7 +314,7 @@ assign spi_ss_e = {SSW{cfg_sse}};
 
 
 // spi clock output pin
-assign spi_sclk_o = div_byp ? cfg_pol ^ (ctl_run & ~clk) : div_clk;
+assign spi_sclk_o = div_byp ? ctl_run & (cfg_pol ^ ~clk) : div_clk;
 assign spi_sclk_e = cfg_coe;
 
 
