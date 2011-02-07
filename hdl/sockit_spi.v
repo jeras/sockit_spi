@@ -92,8 +92,10 @@ reg            ctl_sse;  // slave select enable
 reg            ctl_ien;  // data input  enable
 reg            ctl_oec;  // data output enable
 reg            ctl_oen;  // data output enable
-reg      [7:0] ctl_cby;  // counter of bytes (default transfere units)
-reg      [2:0] ctl_cbt;  // counter of shifted bits
+reg  [CBW-1:0] ctl_cby;  // counter of bytes (default transfere units)
+wire [CBW-1:0] ctl_cbn;  // counter of bytes (default transfere units) next (+1)
+reg      [2:0] ctl_btc;  // counter of shifted bits
+wire     [2:0] ctl_btn;  // counter of shifted bits next (+1)
 wire           ctl_beg;  // transfer begin   status
 wire           ctl_run;  // transfer running status
 wire           ctl_end;  // transfer end     status
@@ -199,8 +201,11 @@ assign div_ena = div_byp ? 1 : ~|div_cnt & (div_clk ^ cfg_pol);
 
 // bit counter
 always @(posedge clk, posedge rst)
-if (rst)                     ctl_cbt <= 3'd0;
-else if (ctl_run & div_ena)  ctl_cbt <= ctl_cbt + 3'd1;
+if (rst)                     ctl_btc <= 3'd0;
+else if (ctl_run & div_ena)  ctl_btc <= ctl_btn;
+
+// bit next
+assign ctl_btn = ctl_btc + 3'd1;
 
 // transfer length counter
 always @(posedge clk, posedge rst)
@@ -219,7 +224,7 @@ end else begin
     ctl_oec <= bus_wdt[    17 ];
     ctl_cby <= bus_wdt[CBW-1:0];
   // decrement at the end of each transfer unit (byte by default)
-  end else if (&ctl_cbt & div_ena) begin
+  end else if (&ctl_btc & div_ena) begin
     ctl_sse <= ctl_sse & ~((ctl_cby == 'd1) & ctl_ssc);
     ctl_cby <= ctl_cby - 'd1;
   end
@@ -234,10 +239,10 @@ assign ctl_run = |ctl_cby;
 
 // TODO, should probably be a register
 // spi transfer end
-assign ctl_end = (ctl_cby == 8'd1) & (&ctl_cbt | cfg_bit);
+assign ctl_end = (ctl_cby == 8'd1) & (&ctl_btc | cfg_bit);
 
 // nibble end
-assign ctl_nib = &ctl_cbt[1:0];
+assign ctl_nib = &ctl_btn[1:0];
 
 ////////////////////////////////////////////////////////////////////////////////
 // fifo buffer                                                                //
@@ -277,7 +282,7 @@ end
 
 // output mixer
 always @ (*)
-if (ctl_beg) begin
+if (~ctl_run) begin
   case (cfg_iow)                                      // MSB first                        LSB first
     2'd0 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
     2'd1 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
@@ -286,9 +291,9 @@ if (ctl_beg) begin
   endcase
 end else begin
   case (cfg_iow)                                      // MSB first                        LSB first
-    2'd0 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_cbt[1:0]+:1] : ser_dat[ctl_cbt[1:0]+:1]};
-    2'd1 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_cbt[1:0]+:1] : ser_dat[ctl_cbt[1:0]+:1]};
-    2'd2 :  ser_dto = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dat[SDW-2-ctl_cbt[1]*2+:2] : ser_dat[ctl_cbt[1]*2+:2]};
+    2'd0 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_btn[1:0]+:1] : ser_dat[ctl_btn[1:0]+:1]};
+    2'd1 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_btn[1:0]+:1] : ser_dat[ctl_btn[1:0]+:1]};
+    2'd2 :  ser_dto = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dat[SDW-2-ctl_btn[1]*2+:2] : ser_dat[ctl_btn[1]*2+:2]};
     2'd3 :  ser_dto = {                        cfg_dir ? ser_dat[SDW-4-0           +:4] : ser_dat[0           +:4]};
   endcase
 end
