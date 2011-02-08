@@ -1,15 +1,27 @@
-[timestart] 560500
+[timestart] 0
 [size] 1366 691
 [pos] -1 -1
-*-16.077904 720000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.190901 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
-@28
+@29
 spi_tb.spi.clk
+@28
 spi_tb.spi.rst
 @800200
--Avalon MM
+-bus
+@28
+spi_tb.spi.bus_wen
+spi_tb.spi.bus_ren
+spi_tb.spi.bus_adr[1:0]
+@22
+spi_tb.spi.bus_wdt[31:0]
+spi_tb.spi.bus_rdt[31:0]
+@28
+spi_tb.spi.bus_wrq
+spi_tb.spi.bus_irq
+spi_tb.spi.bus_dec[3:0]
 @1000200
--Avalon MM
+-bus
 @c00200
 -clock divider
 @28
@@ -21,98 +33,91 @@ spi_tb.spi.div_clk
 spi_tb.spi.div_ena
 @1401200
 -clock divider
-@800200
--SPI slave select
-@1000200
--SPI slave select
 @c00200
 -configuration
+@22
+spi_tb.spi.cfg_sso[7:0]
+spi_tb.spi.cfg_div[7:0]
 @28
+spi_tb.spi.cfg_hle
+spi_tb.spi.cfg_hlo
+spi_tb.spi.cfg_wpe
+spi_tb.spi.cfg_wpo
+@22
+spi_tb.spi.cfg_xip[3:0]
+@28
+spi_tb.spi.cfg_coe
+spi_tb.spi.cfg_sse
+spi_tb.spi.cfg_iow[1:0]
 spi_tb.spi.cfg_bit
 spi_tb.spi.cfg_dir
+spi_tb.spi.cfg_pol
+spi_tb.spi.cfg_pha
 @1401200
 -configuration
-@800200
+@c00200
 -control
-@22
-spi_tb.spi.ctl_cby[7:0]
 @28
-spi_tb.spi.ctl_run
-spi_tb.spi.ctl_oen
-spi_tb.spi.ctl_run
-spi_tb.spi.ctl_sse
 spi_tb.spi.ctl_ssc
-@1000200
--control
-@800200
--shift register
-@1000200
--shift register
-@800200
--SPI IO
-@c00022
-spi_tb.spi_ss_n[7:0]
-@28
-(0)spi_tb.spi_ss_n[7:0]
-(1)spi_tb.spi_ss_n[7:0]
-(2)spi_tb.spi_ss_n[7:0]
-(3)spi_tb.spi_ss_n[7:0]
-(4)spi_tb.spi_ss_n[7:0]
-(5)spi_tb.spi_ss_n[7:0]
-(6)spi_tb.spi_ss_n[7:0]
-(7)spi_tb.spi_ss_n[7:0]
-@1401200
--group_end
-@28
-spi_tb.spi_sclk
-spi_tb.spi_mosi
-spi_tb.spi_miso
-spi_tb.spi_wp_n
-spi_tb.spi_hold_n
-@1000200
--SPI IO
-@c00022
-spi_tb.slave_spi.reg_i[3:0]
-@28
-(0)spi_tb.slave_spi.reg_i[3:0]
-(1)spi_tb.slave_spi.reg_i[3:0]
-(2)spi_tb.slave_spi.reg_i[3:0]
-(3)spi_tb.slave_spi.reg_i[3:0]
-@1401200
--group_end
+spi_tb.spi.ctl_sse
+spi_tb.spi.ctl_ien
+spi_tb.spi.ctl_oec
+spi_tb.spi.ctl_oen
+spi_tb.spi.ctl_btc[2:0]
 @22
-spi_tb.slave_spi.reg_d[31:0]
-spi_tb.slave_spi.reg_o[3:0]
-spi_tb.spi.buf_dat[31:0]
+spi_tb.spi.ctl_byc[7:0]
 @28
 spi_tb.spi.ctl_beg
+spi_tb.spi.ctl_run
 spi_tb.spi.ctl_end
-spi_tb.spi.ctl_oec
 spi_tb.spi.ctl_nib
-@29
-spi_tb.spi.cfg_iow[1:0]
-@28
-spi_tb.spi.ctl_btc[2:0]
-@800022
-spi_tb.spi.ser_dri[3:0]
-@28
-(0)spi_tb.spi.ser_dri[3:0]
-(1)spi_tb.spi.ser_dri[3:0]
-(2)spi_tb.spi.ser_dri[3:0]
-(3)spi_tb.spi.ser_dri[3:0]
-@1001200
--group_end
-@800022
-spi_tb.spi.ser_dmi[3:0]
-@28
-(0)spi_tb.spi.ser_dmi[3:0]
-(1)spi_tb.spi.ser_dmi[3:0]
-(2)spi_tb.spi.ser_dmi[3:0]
-(3)spi_tb.spi.ser_dmi[3:0]
-@1001200
--group_end
+spi_tb.spi.ctl_ren
+@1401200
+-control
+@c00200
+-FIFO
 @22
-spi_tb.spi.ser_dti[3:0]
+spi_tb.spi.buf_dat[31:0]
+@1401200
+-FIFO
+@c00200
+-serialization
+@28
+spi_tb.spi.ser_dmi[3:0]
+@22
+spi_tb.spi.ser_dsi[3:0]
+spi_tb.spi.ser_dmi[3:0]
 spi_tb.spi.ser_dat[31:0]
+@28
+spi_tb.spi.ser_dmo[3:0]
+spi_tb.spi.ser_dme[3:0]
+@1401200
+-serialization
+@c00200
+-IOE
+@22
+spi_tb.spi.ioe_pri[3:0]
+spi_tb.spi.ioe_dri[3:0]
+spi_tb.spi.ioe_pro[3:0]
+spi_tb.spi.ioe_dro[3:0]
+spi_tb.spi.ioe_pre[3:0]
+spi_tb.spi.ioe_dre[3:0]
+@1401200
+-IOE
+@800200
+-SPI
+@22
+spi_tb.spi.spi_ss_o[7:0]
+spi_tb.spi.spi_ss_e[7:0]
+spi_tb.spi.spi_ss_i[7:0]
+@28
+spi_tb.spi.spi_sclk_o
+spi_tb.spi.spi_sclk_e
+spi_tb.spi.spi_sclk_i
+spi_tb.spi.spi_sio_o[3:0]
+spi_tb.spi.spi_sio_e[3:0]
+spi_tb.spi.spi_sio_i[3:0]
+@1000200
+-SPI
 [pattern_trace] 1
 [pattern_trace] 0

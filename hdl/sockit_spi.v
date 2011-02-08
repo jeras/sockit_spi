@@ -90,9 +90,9 @@ reg            div_clk;  // register storing the SCLK clock value (additional di
 reg            ctl_ssc;  // slave select clear
 reg            ctl_sse;  // slave select enable
 reg            ctl_ien;  // data input  enable
-reg            ctl_oec;  // data output enable
+reg            ctl_oec;  // data output enable clear
 reg            ctl_oen;  // data output enable
-reg  [CBW-1:0] ctl_cby;  // counter of bytes (default transfere units)
+reg  [CBW-1:0] ctl_byc;  // counter of bytes (default transfere units)
 wire [CBW-1:0] ctl_cbn;  // counter of bytes (default transfere units) next (+1)
 reg      [2:0] ctl_btc;  // counter of shifted bits
 wire     [2:0] ctl_btn;  // counter of shifted bits next (+1)
@@ -113,13 +113,13 @@ reg  [SDW-1:0] ser_dat;  // data shift register
 reg      [3:0] ser_dmo;  // data mixer output
 reg      [3:0] ser_dme;  // data mixer output enable
 
-// serial IO
-reg      [3:0] ser_pri;  // phase  register input
-reg      [3:0] ser_dri;  // direct register input
-reg      [3:0] ser_dro;  // direct register output
-reg      [3:0] ser_pro;  // phase  register output
-reg      [3:0] ser_dre;  // direct register output enable
-reg      [3:0] ser_pre;  // phase  register output enable
+// input, output, enable
+reg      [3:0] ioe_dri;  // direct register input
+reg      [3:0] ioe_pri;  // phase  register input
+reg      [3:0] ioe_dro;  // direct register output
+reg      [3:0] ioe_pro;  // phase  register output
+reg      [3:0] ioe_dre;  // direct register output enable
+reg      [3:0] ioe_pre;  // phase  register output enable
 
 ////////////////////////////////////////////////////////////////////////////////
 // address decoder                                                            //
@@ -138,7 +138,7 @@ assign bus_dec [3] = (bus_adr == 2'h3);  // XIP base address
 assign bus_rdt = bus_dec[0] ? ser_dat
                : bus_dec[1] ? {  8'h00,   6'h00, ctl_ssc, ctl_sse,
                                   1'b0, ctl_ien, ctl_oec, ctl_oen,
-                               {16-CBW{1'b0}},            ctl_cby}
+                               {16-CBW{1'b0}},            ctl_byc}
                : bus_dec[2] ? {                           cfg_sso,
                                                           cfg_div,
                                cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
@@ -217,7 +217,8 @@ if (rst) begin
   ctl_sse <= 1'b0;
   ctl_ien <= 1'b0;
   ctl_oec <= 1'b0;
-  ctl_cby <=  'd0;
+  ctl_oen <= 1'b0;
+  ctl_byc <=  'd0;
 end else begin
   // write from the CPU bus has priority
   if (bus_wen & bus_dec[1] & ~bus_wrq) begin
@@ -225,11 +226,12 @@ end else begin
     ctl_sse <= bus_wdt[ 20    ];
     ctl_ien <= bus_wdt[   18  ];
     ctl_oec <= bus_wdt[    17 ];
-    ctl_cby <= bus_wdt[CBW-1:0];
+    ctl_oen <= bus_wdt[     16];
+    ctl_byc <= bus_wdt[CBW-1:0];
   // decrement at the end of each transfer unit (byte by default)
   end else if (&ctl_btc & div_ena) begin
-    ctl_sse <= ctl_sse & ~((ctl_cby == 'd1) & ctl_ssc);
-    ctl_cby <= ctl_cby - 'd1;
+    ctl_sse <= ctl_sse & ~((ctl_byc == 'd1) & ctl_ssc);
+    ctl_byc <= ctl_byc - 'd1;
   end
 end
 
@@ -238,11 +240,11 @@ assign ctl_beg = bus_wen & bus_dec[1] & ~bus_wrq;
 
 // TODO, should probably be a register
 // spi transfer run status
-assign ctl_run = |ctl_cby;
+assign ctl_run = |ctl_byc;
 
 // TODO, should probably be a register
 // spi transfer end
-assign ctl_end = (ctl_cby == 8'd1) & (&ctl_btc | cfg_bit);
+assign ctl_end = (ctl_byc == 8'd1) & (&ctl_btc | cfg_bit);
 
 // read enable
 always @ (posedge clk, posedge rst)
@@ -273,10 +275,10 @@ end
 always @ (*)
 begin
   case (cfg_iow)
-    2'd0 :  ser_dmi = {ser_dsi[2:0], ser_dri[  0]};  // 3-wire
-    2'd1 :  ser_dmi = {ser_dsi[2:0], ser_dri[  1]};  // spi
-    2'd2 :  ser_dmi = {ser_dsi[1:0], ser_dri[1:0]};  // dual
-    2'd3 :  ser_dmi = {              ser_dri[3:0]};  // quad
+    2'd0 :  ser_dmi = {ser_dsi[2:0], ioe_dri[  0]};  // 3-wire
+    2'd1 :  ser_dmi = {ser_dsi[2:0], ioe_dri[  1]};  // spi
+    2'd2 :  ser_dmi = {ser_dsi[1:0], ioe_dri[1:0]};  // dual
+    2'd3 :  ser_dmi = {              ioe_dri[3:0]};  // quad
   endcase
 end
 
@@ -326,7 +328,7 @@ begin
 end
 
 ////////////////////////////////////////////////////////////////////////////////
-// SPI slave select, clock, inputs and outputs                                //
+// slave select, clock, data (input, output, enable)                          //
 ////////////////////////////////////////////////////////////////////////////////
 
 // spi slave select
@@ -341,39 +343,39 @@ assign spi_sclk_e = cfg_coe;
 
 // phase register input
 always @ (negedge clk)
-if (~cfg_pha & div_ena)  ser_pri <= spi_sio_i;
+if (~cfg_pha & div_ena)  ioe_pri <= spi_sio_i;
 
 // phase multiplexer input
 // direct register input
 always @ (posedge clk)
-if            (div_ena)  ser_dri <= cfg_pha ? ser_pri : spi_sio_i;
+if            (div_ena)  ioe_dri <= cfg_pha ? ioe_pri : spi_sio_i;
 
 
 // direct register output
 always @ (posedge clk)
-if            (div_ena)  ser_dro <= ser_dmo;
+if            (div_ena)  ioe_dro <= ser_dmo;
 
 // phase register output
 always @ (negedge clk)
-if  (cfg_pha & div_ena)  ser_pro <= ser_dro;
+if  (cfg_pha & div_ena)  ioe_pro <= ioe_dro;
 
 // phase multiplexer output
-assign spi_sio_o = cfg_pha ? ser_pro : ser_dro;
+assign spi_sio_o = cfg_pha ? ioe_pro : ioe_dro;
 
 
 // direct register output enable
 always @ (posedge clk, posedge rst)
-if  (rst)                ser_dre <= 4'b0000;
+if  (rst)                ioe_dre <= 4'b0000;
 else
-if  (ctl_beg | ctl_end)  ser_dre <= ser_dme;
+if  (ctl_beg | ctl_end)  ioe_dre <= ser_dme;
 
 // phase register output enable
 always @ (negedge clk, posedge rst)
-if  (rst)                ser_pre <= 4'b0000;
+if  (rst)                ioe_pre <= 4'b0000;
 else
-if  (cfg_pha & div_ena)  ser_pre <= ser_dre;
+if  (cfg_pha & div_ena)  ioe_pre <= ioe_dre;
 
 // phase multiplexer output enable
-assign spi_sio_e = cfg_pha ? ser_pre : ser_dre;
+assign spi_sio_e = cfg_pha ? ioe_pre : ioe_dre;
 
 endmodule
