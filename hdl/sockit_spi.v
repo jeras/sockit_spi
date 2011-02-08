@@ -100,15 +100,17 @@ wire           ctl_beg;  // transfer begin   status
 wire           ctl_run;  // transfer running status
 wire           ctl_end;  // transfer end     status
 wire           ctl_nib;  // transfer nibble  status
+reg            ctl_ren;  // transfer read enable
 
 // fifo buffer
 reg  [SDW-1:0] buf_dat;
 
 // serialization
-reg      [3:0] ser_dti;  // input mixer register
-reg  [SDW-1:0] ser_dat;  // spi data shift register
-reg      [3:0] ser_dto;  // data output
-reg      [3:0] ser_dte;  // data output enable
+reg      [3:0] ser_dmi;  // data mixer input register
+reg      [3:0] ser_dti;  // data shift synchronization
+reg  [SDW-1:0] ser_dat;  // data shift register
+reg      [3:0] ser_dmo;  // data mixer output
+reg      [3:0] ser_dme;  // data mixer output enable
 
 // SPI IO
 reg      [3:0] ser_pri;  // phase  register input
@@ -241,6 +243,11 @@ assign ctl_run = |ctl_cby;
 // spi transfer end
 assign ctl_end = (ctl_cby == 8'd1) & (&ctl_btc | cfg_bit);
 
+// read enable
+always @ (posedge clk, posedge rst)
+if (rst)  ctl_ren <= 1'b0;
+else      ctl_ren <= ctl_end;
+
 // nibble end
 assign ctl_nib = &ctl_btn[1:0];
 
@@ -252,9 +259,9 @@ assign ctl_nib = &ctl_btn[1:0];
 always @ (posedge clk)
 if (bus_wen & bus_dec[0] & ~bus_wrq)
   buf_dat <= bus_wdt; // TODO add fifo code
-else if (ctl_end) begin
-  buf_dat <= cfg_dir ? {         ser_dat[SDW-4-1:0], ser_dti}   // MSB first
-                     : {ser_dti, ser_dat[SDW  -1:4]         };  // LSB first
+else if (ctl_ren) begin
+  buf_dat <= cfg_dir ? {         ser_dat[SDW-4-1:0], ser_dmi}   // MSB first
+                     : {ser_dmi, ser_dat[SDW  -1:4]         };  // LSB first
 end
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -265,12 +272,16 @@ end
 always @ (posedge clk)
 begin
   case (cfg_iow)
-    2'd0 :  ser_dti <= {ser_dti[2:0], ser_dri[  0]};  // 3-wire
-    2'd1 :  ser_dti <= {ser_dti[2:0], ser_dri[  1]};  // spi
-    2'd2 :  ser_dti <= {ser_dti[1:0], ser_dri[1:0]};  // dual
-    2'd3 :  ser_dti <= {              ser_dri[3:0]};  // quad
+    2'd0 :  ser_dmi <= {ser_dmi[2:0], ser_dri[  0]};  // 3-wire
+    2'd1 :  ser_dmi <= {ser_dmi[2:0], ser_dri[  1]};  // spi
+    2'd2 :  ser_dmi <= {ser_dmi[1:0], ser_dri[1:0]};  // dual
+    2'd3 :  ser_dmi <= {              ser_dri[3:0]};  // quad
   endcase
 end
+
+// input shifter retiming
+always @ (posedge clk)
+if (ctl_btc[1:0] == 2'b01)  ser_dti <= ser_dmi;
 
 // shift register (nibble sized shifts)
 always @ (posedge clk)
@@ -284,17 +295,17 @@ end
 always @ (*)
 if (~ctl_run) begin
   case (cfg_iow)                                      // MSB first                        LSB first
-    2'd0 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
-    2'd1 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
-    2'd2 :  ser_dto = {cfg_hlo, cfg_wpo,       cfg_dir ? buf_dat[SDW-2             +:2] : buf_dat[0           +:2]};
-    2'd3 :  ser_dto = {                        cfg_dir ? buf_dat[SDW-4             +:4] : buf_dat[0           +:4]};
+    2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
+    2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
+    2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? buf_dat[SDW-2             +:2] : buf_dat[0           +:2]};
+    2'd3 :  ser_dmo = {                        cfg_dir ? buf_dat[SDW-4             +:4] : buf_dat[0           +:4]};
   endcase
 end else begin
   case (cfg_iow)                                      // MSB first                        LSB first
-    2'd0 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_btn[1:0]+:1] : ser_dat[ctl_btn[1:0]+:1]};
-    2'd1 :  ser_dto = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_btn[1:0]+:1] : ser_dat[ctl_btn[1:0]+:1]};
-    2'd2 :  ser_dto = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dat[SDW-2-ctl_btn[1]*2+:2] : ser_dat[ctl_btn[1]*2+:2]};
-    2'd3 :  ser_dto = {                        cfg_dir ? ser_dat[SDW-4-0           +:4] : ser_dat[0           +:4]};
+    2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_btn[1:0]+:1] : ser_dat[ctl_btn[1:0]+:1]};
+    2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_btn[1:0]+:1] : ser_dat[ctl_btn[1:0]+:1]};
+    2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dat[SDW-2-ctl_btn[1]*2+:2] : ser_dat[ctl_btn[1]*2+:2]};
+    2'd3 :  ser_dmo = {                        cfg_dir ? ser_dat[SDW-4-0           +:4] : ser_dat[0           +:4]};
   endcase
 end
 
@@ -302,10 +313,10 @@ end
 always @ (*)
 begin
   case (cfg_iow)
-    2'd0 :  ser_dte = {cfg_hle, cfg_wpe, 1'b0, ctl_beg ? bus_wdt[16] : ~ctl_oec};
-    2'd1 :  ser_dte = {cfg_hle, cfg_wpe, 1'b0, ctl_beg ? bus_wdt[16] : ~ctl_oec};
-    2'd2 :  ser_dte = {cfg_hle, cfg_wpe,       ctl_beg ? bus_wdt[16] : ~ctl_oec};
-    2'd3 :  ser_dte = {                        ctl_beg ? bus_wdt[16] : ~ctl_oec};
+    2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, ctl_beg ? bus_wdt[16] : ~ctl_oec};
+    2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, ctl_beg ? bus_wdt[16] : ~ctl_oec};
+    2'd2 :  ser_dme = {cfg_hle, cfg_wpe,       ctl_beg ? bus_wdt[16] : ~ctl_oec};
+    2'd3 :  ser_dme = {                        ctl_beg ? bus_wdt[16] : ~ctl_oec};
   endcase
 end
 
@@ -335,7 +346,7 @@ if            (div_ena)  ser_dri <= cfg_pha ? ser_pri : spi_sio_i;
 
 // direct register output
 always @ (posedge clk)
-if            (div_ena)  ser_dro <= ser_dto;
+if            (div_ena)  ser_dro <= ser_dmo;
 
 // phase register output
 always @ (negedge clk)
@@ -349,7 +360,7 @@ assign spi_sio_o = cfg_pha ? ser_pro : ser_dro;
 always @ (posedge clk, posedge rst)
 if  (rst)                ser_dre <= 4'b0000;
 else
-if  (ctl_beg | ctl_end)  ser_dre <= ser_dte;
+if  (ctl_beg | ctl_end)  ser_dre <= ser_dme;
 
 // phase register output enable
 always @ (negedge clk, posedge rst)
