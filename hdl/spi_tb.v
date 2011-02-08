@@ -96,7 +96,7 @@ initial begin
   // write slave select and clock divider
   avalon_cycle (1, 4'h2, 4'hf, 32'h0200_0fd4, data);
   // write data register
-  avalon_cycle (1, 4'h0, 4'hf, 32'h0123_4567, data);
+  avalon_cycle (1, 4'h0, 4'hf, 32'h0b00_0000, data);
   // write control register (enable a chip and start a 4 byte cycle)
   avalon_cycle (1, 4'h1, 4'hf, 32'h0037_0008, data);
   repeat (500) @ (posedge clk);

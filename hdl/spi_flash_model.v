@@ -55,8 +55,9 @@ reg     [7:0] i_tmp;  // input data byte temporary register
 reg     [7:0] i_dat;  // input data byte
 
 // internal machinery
-integer       m_cnt;  // clock period counter
-integer       m_byt;  // byte counter
+reg     [2:0] m_bit;  // bit (clock) counter
+reg           m_byt;  // byte end
+integer       m_cnt;  // byte counter
 reg           m_oen;  // output enable
 reg     [1:0] m_iom;  // data IO mode
 reg     [7:0] m_cmd;  // command
@@ -73,14 +74,13 @@ reg     [3:0] o_reg;  // output register
 wire    [3:0] o_sig;  // output signal vector
 reg           e_reg;  // output enable register
 wire          e_sig;  // output enable signal vector
-wire          oen;    // output enable
 reg     [3:0] sio;    // serial input output
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock and reset                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign clk = sclk ^ CPOL;
+assign clk = sclk ^ ~CPOL;
 assign rst = ss_n;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -97,7 +97,7 @@ case (m_iom)
 endcase
 
 // input phase register
-always @ (posedge clk, posedge rst)
+always @ (negedge clk, posedge rst)
 if (rst)  i_reg <= 4'bxxxx;
 else      i_reg <= i_sig;
 
@@ -111,7 +111,7 @@ case (m_iom)
 endcase
 
 // temporary input data register
-always @ (negedge clk, posedge rst)
+always @ (posedge clk, posedge rst)
 if (rst)  i_tmp <= 8'hxx;
 else      i_tmp <= i_dat;
 
@@ -120,67 +120,94 @@ else      i_tmp <= i_dat;
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock period counter
-always @ (negedge clk, posedge rst)
-if (rst)  m_cnt <= 0;
-else      m_cnt <= m_cnt + 1;
+always @ (posedge clk, posedge rst)
+if (rst)  m_bit <= 3'b000;
+else      m_bit <= m_bit + 3'b001;
 
-// byte counter
-always @ (negedge clk, posedge rst)
-if (rst)  m_byt <= 0;
-else case (m_iom)
-  2'd0 :  m_cnt <= m_cnt + &m_cnt[3:0];  // 3-wire
-  2'd1 :  m_cnt <= m_cnt + &m_cnt[3:0];  // spi
-  2'd2 :  m_cnt <= m_cnt + &m_cnt[2:0];  // dual
-  2'd3 :  m_cnt <= m_cnt + &m_cnt[1:0];  // quad
+// byte end
+always @ (*)
+case (m_iom)
+  2'd0 :  m_byt <= &m_bit[2:0];  // 3-wire
+  2'd1 :  m_byt <= &m_bit[2:0];  // spi
+  2'd2 :  m_byt <= &m_bit[1:0];  // dual
+  2'd3 :  m_byt <= &m_bit[0:0];  // quad
 endcase
+
+// clock period counter
+always @ (posedge clk, posedge rst)
+if (rst)         m_cnt <= 0;
+else if (m_byt)  m_cnt <= m_cnt + 1;
 
 // command register
 always @ (posedge clk, posedge rst)
-if (rst)                m_cmd <= 8'h00;
-else if (m_cnt == 8-1)  m_cmd <= i_dat;
+if (rst)           m_cmd <= 8'h00;
+else if (m_byt) begin
+  if (m_cnt == 0)  m_cmd <= i_dat;
+end
 
 // address register
 always @ (posedge clk, posedge rst)
-if (rst)                m_adr        <= 24'h000000;
-else begin
-  if (m_cnt == 16-1)    m_adr[ 7: 0] <= i_dat;
-  if (m_cnt == 24-1)    m_adr[15: 8] <= i_dat;
-  if (m_cnt == 32-1)    m_adr[23:16] <= i_dat;
+if (rst)           m_adr        <= 24'hxxxxxx;
+else if (m_byt) begin
+  if (m_cnt == 1)  m_adr[ 7: 0] <= i_dat;
+  if (m_cnt == 2)  m_adr[15: 8] <= i_dat;
+  if (m_cnt == 3)  m_adr[23:16] <= i_dat;
 end
 
 // output enable signal
 always @ (*)
 case (m_cmd)
-  8'h03 : m_oen = (m_cnt > 4*8    );  // Read Data
-  8'h0b,                              // Fast Read
-  8'h3b,                              // Fast Read Dual Output
-  8'h6b : m_oen = (m_cnt > 5*8    );  // Fast Read Quad Output
-  8'hbb : m_oen = (m_cnt > 1*8+4*4);  // Fast Read Dual IO
-  8'heb : m_oen = (m_cnt > 1*8+6*2);  // Fast Read Quad IO
-  8'he7 : m_oen = (m_cnt > 1*8+5*2);  // Word Read Quad IO 
-  8'he3 : m_oen = (m_cnt > 1*8+4*2);  // octal Word Read Quad IO 
+  8'h03 : m_oen = (m_cnt >= 4);  // Read Data
+  8'h0b,                         // Fast Read
+  8'h3b,                         // Fast Read Dual Output
+  8'h6b : m_oen = (m_cnt >= 5);  // Fast Read Quad Output
+  8'hbb : m_oen = (m_cnt >= 5);  // Fast Read Dual IO
+  8'heb : m_oen = (m_cnt >= 7);  // Fast Read Quad IO
+  8'he7 : m_oen = (m_cnt >= 6);  // Word Read Quad IO 
+  8'he3 : m_oen = (m_cnt >= 5);  // octal Word Read Quad IO 
   default : m_oen = 1'b0;
 endcase
 
 // output enable signal
 always @ (*)
 case (m_cmd)
-  8'h03 : m_iom =                     2'd1       ;  // Read Data
-  8'h0b : m_iom =                     2'd1       ;  // Fast Read
-  8'h3b : m_iom = (m_cnt > 5*8    ) ? 2'd1 : 2'd2;  // Fast Read Dual Output
-  8'h6b : m_iom = (m_cnt > 5*8    ) ? 2'd1 : 2'd3;  // Fast Read Quad Output
-  8'hbb : m_iom = (m_cnt > 1*8+4*4) ? 2'd1 : 2'd2;  // Fast Read Dual IO
-  8'heb : m_iom = (m_cnt > 1*8+6*2) ? 2'd1 : 2'd3;  // Fast Read Quad IO
-  8'he7 : m_iom = (m_cnt > 1*8+5*2) ? 2'd1 : 2'd3;  // Word Read Quad IO 
-  8'he3 : m_iom = (m_cnt > 1*8+4*2) ? 2'd1 : 2'd3;  // octal Word Read Quad IO 
-  default : m_iom = DIOM;
+  8'h03 : m_iom =                2'd1       ;  // Read Data
+  8'h0b : m_iom =                2'd1       ;  // Fast Read
+  8'h3b : m_iom = (m_cnt >= 5) ? 2'd1 : 2'd2;  // Fast Read Dual Output
+  8'h6b : m_iom = (m_cnt >= 5) ? 2'd1 : 2'd3;  // Fast Read Quad Output
+  8'hbb : m_iom = (m_cnt >= 5) ? 2'd1 : 2'd2;  // Fast Read Dual IO
+  8'heb : m_iom = (m_cnt >= 7) ? 2'd1 : 2'd3;  // Fast Read Quad IO
+  8'he7 : m_iom = (m_cnt >= 6) ? 2'd1 : 2'd3;  // Word Read Quad IO 
+  8'he3 : m_iom = (m_cnt >= 5) ? 2'd1 : 2'd3;  // octal Word Read Quad IO 
+  default : m_iom = 2'd1;
 endcase
 
 always @ (*)
 case (m_cmd)
-  8'h03 : m_rdt = mem[m_adr];
+  8'h03 : m_rdt = mem [m_adr + m_byt - 4];
+  8'h0b : m_rdt = mem [m_adr + m_cnt - 5];
   default : m_rdt = 8'hxx;
 endcase
+
+integer i;
+
+localparam MEM = "Hello world!";
+
+//initial for (i=0; i<12; i=i+1)  mem[i] = MEM [i*8+:8];
+initial begin
+  mem[ 0] = "H";
+  mem[ 1] = "e";
+  mem[ 2] = "l";
+  mem[ 3] = "l";
+  mem[ 4] = "o";
+  mem[ 5] = " ";
+  mem[ 6] = "w";
+  mem[ 7] = "o";
+  mem[ 8] = "r";
+  mem[ 9] = "l";
+  mem[10] = "d";
+  mem[11] = "!";
+end
 
 ////////////////////////////////////////////////////////////////////////////////
 // data output                                                                //
@@ -189,19 +216,19 @@ endcase
 // output mixer
 always @ (*)
 case (m_iom)
-  2'd0 :  o_tmp = {  1'bx, 1'bx, 1'bx, m_rdt[m_cnt[2:0]   ]      };  // 3-wire
-  2'd1 :  o_tmp = {  1'bx, 1'bx,       m_rdt[m_cnt[2:0]   ], 1'bx};  // spi
-  2'd2 :  o_tmp = {  1'bx, 1'bx,       m_rdt[m_cnt[2:0]+:2]      };  // dual
-  2'd3 :  o_tmp = {                    m_rdt[m_cnt[2:0]+:2]      };  // quad
+  2'd0 :  o_tmp = {1'bx, 1'bx, 1'bx, m_rdt[7-m_bit*1   ]      };  // 3-wire
+  2'd1 :  o_tmp = {1'bx, 1'bx,       m_rdt[7-m_bit*1   ], 1'bx};  // spi
+  2'd2 :  o_tmp = {1'bx, 1'bx,       m_rdt[7-m_bit*2+:2]      };  // dual
+  2'd3 :  o_tmp = {                  m_rdt[7-m_bit*4+:4]      };  // quad
 endcase
 
 // phase output register
-always @ (posedge clk, posedge rst)
+always @ (negedge clk, posedge rst)
 if (rst)  o_reg  <= 4'bxxxx;
 else      o_reg  <= o_tmp;
 
 // phase output enable register
-always @ (posedge clk, posedge rst)
+always @ (negedge clk, posedge rst)
 if (rst)  e_reg <= 1'b0;
 else      e_reg <= m_oen;
 
@@ -214,10 +241,10 @@ assign e_sig = CPHA ? e_reg : m_oen;
 // output drivers
 always @ (*)
 case (m_iom)
-  2'd0 :  sio = oen ? {    1'bz,     1'bz,     1'bz, o_sig[0]} : 4'bzzzz;  // 3-wire
-  2'd1 :  sio = oen ? {    1'bz,     1'bz, o_sig[1],     1'bz} : 4'bzzzz;  // spi
-  2'd2 :  sio = oen ? {    1'bz,     1'bz, o_sig[1], o_sig[0]} : 4'bzzzz;  // dual
-  2'd3 :  sio = oen ? {o_sig[3], o_sig[2], o_sig[1], o_sig[0]} : 4'bzzzz;  // quad
+  2'd0 :  sio = e_sig ? {    1'bz,     1'bz,     1'bz, o_sig[0]} : 4'bzzzz;  // 3-wire
+  2'd1 :  sio = e_sig ? {    1'bz,     1'bz, o_sig[1],     1'bz} : 4'bzzzz;  // spi
+  2'd2 :  sio = e_sig ? {    1'bz,     1'bz, o_sig[1], o_sig[0]} : 4'bzzzz;  // dual
+  2'd3 :  sio = e_sig ? {o_sig[3], o_sig[2], o_sig[1], o_sig[0]} : 4'bzzzz;  // quad
 endcase
 
 // output data
