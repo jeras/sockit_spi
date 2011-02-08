@@ -8,7 +8,8 @@ rm spi.vcd
 iverilog -o spi.out \
 ../hdl/sockit_spi.v \
 ../hdl/spi_tb.v \
-../hdl/spi_slave_model.v
+../hdl/spi_slave_model.v \
+../hdl/spi_flash_model.v
 #../hdl/MX25L12845E.v \
 #../hdl/s25fl129p00.v
 
