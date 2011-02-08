@@ -107,12 +107,13 @@ reg  [SDW-1:0] buf_dat;
 
 // serialization
 reg      [3:0] ser_dmi;  // data mixer input register
+reg      [3:0] ser_dsi;  // data shift input register
 reg      [3:0] ser_dti;  // data shift synchronization
 reg  [SDW-1:0] ser_dat;  // data shift register
 reg      [3:0] ser_dmo;  // data mixer output
 reg      [3:0] ser_dme;  // data mixer output enable
 
-// SPI IO
+// serial IO
 reg      [3:0] ser_pri;  // phase  register input
 reg      [3:0] ser_dri;  // direct register input
 reg      [3:0] ser_dro;  // direct register output
@@ -269,19 +270,23 @@ end
 ////////////////////////////////////////////////////////////////////////////////
 
 // input mixer
-always @ (posedge clk)
+always @ (*)
 begin
   case (cfg_iow)
-    2'd0 :  ser_dmi <= {ser_dmi[2:0], ser_dri[  0]};  // 3-wire
-    2'd1 :  ser_dmi <= {ser_dmi[2:0], ser_dri[  1]};  // spi
-    2'd2 :  ser_dmi <= {ser_dmi[1:0], ser_dri[1:0]};  // dual
-    2'd3 :  ser_dmi <= {              ser_dri[3:0]};  // quad
+    2'd0 :  ser_dmi = {ser_dsi[2:0], ser_dri[  0]};  // 3-wire
+    2'd1 :  ser_dmi = {ser_dsi[2:0], ser_dri[  1]};  // spi
+    2'd2 :  ser_dmi = {ser_dsi[1:0], ser_dri[1:0]};  // dual
+    2'd3 :  ser_dmi = {              ser_dri[3:0]};  // quad
   endcase
 end
 
+// input shift register
+always @ (posedge clk)
+ser_dsi <= ser_dmi;
+
 // input shifter retiming
 always @ (posedge clk)
-if (ctl_btc[1:0] == 2'b01)  ser_dti <= ser_dmi;
+if (ctl_btc[1:0] == 2'b01)  ser_dti <= ser_dsi;
 
 // shift register (nibble sized shifts)
 always @ (posedge clk)
