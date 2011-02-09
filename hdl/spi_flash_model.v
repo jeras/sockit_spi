@@ -25,12 +25,13 @@
 
 module spi_flash_model #(
   // hardware layer protocol parameters
-  parameter DIOM = 2'd1,     // data IO mode (0-3wire, 1-SPI, 2-duo, 3-quad)
-  parameter MODE = 2'd0,     // clock mode {CPOL, CPHA}
-  parameter CPOL = MODE[1],  // clock polarity
-  parameter CPHA = MODE[0],  // clock phase
+  parameter DIOM = 2'd1,        // data IO mode (0-3wire, 1-SPI, 2-duo, 3-quad)
+  parameter MODE = 2'd0,        // clock mode {CPOL, CPHA}
+  parameter CPOL = MODE[1],     // clock polarity
+  parameter CPHA = MODE[0],     // clock phase
   // internal logic parameters
-  parameter MSZ  = 1024      // data memory size
+  parameter MSZ  = 1024,        // data memory size
+  parameter FILE = "flash.bin"  // flash contents (binary) file name
 )(
   input wire ss_n,   // slave select  (active low)
   input wire sclk,   // serial clock
@@ -75,6 +76,18 @@ wire    [3:0] o_sig;  // output signal vector
 reg           e_reg;  // output enable register
 wire          e_sig;  // output enable signal vector
 reg     [3:0] sio;    // serial input output
+
+////////////////////////////////////////////////////////////////////////////////
+// memory initialization                                                      //
+////////////////////////////////////////////////////////////////////////////////
+
+integer f;  // file pointer
+integer s;  // file status
+
+initial begin
+  f = $fopen(FILE, "r");
+  s = $fread(mem, f);
+end
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock and reset                                                            //
@@ -188,26 +201,6 @@ case (m_cmd)
   8'h0b : m_rdt = mem [m_adr + m_cnt - 5];
   default : m_rdt = 8'hxx;
 endcase
-
-integer i;
-
-localparam MEM = "Hello world!";
-
-//initial for (i=0; i<12; i=i+1)  mem[i] = MEM [i*8+:8];
-initial begin
-  mem[ 0] = "H";
-  mem[ 1] = "e";
-  mem[ 2] = "l";
-  mem[ 3] = "l";
-  mem[ 4] = "o";
-  mem[ 5] = " ";
-  mem[ 6] = "w";
-  mem[ 7] = "o";
-  mem[ 8] = "r";
-  mem[ 9] = "l";
-  mem[10] = "d";
-  mem[11] = "!";
-end
 
 ////////////////////////////////////////////////////////////////////////////////
 // data output                                                                //
