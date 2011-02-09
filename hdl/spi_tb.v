@@ -95,18 +95,44 @@ initial begin
 
   // write slave select and clock divider
   avalon_cycle (1, 'h2, 4'hf, 32'h0200_0fd4, data);
-  // write data register
+  // write data register (command fast read, address 0)
   avalon_cycle (1, 'h0, 4'hf, 32'h0b00_0000, data);
-  // write control register (enable a chip and start a 4 byte read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0037_0009, data);
+  // write control register (enable a chip and start a 5+4 byte write+read)
+  avalon_cycle (1, 'h1, 4'hf, 32'h0037_1009, data);
   // polling for end of cycle
   data = 32'h0000_0001;
   while (data & 32'h0000_ffff)
   avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
   // read flash data
   avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
-  // finish afer a few clock periods
+
+  // few clock periods
   repeat (4) @ (posedge clk);
+
+//  // write data register (command fast read dual output address 0)
+//  avalon_cycle (1, 'h0, 4'hf, 32'h0b00_0000, data);
+//  // write control register (enable a chip and start a 4 byte write)
+//  avalon_cycle (1, 'h1, 4'hf, 32'h0033_0004, data);
+//  // polling for end of cycle
+//  data = 32'h0000_0001;
+//  while (data & 32'h0000_ffff)
+//  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+//  // write control register (enable a chip and start a 1 byte dummy)
+//  avalon_cycle (1, 'h1, 4'hf, 32'h0030_0001, data);
+//  // polling for end of cycle
+//  data = 32'h0000_0001;
+//  while (data & 32'h0000_ffff)
+//  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+//  // write control register (enable a chip and start a 4 byte read)
+//  avalon_cycle (1, 'h1, 4'hf, 32'h0030_0004, data);
+//  // polling for end of cycle
+//  data = 32'h0000_0001;
+//  while (data & 32'h0000_ffff)
+//  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+//  // read flash data
+//  avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
+
+  // end simulation
   $finish();
 end
 
