@@ -60,7 +60,7 @@ reg     [2:0] m_bit;  // bit (clock) counter
 reg           m_byt;  // byte end
 integer       m_cnt;  // byte counter
 reg           m_oen;  // output enable
-reg     [1:0] m_iom;  // data IO mode
+reg     [1:0] m_iow;  // data IO mode
 reg     [7:0] m_cmd;  // command
 reg    [23:0] m_adr;  // address
 reg     [7:0] m_wdt;  // write data
@@ -102,7 +102,7 @@ assign rst = ss_n;
 
 // input signal vector
 always @ (*)
-case (m_iom)
+case (m_iow)
   2'd0 :  i_sig = {  1'bx, 1'bx, 1'bx, mosi};  // 3-wire
   2'd1 :  i_sig = {  1'bx, 1'bx, 1'bx, mosi};  // spi
   2'd2 :  i_sig = {  1'bx, 1'bx, miso, mosi};  // dual
@@ -116,7 +116,7 @@ else      i_reg <= i_sig;
 
 // input mixer
 always @ (*)
-case (m_iom)
+case (m_iow)
   2'd0 :  i_dat = {i_tmp[7-1:0], CPHA ? i_sig [0:0] : i_reg [0:0]};  // 3-wire
   2'd1 :  i_dat = {i_tmp[7-1:0], CPHA ? i_sig [0:0] : i_reg [0:0]};  // spi
   2'd2 :  i_dat = {i_tmp[7-2:0], CPHA ? i_sig [1:0] : i_reg [1:0]};  // dual
@@ -139,7 +139,7 @@ else      m_bit <= m_bit + 3'b001;
 
 // byte end
 always @ (*)
-case (m_iom)
+case (m_iow)
   2'd0 :  m_byt <= &m_bit[2:0];  // 3-wire
   2'd1 :  m_byt <= &m_bit[2:0];  // spi
   2'd2 :  m_byt <= &m_bit[1:0];  // dual
@@ -170,15 +170,15 @@ end
 //                 output enable          IO mode                              read data
 always @ (*)
 case (m_cmd)
-  8'h03   : begin  m_oen = (m_cnt >= 4);  m_iom =                2'd1       ;  m_rdt = mem [m_adr + m_byt - 4];  end  // Read Data
-  8'h0b   : begin  m_oen = (m_cnt >= 5);  m_iom =                2'd1       ;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read
-  8'h3b   : begin  m_oen = (m_cnt >= 5);  m_iom = (m_cnt >= 5) ? 2'd1 : 2'd2;  m_rdt = mem [m_adr + m_byt - 5];  end  // Fast Read Dual Output
-  8'h6b   : begin  m_oen = (m_cnt >= 5);  m_iom = (m_cnt >= 5) ? 2'd1 : 2'd3;  m_rdt = mem [m_adr + m_byt - 5];  end  // Fast Read Quad Output
-  8'hbb   : begin  m_oen = (m_cnt >= 5);  m_iom = (m_cnt >= 5) ? 2'd1 : 2'd2;  m_rdt = mem [m_adr + m_byt - 5];  end  // Fast Read Dual IO
-  8'heb   : begin  m_oen = (m_cnt >= 7);  m_iom = (m_cnt >= 7) ? 2'd1 : 2'd3;  m_rdt = mem [m_adr + m_byt - 7];  end  // Fast Read Quad IO
-  8'he7   : begin  m_oen = (m_cnt >= 6);  m_iom = (m_cnt >= 6) ? 2'd1 : 2'd3;  m_rdt = mem [m_adr + m_byt - 6];  end  // Word Read Quad IO 
-  8'he3   : begin  m_oen = (m_cnt >= 5);  m_iom = (m_cnt >= 5) ? 2'd1 : 2'd3;  m_rdt = mem [m_adr + m_byt - 5];  end  // octal Word Read Quad IO 
-  default : begin  m_oen = 1'b0        ;  m_iom =                2'd1       ;  m_rdt = 8'hxx                  ;  end  //
+  8'h03   : begin  m_oen = (m_cnt >= 4);  m_iow =                2'd1       ;  m_rdt = mem [m_adr + m_byt - 4];  end  // Read Data
+  8'h0b   : begin  m_oen = (m_cnt >= 5);  m_iow =                2'd1       ;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read
+  8'h3b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd1 : 2'd2;  m_rdt = mem [m_adr + m_byt - 5];  end  // Fast Read Dual Output
+  8'h6b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd1 : 2'd3;  m_rdt = mem [m_adr + m_byt - 5];  end  // Fast Read Quad Output
+  8'hbb   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd1 : 2'd2;  m_rdt = mem [m_adr + m_byt - 5];  end  // Fast Read Dual IO
+  8'heb   : begin  m_oen = (m_cnt >= 7);  m_iow = (m_cnt >= 7) ? 2'd1 : 2'd3;  m_rdt = mem [m_adr + m_byt - 7];  end  // Fast Read Quad IO
+  8'he7   : begin  m_oen = (m_cnt >= 6);  m_iow = (m_cnt >= 6) ? 2'd1 : 2'd3;  m_rdt = mem [m_adr + m_byt - 6];  end  // Word Read Quad IO 
+  8'he3   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd1 : 2'd3;  m_rdt = mem [m_adr + m_byt - 5];  end  // octal Word Read Quad IO 
+  default : begin  m_oen = 1'b0        ;  m_iow =                2'd1       ;  m_rdt = 8'hxx                  ;  end  //
 endcase
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -187,7 +187,7 @@ endcase
 
 // output mixer
 always @ (*)
-case (m_iom)
+case (m_iow)
   2'd0 :  o_tmp = {1'bx, 1'bx, 1'bx, m_rdt[7-m_bit*1   ]      };  // 3-wire
   2'd1 :  o_tmp = {1'bx, 1'bx,       m_rdt[7-m_bit*1   ], 1'bx};  // spi
   2'd2 :  o_tmp = {1'bx, 1'bx,       m_rdt[7-m_bit*2+:2]      };  // dual
@@ -212,7 +212,7 @@ assign e_sig = CPHA ? e_reg : m_oen;
 
 // output drivers
 always @ (*)
-case (m_iom)
+case (m_iow)
   2'd0 :  sio = e_sig ? {    1'bz,     1'bz,     1'bz, o_sig[0]} : 4'bzzzz;  // 3-wire
   2'd1 :  sio = e_sig ? {    1'bz,     1'bz, o_sig[1],     1'bz} : 4'bzzzz;  // spi
   2'd2 :  sio = e_sig ? {    1'bz,     1'bz, o_sig[1], o_sig[0]} : 4'bzzzz;  // dual
