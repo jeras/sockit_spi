@@ -94,12 +94,19 @@ initial begin
   repeat (4) @ (posedge clk);
 
   // write slave select and clock divider
-  avalon_cycle (1, 4'h2, 4'hf, 32'h0200_0fd4, data);
+  avalon_cycle (1, 'h2, 4'hf, 32'h0200_0fd4, data);
   // write data register
-  avalon_cycle (1, 4'h0, 4'hf, 32'h0b00_0000, data);
-  // write control register (enable a chip and start a 4 byte cycle)
-  avalon_cycle (1, 4'h1, 4'hf, 32'h0037_0008, data);
-  repeat (500) @ (posedge clk);
+  avalon_cycle (1, 'h0, 4'hf, 32'h0b00_0000, data);
+  // write control register (enable a chip and start a 4 byte read)
+  avalon_cycle (1, 'h1, 4'hf, 32'h0037_0009, data);
+  // polling for end of cycle
+  data = 32'h0000_0001;
+  while (data & 32'h0000_ffff)
+  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+  // read flash data
+  avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
+  // finish afer a few clock periods
+  repeat (4) @ (posedge clk);
   $finish();
 end
 
@@ -118,7 +125,7 @@ task avalon_cycle (
   output [ADW-1:0] rdt
 );
 begin
-  $display ("Avalon MM cycle start: T=%10tns, %s address=%08x byteenable=%04b writedata=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
+//  $display ("Avalon MM cycle start: T=%10tns, %s address=%08x byteenable=%04b writedata=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
   // start an Avalon cycle
   avalon_read       <= ~r_w;
   avalon_write      <=  r_w;
@@ -135,7 +142,7 @@ begin
   avalon_writedata  <=  'dx;
   // read data
   rdt = avalon_readdata;
-  $display ("Avalon MM cycle end  : T=%10tns, readdata=%08x", $time/1000.0, rdt);
+//  $display ("Avalon MM cycle end  : T=%10tns, readdata=%08x", $time/1000.0, rdt);
 end
 endtask
 

@@ -1,7 +1,7 @@
-[timestart] 131200
+[timestart] 0
 [size] 1366 691
 [pos] -1 -1
-*-17.190901 480000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.490557 800000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.spi.clk
@@ -73,12 +73,14 @@ spi_tb.spi.ctl_nib
 spi_tb.spi.ctl_ren
 @1401200
 -control
-@c00200
+@800200
+-FIFO
+@1000200
 -FIFO
 @22
 spi_tb.spi.buf_dat[31:0]
-@1401200
--FIFO
+@820
+spi_tb.spi.buf_dat[31:0]
 @c00200
 -serialization
 @28
@@ -118,6 +120,8 @@ spi_tb.spi.spi_sio_e[3:0]
 spi_tb.spi.spi_sio_i[3:0]
 @1401200
 -SPI
+@800200
+-slave
 @28
 spi_tb.slave_spi.clk
 spi_tb.slave_spi.rst
@@ -138,11 +142,15 @@ spi_tb.slave_spi.m_adr[23:0]
 @28
 spi_tb.slave_spi.m_oen
 spi_tb.slave_spi.m_iom[1:0]
-@23
+@22
 spi_tb.slave_spi.m_rdt[7:0]
 @820
 spi_tb.slave_spi.m_rdt[7:0]
 @28
 spi_tb.slave_spi.o_tmp[3:0]
+@1000200
+-slave
+@23
+spi_tb.data[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

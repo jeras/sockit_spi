@@ -135,7 +135,7 @@ assign bus_dec [3] = (bus_adr == 2'h3);  // XIP base address
 ////////////////////////////////////////////////////////////////////////////////
 
 // output data multiplexer
-assign bus_rdt = bus_dec[0] ? ser_dat
+assign bus_rdt = bus_dec[0] ? buf_dat
                : bus_dec[1] ? {  8'h00,   6'h00, ctl_ssc, ctl_sse,
                                   1'b0, ctl_ien, ctl_oec, ctl_oen,
                                {16-CBW{1'b0}},            ctl_byc}
