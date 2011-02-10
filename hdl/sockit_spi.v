@@ -213,6 +213,9 @@ always @(posedge clk, posedge rst)
 if (rst)                     ctl_btc <= 3'd0;
 else if (sts_run & div_ena)  ctl_btc <= ctl_btn;
 
+// bit counter next
+assign ctl_btn = ctl_btc + 3'd1;
+
 // nibble end pulse
 assign ctl_nib = &ctl_btn[1:0];
 

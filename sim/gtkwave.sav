@@ -47,14 +47,13 @@ spi_tb.spi.cfg_xip[3:0]
 @28
 spi_tb.spi.cfg_coe
 spi_tb.spi.cfg_sse
-spi_tb.spi.cfg_iow[1:0]
 spi_tb.spi.cfg_bit
 spi_tb.spi.cfg_dir
 spi_tb.spi.cfg_pol
 spi_tb.spi.cfg_pha
 @1401200
 -configuration
-@c00200
+@800200
 -control
 @28
 spi_tb.spi.ctl_ssc
@@ -62,16 +61,20 @@ spi_tb.spi.ctl_sse
 spi_tb.spi.ctl_ien
 spi_tb.spi.ctl_oec
 spi_tb.spi.ctl_oen
-spi_tb.spi.ctl_btc[2:0]
+spi_tb.spi.ctl_iow[1:0]
 @22
-spi_tb.spi.ctl_byc[7:0]
+spi_tb.spi.ctl_byc[11:0]
+@29
+spi_tb.spi.ctl_btc[2:0]
 @28
-spi_tb.spi.ctl_beg
-spi_tb.spi.ctl_run
-spi_tb.spi.ctl_end
 spi_tb.spi.ctl_nib
-spi_tb.spi.ctl_ren
-@1401200
+spi_tb.spi.sts_beg
+spi_tb.spi.sts_run
+spi_tb.spi.sts_end
+spi_tb.spi.sts_ren
+spi_tb.spi.sts_wdt
+spi_tb.spi.sts_rdt
+@1000200
 -control
 @800200
 -FIFO
@@ -141,7 +144,6 @@ spi_tb.slave_spi.m_cmd[7:0]
 spi_tb.slave_spi.m_adr[23:0]
 @28
 spi_tb.slave_spi.m_oen
-spi_tb.slave_spi.m_iom[1:0]
 @22
 spi_tb.slave_spi.m_rdt[7:0]
 @820
@@ -150,7 +152,7 @@ spi_tb.slave_spi.m_rdt[7:0]
 spi_tb.slave_spi.o_tmp[3:0]
 @1000200
 -slave
-@23
+@22
 spi_tb.data[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

@@ -100,8 +100,8 @@ initial begin
   // write control register (enable a chip and start a 5+4 byte write+read)
   avalon_cycle (1, 'h1, 4'hf, 32'h0037_1009, data);
   // polling for end of cycle
-  data = 32'h0000_0001;
-  while (data & 32'h0000_ffff)
+  data = 32'h0000_c000;
+  while (data & 32'h0000_c000)
   avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
   // read flash data
   avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
