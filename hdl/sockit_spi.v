@@ -332,7 +332,7 @@ end
 
 // output mixer
 always @ (*)
-if (~sts_run) begin
+if (sts_beg) begin
   case (ctl_iow)                                      // MSB first                        LSB first
     2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
     2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[SDW-1             +:1] : buf_dat[0           +:1]};
@@ -352,10 +352,10 @@ end
 always @ (*)
 begin
   case (ctl_iow)
-    2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? bus_wdt[16] : ~ctl_oec};
-    2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? bus_wdt[16] : ~ctl_oec};
-    2'd2 :  ser_dme = {cfg_hle, cfg_wpe,       sts_beg ? bus_wdt[16] : ~ctl_oec};
-    2'd3 :  ser_dme = {                        sts_beg ? bus_wdt[16] : ~ctl_oec};
+    2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ~ctl_oec};
+    2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ~ctl_oec};
+    2'd2 :  ser_dme = {cfg_hle, cfg_wpe,       sts_beg ? ctl_oen : ~ctl_oec};
+    2'd3 :  ser_dme = {                        sts_beg ? ctl_oen : ~ctl_oec};
   endcase
 end
 

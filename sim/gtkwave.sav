@@ -64,9 +64,8 @@ spi_tb.spi.ctl_oen
 spi_tb.spi.ctl_iow[1:0]
 @22
 spi_tb.spi.ctl_byc[11:0]
-@29
-spi_tb.spi.ctl_btc[2:0]
 @28
+spi_tb.spi.ctl_btc[2:0]
 spi_tb.spi.ctl_nib
 spi_tb.spi.sts_beg
 spi_tb.spi.sts_run
@@ -153,6 +152,8 @@ spi_tb.slave_spi.o_tmp[3:0]
 @1000200
 -slave
 @22
+spi_tb.data[31:0]
+@821
 spi_tb.data[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
