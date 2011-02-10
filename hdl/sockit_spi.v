@@ -87,6 +87,7 @@ reg            div_clk;  // register storing the SCLK clock value (additional di
 // control registers
 reg            ctl_ssc;  // slave select clear
 reg            ctl_sse;  // slave select enable
+reg            ctl_fio;  // fifo direction (0 - input, 1 - output)
 reg            ctl_ien;  // data input  enable
 reg            ctl_oec;  // data output enable clear
 reg            ctl_oen;  // data output enable
@@ -224,6 +225,7 @@ always @(posedge clk, posedge rst)
 if (rst) begin
   ctl_ssc <=  1'b0;
   ctl_sse <=  1'b0;
+  ctl_fio <=  1'b0;
   ctl_ien <=  1'b0;
   ctl_oec <=  1'b0;
   ctl_oen <=  1'b0;
@@ -234,6 +236,7 @@ end else begin
   if (bus_wen & bus_dec[1] & ~bus_wrq) begin
     ctl_ssc <= bus_wdt[21   ];
     ctl_sse <= bus_wdt[20   ];
+    ctl_fio <= bus_wdt[19   ];
     ctl_ien <= bus_wdt[18   ];
     ctl_oec <= bus_wdt[17   ];
     ctl_oen <= bus_wdt[16   ];
@@ -284,6 +287,8 @@ end
 ////////////////////////////////////////////////////////////////////////////////
 // fifo buffer                                                                //
 ////////////////////////////////////////////////////////////////////////////////
+
+initial buf_cnt = 10'd0;
 
 // shift register implementation
 always @ (posedge clk)
