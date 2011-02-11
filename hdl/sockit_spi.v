@@ -95,8 +95,8 @@ reg      [1:0] ctl_iow;  // IO width (0-3wire, 1-SPI, 2-duo, 3-quad)
 reg     [11:0] ctl_byc;  // counter of bytes (default transfere units)
 wire    [11:0] ctl_cbn;  // counter of bytes (default transfere units) next (+1)
 reg      [2:0] ctl_btc;  // counter of shifted bits
-wire     [2:0] ctl_btn;  // counter of shifted bits next (+1)
-wire           ctl_nib;  // transfer nibble  status
+reg      [2:0] ctl_btn;  // counter of shifted bits next (+1)
+reg            ctl_nib;  // transfer nibble  status
 
 // status registers
 reg            sts_beg;  // transfer begin   status
@@ -215,10 +215,26 @@ if (rst)                     ctl_btc <= 3'd0;
 else if (sts_run & div_ena)  ctl_btc <= ctl_btn;
 
 // bit counter next
-assign ctl_btn = ctl_btc + 3'd1;
+always @ (*)
+begin
+  case (ctl_iow)
+    2'd0 :  ctl_btn = ctl_btc + 3'd1;  // 3-wire
+    2'd1 :  ctl_btn = ctl_btc + 3'd1;  // spi
+    2'd2 :  ctl_btn = ctl_btc + 3'd2;  // dual
+    2'd3 :  ctl_btn = ctl_btc + 3'd3;  // quad
+  endcase
+end
 
 // nibble end pulse
-assign ctl_nib = &ctl_btn[1:0];
+always @ (*)
+begin
+  case (ctl_iow)
+    2'd0 :  ctl_nib = &ctl_btn[1:0];  // 3-wire
+    2'd1 :  ctl_nib = &ctl_btn[1:0];  // spi
+    2'd2 :  ctl_nib = &ctl_btn[1  ];  // dual
+    2'd3 :  ctl_nib =          1'b1;  // quad
+  endcase
+end
 
 // transfer length counter
 always @(posedge clk, posedge rst)
@@ -243,7 +259,7 @@ end else begin
     ctl_iow <= bus_wdt[13:12];
     ctl_byc <= bus_wdt[11: 0];
   // decrement at the end of each transfer unit (byte by default)
-  end else if (&ctl_btc & div_ena) begin
+  end else if (ctl_btc[2] & ctl_nib & div_ena) begin
     ctl_sse <= ctl_sse & ~((ctl_byc == 'd1) & ctl_ssc);
     ctl_byc <= ctl_byc - 'd1;
   end
@@ -318,11 +334,18 @@ end
 
 // input shift register
 always @ (posedge clk)
-ser_dsi <= ser_dmi;
+if (sts_run)  ser_dsi <= ser_dmi;
 
 // input shifter retiming
 always @ (posedge clk)
-if (ctl_btc[1:0] == 2'b01)  ser_dti <= ser_dsi;
+begin
+  case (ctl_iow)
+    2'd0 :  if (ctl_btc[1:0] == 2'b00)  ser_dti <= ser_dmi;
+    2'd1 :  if (ctl_btc[1:0] == 2'b00)  ser_dti <= ser_dmi;
+    2'd2 :  if (ctl_btc[1  ] == 1'b0 )  ser_dti <= ser_dmi;
+    2'd3 :                              ser_dti <= ser_dmi;
+  endcase
+end
 
 // shift register (nibble sized shifts)
 always @ (posedge clk)
@@ -354,10 +377,10 @@ end
 always @ (*)
 begin
   case (ctl_iow)
-    2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ~ctl_oec};
-    2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ~ctl_oec};
-    2'd2 :  ser_dme = {cfg_hle, cfg_wpe,       sts_beg ? ctl_oen : ~ctl_oec};
-    2'd3 :  ser_dme = {                        sts_beg ? ctl_oen : ~ctl_oec};
+    2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ctl_oen & ~ctl_oec};
+    2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ctl_oen & ~ctl_oec};
+    2'd2 :  ser_dme = {cfg_hle, cfg_wpe,       sts_beg ? ctl_oen : ctl_oen & ~ctl_oec};
+    2'd3 :  ser_dme = {                        sts_beg ? ctl_oen : ctl_oen & ~ctl_oec};
   endcase
 end
 

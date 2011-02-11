@@ -1,12 +1,12 @@
-[timestart] 406300
-[size] 1366 691
+[timestart] 0
+[size] 1920 1123
 [pos] -1 -1
-*-17.490557 980000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.490557 1330000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.spi.clk
 spi_tb.spi.rst
-@c00200
+@800200
 -bus
 @28
 spi_tb.spi.bus_wen
@@ -19,7 +19,7 @@ spi_tb.spi.bus_rdt[31:0]
 spi_tb.spi.bus_wrq
 spi_tb.spi.bus_irq
 spi_tb.spi.bus_dec[3:0]
-@1401200
+@1000200
 -bus
 @c00200
 -clock divider
@@ -57,7 +57,9 @@ spi_tb.spi.cfg_pha
 -control
 @28
 spi_tb.spi.ctl_ssc
+@29
 spi_tb.spi.ctl_sse
+@28
 spi_tb.spi.ctl_ien
 spi_tb.spi.ctl_oec
 spi_tb.spi.ctl_oen
@@ -141,9 +143,8 @@ spi_tb.slave_spi.m_cnt[31:0]
 @22
 spi_tb.slave_spi.m_cmd[7:0]
 spi_tb.slave_spi.m_adr[23:0]
-@29
-spi_tb.slave_spi.m_iow[1:0]
 @28
+spi_tb.slave_spi.m_iow[1:0]
 spi_tb.slave_spi.m_oen
 @22
 spi_tb.slave_spi.m_rdt[7:0]

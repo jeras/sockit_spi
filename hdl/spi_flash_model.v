@@ -135,15 +135,20 @@ else      i_tmp <= i_dat;
 // clock period counter
 always @ (posedge clk, posedge rst)
 if (rst)  m_bit <= 3'b000;
-else      m_bit <= m_bit + 3'b001;
+else case (m_iow)
+  2'd0 :  m_bit <= m_bit + 3'd1;
+  2'd1 :  m_bit <= m_bit + 3'd1;
+  2'd2 :  m_bit <= m_bit + 3'd2;
+  2'd3 :  m_bit <= m_bit + 3'd4;
+endcase
 
 // byte end
 always @ (*)
 case (m_iow)
   2'd0 :  m_byt <= &m_bit[2:0];  // 3-wire
   2'd1 :  m_byt <= &m_bit[2:0];  // spi
-  2'd2 :  m_byt <= &m_bit[1:0];  // dual
-  2'd3 :  m_byt <= &m_bit[0:0];  // quad
+  2'd2 :  m_byt <= &m_bit[2:1];  // dual
+  2'd3 :  m_byt <= &m_bit[2:2];  // quad
 endcase
 
 // clock period counter
@@ -170,14 +175,14 @@ end
 //                 output enable          IO mode                              read data
 always @ (*)
 case (m_cmd)
-  8'h03   : begin  m_oen = (m_cnt >= 4);  m_iow =                       2'd1;  m_rdt = mem [m_adr + m_byt - 4];  end  // Read Data
+  8'h03   : begin  m_oen = (m_cnt >= 4);  m_iow =                       2'd1;  m_rdt = mem [m_adr + m_cnt - 4];  end  // Read Data
   8'h0b   : begin  m_oen = (m_cnt >= 5);  m_iow =                       2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read
-  8'h3b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd2 : 2'd1;  m_rdt = mem [m_adr + m_byt - 5];  end  // Fast Read Dual Output
-  8'h6b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_byt - 5];  end  // Fast Read Quad Output
-  8'hbb   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd2 : 2'd1;  m_rdt = mem [m_adr + m_byt - 5];  end  // Fast Read Dual IO
-  8'heb   : begin  m_oen = (m_cnt >= 7);  m_iow = (m_cnt >= 7) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_byt - 7];  end  // Fast Read Quad IO
-  8'he7   : begin  m_oen = (m_cnt >= 6);  m_iow = (m_cnt >= 6) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_byt - 6];  end  // Word Read Quad IO 
-  8'he3   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_byt - 5];  end  // octal Word Read Quad IO 
+  8'h3b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd2 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read Dual Output
+  8'h6b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read Quad Output
+  8'hbb   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd2 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read Dual IO
+  8'heb   : begin  m_oen = (m_cnt >= 7);  m_iow = (m_cnt >= 7) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 7];  end  // Fast Read Quad IO
+  8'he7   : begin  m_oen = (m_cnt >= 6);  m_iow = (m_cnt >= 6) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 6];  end  // Word Read Quad IO 
+  8'he3   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // octal Word Read Quad IO 
   default : begin  m_oen = 1'b0        ;  m_iow =                       2'd1;  m_rdt = 8'hxx                  ;  end  //
 endcase
 
@@ -188,10 +193,10 @@ endcase
 // output mixer
 always @ (*)
 case (m_iow)
-  2'd0 :  o_tmp = {1'bx, 1'bx, 1'bx, m_rdt[7-m_bit*1   ]      };  // 3-wire
-  2'd1 :  o_tmp = {1'bx, 1'bx,       m_rdt[7-m_bit*1   ], 1'bx};  // spi
-  2'd2 :  o_tmp = {1'bx, 1'bx,       m_rdt[7-m_bit*2+:2]      };  // dual
-  2'd3 :  o_tmp = {                  m_rdt[7-m_bit*4+:4]      };  // quad
+  2'd0 :  o_tmp = {1'bx, 1'bx, 1'bx, m_rdt[7-m_bit   ]      };  // 3-wire
+  2'd1 :  o_tmp = {1'bx, 1'bx,       m_rdt[7-m_bit   ], 1'bx};  // spi
+  2'd2 :  o_tmp = {1'bx, 1'bx,       m_rdt[6-m_bit+:2]      };  // dual
+  2'd3 :  o_tmp = {                  m_rdt[4-m_bit+:4]      };  // quad
 endcase
 
 // phase output register

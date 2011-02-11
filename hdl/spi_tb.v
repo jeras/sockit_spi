@@ -132,6 +132,9 @@ initial begin
   // read flash data
   avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
 
+  // few clock periods
+  repeat (4) @ (posedge clk);
+
   // end simulation
   $finish();
 end
