@@ -1,7 +1,7 @@
-[timestart] 0
+[timestart] 406300
 [size] 1366 691
 [pos] -1 -1
-*-17.490557 800000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.490557 980000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.spi.clk
@@ -141,6 +141,8 @@ spi_tb.slave_spi.m_cnt[31:0]
 @22
 spi_tb.slave_spi.m_cmd[7:0]
 spi_tb.slave_spi.m_adr[23:0]
+@29
+spi_tb.slave_spi.m_iow[1:0]
 @28
 spi_tb.slave_spi.m_oen
 @22
@@ -153,7 +155,7 @@ spi_tb.slave_spi.o_tmp[3:0]
 -slave
 @22
 spi_tb.data[31:0]
-@821
+@820
 spi_tb.data[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
