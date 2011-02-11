@@ -276,8 +276,10 @@ if (rst) begin
   sts_rdt <= 1'b0;
 end else begin
   if (bus_wen & bus_dec[1] & ~bus_wrq & |bus_wdt[11:0]) begin
-    sts_wdt <= bus_wdt[16];
-    sts_rdt <= bus_wdt[18];
+//    sts_wdt <= bus_wdt[16];
+//    sts_rdt <= bus_wdt[18];
+    sts_wdt <= 1'b1;
+    sts_rdt <= 1'b1;
   end else begin
     if ((ctl_byc == 8'd1) & (ctl_btc == 3'd6)) sts_wdt <= 1'b0;
     if (sts_end)                               sts_rdt <= 1'b0;
