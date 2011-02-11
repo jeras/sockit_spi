@@ -112,13 +112,13 @@ initial begin
   // write data register (command fast read dual output address 0)
   avalon_cycle (1, 'h0, 4'hf, 32'h3b00_0000, data);
   // write control register (enable a chip and start a 4 byte write)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0033_1004, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0013_1004, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
   avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
   // write control register (enable a chip and start a 1 byte dummy)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0030_1001, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0010_1001, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
