@@ -225,7 +225,7 @@ begin
     2'd0 :  ctl_btn = ctl_btc + 3'd1;  // 3-wire
     2'd1 :  ctl_btn = ctl_btc + 3'd1;  // spi
     2'd2 :  ctl_btn = ctl_btc + 3'd2;  // dual
-    2'd3 :  ctl_btn = ctl_btc + 3'd3;  // quad
+    2'd3 :  ctl_btn = ctl_btc + 3'd4;  // quad
   endcase
 end
 
@@ -291,7 +291,7 @@ else      sts_run <= sts_beg | sts_run & ~sts_end;
 // spi transfer end pulse
 always @ (posedge clk, posedge rst)
 if (rst)  sts_end <= 1'b0;
-else      sts_end <= (ctl_byc == 8'd1) & ctl_btc[2] & sts_nin;
+else      sts_end <= (ctl_byc == 8'd1) & ctl_btn[2] & sts_nin;
 
 // read enable pulse
 always @ (posedge clk, posedge rst)
@@ -310,8 +310,8 @@ end else begin
     sts_wdt <= 1'b1;
     sts_rdt <= 1'b1;
   end else begin
-    if ((ctl_byc == 8'd1) & (ctl_btc == 3'd6)) sts_wdt <= 1'b0;
-    if (sts_end)                               sts_rdt <= 1'b0;
+    if ((ctl_byc == 8'd1) & ctl_btn[2] & sts_nin) sts_wdt <= 1'b0;
+    if (sts_end)                                  sts_rdt <= 1'b0;
   end
 end
 
