@@ -115,7 +115,8 @@ reg  [SDW-1:0] buf_dat;  // fifo data register
 // serialization
 reg      [3:0] ser_dmi;  // data mixer input register
 reg      [3:0] ser_dsi;  // data shift input register
-reg      [3:0] ser_dti;  // data shift synchronization
+reg      [3:0] ser_dpi;  // data shift phase synchronization
+reg      [3:0] ser_dti;  // data shift input
 reg  [SDW-1:0] ser_dat;  // data shift register
 reg      [3:0] ser_dmo;  // data mixer output
 reg      [3:0] ser_dme;  // data mixer output enable
@@ -348,14 +349,25 @@ end
 always @ (posedge clk)
 if (sts_run)  ser_dsi <= ser_dmi;
 
-// input shifter retiming
+// input phase register
 always @ (posedge clk)
+if (sts_run) begin
+  case (ctl_iow)
+    2'd0 :  if (ctl_btc[1:0] == 2'b00)  ser_dpi <= ser_dmi;
+    2'd1 :  if (ctl_btc[1:0] == 2'b00)  ser_dpi <= ser_dmi;
+    2'd2 :  if (ctl_btc[1  ] == 1'b0 )  ser_dpi <= ser_dmi;
+    2'd3 :                              ser_dpi <= ser_dmi;
+  endcase
+end
+
+// input shifter retiming
+always @ (*)
 begin
   case (ctl_iow)
-    2'd0 :  if (ctl_btc[1:0] == 2'b00)  ser_dti <= ser_dmi;
-    2'd1 :  if (ctl_btc[1:0] == 2'b00)  ser_dti <= ser_dmi;
-    2'd2 :  if (ctl_btc[1  ] == 1'b0 )  ser_dti <= ser_dmi;
-    2'd3 :                              ser_dti <= ser_dmi;
+    2'd0 :  ser_dti = ser_dpi;
+    2'd1 :  ser_dti = ser_dpi;
+    2'd2 :  ser_dti = ser_dmi;
+    2'd3 :  ser_dti = ser_dmi;
   endcase
 end
 

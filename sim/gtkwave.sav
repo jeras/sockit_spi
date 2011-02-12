@@ -1,7 +1,7 @@
 [timestart] 0
 [size] 1920 1123
 [pos] -1 -1
-*-15.774811 130000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.774811 1360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.spi.clk
@@ -70,9 +70,7 @@ spi_tb.spi.sts_beg
 spi_tb.spi.sts_run
 spi_tb.spi.sts_nin
 spi_tb.spi.sts_nib
-@29
 spi_tb.spi.sts_smp
-@28
 spi_tb.spi.sts_end
 spi_tb.spi.sts_ren
 spi_tb.spi.sts_wdt
@@ -109,7 +107,10 @@ spi_tb.spi.ser_dsi[3:0]
 -group_end
 @22
 spi_tb.spi.ser_dmi[3:0]
+spi_tb.spi.ser_dpi[3:0]
+@23
 spi_tb.spi.ser_dti[3:0]
+@22
 spi_tb.spi.ser_dat[31:0]
 @28
 spi_tb.spi.ser_dmo[3:0]
