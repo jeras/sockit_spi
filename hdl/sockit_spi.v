@@ -393,7 +393,7 @@ end else begin
     2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_btn[1:0]+:1] : ser_dat[ctl_btn[1:0]+:1]};
     2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-ctl_btn[1:0]+:1] : ser_dat[ctl_btn[1:0]+:1]};
     2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dat[SDW-2-ctl_btn[1]*2+:2] : ser_dat[ctl_btn[1]*2+:2]};
-    2'd3 :  ser_dmo = {                        cfg_dir ? ser_dat[SDW-4-0           +:4] : ser_dat[0           +:4]};
+    2'd3 :  ser_dmo = {                        cfg_dir ? ser_dat[SDW-8-0           +:4] : ser_dat[0           +:4]}; // this probably only works with divider bypass
   endcase
 end
 
