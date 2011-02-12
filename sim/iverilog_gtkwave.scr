@@ -2,7 +2,11 @@
 
 # cleanup first
 rm spi.out
-rm spi.vcd
+rm spi.fst
+rm flash.hex
+
+# convert Flash binary file into hexdecimal
+xxd -ps -c 1 flash.bin >> flash.hex
 
 # compile the verilog sources (testbench and RTL)
 iverilog -o spi.out \
@@ -10,11 +14,13 @@ iverilog -o spi.out \
 ../hdl/spi_tb.v \
 ../hdl/spi_slave_model.v \
 ../hdl/spi_flash_model.v
+#-I ../dev/NU_N25Q128A230B_VG14/ \
+#../dev/NU_N25Q128A230B_VG14/code/N25Q128A230B.v
 #../hdl/MX25L12845E.v \
 #../hdl/s25fl129p00.v
 
 # run the simulation
-vvp spi.out
+vvp spi.out -fst
 
 # open the waveform and detach it
-gtkwave spi.vcd gtkwave.sav &
+gtkwave spi.fst gtkwave.sav &

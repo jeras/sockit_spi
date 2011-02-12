@@ -30,7 +30,7 @@ module spi_flash_model #(
   parameter CPOL = MODE[1],     // clock polarity
   parameter CPHA = MODE[0],     // clock phase
   // internal logic parameters
-  parameter MSZ  = 1024,        // data memory size
+  parameter MSZ  = 1024,        // data memory size in bytes
   parameter FILE = "flash.bin"  // flash contents (binary) file name
 )(
   input wire ss_n,   // slave select  (active low)
@@ -62,7 +62,7 @@ integer       m_cnt;  // byte counter
 reg           m_oen;  // output enable
 reg     [1:0] m_iow;  // data IO mode
 reg     [7:0] m_cmd;  // command
-reg    [23:0] m_adr;  // address
+reg    [31:0] m_adr;  // address
 reg     [7:0] m_wdt;  // write data
 reg     [7:0] m_rdt;  // read  data
 
@@ -87,6 +87,9 @@ integer s;  // file status
 initial begin
   f = $fopen(FILE, "r");
   s = $fread(mem, f);
+  s = $rewind(f);
+  s = $fread(mem, f, 'h5a);
+      $fclose(f);
 end
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -165,25 +168,23 @@ end
 
 // address register
 always @ (posedge clk, posedge rst)
-if (rst)           m_adr        <= 24'hxxxxxx;
+if (rst)           m_adr        <= 31'h00xxxxxx;
 else if (m_byt) begin
-  if (m_cnt == 1)  m_adr[ 7: 0] <= i_dat;
+  if (m_cnt == 1)  m_adr[23:16] <= i_dat;
   if (m_cnt == 2)  m_adr[15: 8] <= i_dat;
-  if (m_cnt == 3)  m_adr[23:16] <= i_dat;
+  if (m_cnt == 3)  m_adr[ 7: 0] <= i_dat;
 end
 
 //                 output enable          IO mode                              read data
 always @ (*)
 case (m_cmd)
-  8'h03   : begin  m_oen = (m_cnt >= 4);  m_iow =                       2'd1;  m_rdt = mem [m_adr + m_cnt - 4];  end  // Read Data
-  8'h0b   : begin  m_oen = (m_cnt >= 5);  m_iow =                       2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read
-  8'h3b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd2 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read Dual Output
-  8'h6b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read Quad Output
-  8'hbb   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd2 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // Fast Read Dual IO
-  8'heb   : begin  m_oen = (m_cnt >= 7);  m_iow = (m_cnt >= 7) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 7];  end  // Fast Read Quad IO
-  8'he7   : begin  m_oen = (m_cnt >= 6);  m_iow = (m_cnt >= 6) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 6];  end  // Word Read Quad IO 
-  8'he3   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd3 : 2'd1;  m_rdt = mem [m_adr + m_cnt - 5];  end  // octal Word Read Quad IO 
-  default : begin  m_oen = 1'b0        ;  m_iow =                       2'd1;  m_rdt = 8'hxx                  ;  end  //
+  8'h03   : begin  m_oen = (m_cnt >= 4);  m_iow =                       2'd1;  m_rdt = mem [(m_adr + m_cnt - 4) % MSZ];  end  // Read Data
+  8'h0b   : begin  m_oen = (m_cnt >= 5);  m_iow =                       2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read
+  8'h3b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd2 : 2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read Dual Output
+  8'h6b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd3 : 2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read Quad Output
+  8'hbb   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 1) ? 2'd2 : 2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read Dual IO
+  8'heb   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 1) ? 2'd3 : 2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read Quad IO
+  default : begin  m_oen = 1'b0        ;  m_iow =                       2'd1;  m_rdt = 8'hxx                          ;  end  //
 endcase
 
 ////////////////////////////////////////////////////////////////////////////////

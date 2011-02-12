@@ -73,10 +73,14 @@ wire     [3:0] spi_sio_i,
 // testbench                                                                  //
 ////////////////////////////////////////////////////////////////////////////////
 
+integer i;
+
 // request for a dumpfile
 initial begin
-  $dumpfile("spi.vcd");
+  $dumpfile("spi.fst");
   $dumpvars(0, spi_tb);
+//  for (i=0; i<64; i=i+1)
+//  $dumpvars(0, slave_spi.mem[i]);
 end
 
 // clock generation
@@ -107,7 +111,7 @@ initial begin
   avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
 
   // few clock periods
-  repeat (4) @ (posedge clk);
+  repeat (16) @ (posedge clk);
 
   // write data register (command fast read dual output address 0)
   avalon_cycle (1, 'h0, 4'hf, 32'h3b00_0000, data);
@@ -133,7 +137,7 @@ initial begin
   avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
 
   // few clock periods
-  repeat (4) @ (posedge clk);
+  repeat (16) @ (posedge clk);
 
   // write data register (command fast read quad output address 0)
   avalon_cycle (1, 'h0, 4'hf, 32'h6b00_0000, data);
@@ -159,7 +163,63 @@ initial begin
   avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
 
   // few clock periods
-  repeat (4) @ (posedge clk);
+  repeat (16) @ (posedge clk);
+
+  // write data register (command fast read dual IO address 0)
+  avalon_cycle (1, 'h0, 4'hf, 32'hbb00_0000, data);
+  // write control register (send command)
+  avalon_cycle (1, 'h1, 4'hf, 32'h0013_1001, data);
+  // polling for end of cycle
+  data = 32'h0000_c000;
+  while (data & 32'h0000_c000)
+  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+  // write data register (address and dummy)
+  avalon_cycle (1, 'h0, 4'hf, 32'h5a00_5a5a, data);
+  // write control register (send address and dummy)
+  avalon_cycle (1, 'h1, 4'hf, 32'h0013_2004, data);
+  // polling for end of cycle
+  data = 32'h0000_c000;
+  while (data & 32'h0000_c000)
+  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+  // write control register (4 byte read)
+  avalon_cycle (1, 'h1, 4'hf, 32'h0030_2004, data);
+  // polling for end of cycle
+  data = 32'h0000_c000;
+  while (data & 32'h0000_c000)
+  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+  // read flash data
+  avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
+
+  // few clock periods
+  repeat (16) @ (posedge clk);
+
+  // write data register (command fast read quad IO address 0)
+  avalon_cycle (1, 'h0, 4'hf, 32'heb00_0000, data);
+  // write control register (send command)
+  avalon_cycle (1, 'h1, 4'hf, 32'h0013_1001, data);
+  // polling for end of cycle
+  data = 32'h0000_c000;
+  while (data & 32'h0000_c000)
+  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+  // write data register (address and dummy)
+  avalon_cycle (1, 'h0, 4'hf, 32'h5a00_5a5a, data);
+  // write control register (send address and dummy)
+  avalon_cycle (1, 'h1, 4'hf, 32'h0013_3004, data);
+  // polling for end of cycle
+  data = 32'h0000_c000;
+  while (data & 32'h0000_c000)
+  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+  // write control register (4 byte read)
+  avalon_cycle (1, 'h1, 4'hf, 32'h0030_3004, data);
+  // polling for end of cycle
+  data = 32'h0000_c000;
+  while (data & 32'h0000_c000)
+  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
+  // read flash data
+  avalon_cycle (0, 'h0, 4'hf, 32'hxxxx_xxxx, data);
+
+  // few clock periods
+  repeat (16) @ (posedge clk);
 
   // end simulation
   $finish();

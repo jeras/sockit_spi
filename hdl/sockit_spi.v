@@ -401,10 +401,10 @@ end
 always @ (*)
 begin
   case (ctl_iow)
-    2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ctl_oen & ~ctl_oec};
-    2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ctl_oen & ~ctl_oec};
-    2'd2 :  ser_dme = {cfg_hle, cfg_wpe,       sts_beg ? ctl_oen : ctl_oen & ~ctl_oec};
-    2'd3 :  ser_dme = {                        sts_beg ? ctl_oen : ctl_oen & ~ctl_oec};
+    2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ctl_oen & ~ctl_oec  };
+    2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, sts_beg ? ctl_oen : ctl_oen & ~ctl_oec  };
+    2'd2 :  ser_dme = {cfg_hle, cfg_wpe,    {2{sts_beg ? ctl_oen : ctl_oen & ~ctl_oec}}};
+    2'd3 :  ser_dme = {                     {4{sts_beg ? ctl_oen : ctl_oen & ~ctl_oec}}};
   endcase
 end
 
