@@ -96,13 +96,15 @@ reg     [11:0] ctl_byc;  // counter of bytes (default transfere units)
 wire    [11:0] ctl_cbn;  // counter of bytes (default transfere units) next (+1)
 reg      [2:0] ctl_btc;  // counter of shifted bits
 reg      [2:0] ctl_btn;  // counter of shifted bits next (+1)
-reg            ctl_nib;  // transfer nibble  status
 
 // status registers
-reg            sts_beg;  // transfer begin   status
-reg            sts_run;  // transfer running status
-reg            sts_end;  // transfer end     status
-reg            sts_ren;  // transfer read enable
+reg            sts_beg;  // transfer begin pulse
+reg            sts_run;  // transfer run status
+reg            sts_nin;  // transfer nibble pulse // TODO
+reg            sts_nib;  // transfer nibble pulse
+reg            sts_smp;  // transfer sample pulse
+reg            sts_end;  // transfer end pulse
+reg            sts_ren;  // transfer read pulse
 reg            sts_wdt;  // write cycle status
 reg            sts_rdt;  // read  cycle status
 
@@ -119,6 +121,7 @@ reg      [3:0] ser_dmo;  // data mixer output
 reg      [3:0] ser_dme;  // data mixer output enable
 
 // input, output, enable
+reg  [SSW-1:0] ioe_sso;  // slave select output register
 reg      [3:0] ioe_dri;  // direct register input
 reg      [3:0] ioe_pri;  // phase  register input
 reg      [3:0] ioe_dro;  // direct register output
@@ -229,12 +232,22 @@ end
 always @ (*)
 begin
   case (ctl_iow)
-    2'd0 :  ctl_nib = &ctl_btn[1:0];  // 3-wire
-    2'd1 :  ctl_nib = &ctl_btn[1:0];  // spi
-    2'd2 :  ctl_nib = &ctl_btn[1  ];  // dual
-    2'd3 :  ctl_nib =          1'b1;  // quad
+    2'd0 :  sts_nin = &ctl_btn[1:0];  // 3-wire
+    2'd1 :  sts_nin = &ctl_btn[1:0];  // spi
+    2'd2 :  sts_nin = &ctl_btn[1  ];  // dual
+    2'd3 :  sts_nin =          1'b1;  // quad
   endcase
 end
+
+// sample pulse
+always @(posedge clk, posedge rst)
+if (rst)  sts_nib <= 1'b0;
+else      sts_nib <= sts_nin & sts_run;
+
+// sample pulse
+always @(posedge clk, posedge rst)
+if (rst)  sts_smp <= 1'b0;
+else      sts_smp <= sts_nib;
 
 // transfer length counter
 always @(posedge clk, posedge rst)
@@ -259,8 +272,7 @@ end else begin
     ctl_iow <= bus_wdt[13:12];
     ctl_byc <= bus_wdt[11: 0];
   // decrement at the end of each transfer unit (byte by default)
-  end else if (ctl_btc[2] & ctl_nib & div_ena) begin
-    ctl_sse <= ctl_sse & ~((ctl_byc == 'd1) & ctl_ssc);
+  end else if (ctl_btc[2] & sts_nib & div_ena) begin
     ctl_byc <= ctl_byc - 'd1;
   end
 end
@@ -273,12 +285,12 @@ else      sts_beg <= bus_wen & bus_dec[1] & ~bus_wrq & |bus_wdt[11:0];
 // spi transfer run status
 always @ (posedge clk, posedge rst)
 if (rst)  sts_run <= 1'b0;
-else      sts_run <= sts_beg | sts_run & ~ sts_end;
+else      sts_run <= sts_beg | sts_run & ~sts_end;
 
 // spi transfer end pulse
 always @ (posedge clk, posedge rst)
 if (rst)  sts_end <= 1'b0;
-else      sts_end <= (ctl_byc == 8'd1) & (ctl_btc == 3'd6);
+else      sts_end <= (ctl_byc == 8'd1) & ctl_btc[2] & sts_nin;
 
 // read enable pulse
 always @ (posedge clk, posedge rst)
@@ -350,9 +362,9 @@ end
 // shift register (nibble sized shifts)
 always @ (posedge clk)
 if   (sts_beg)  ser_dat <=           buf_dat                     ;  // par. load
-else if (sts_run & ctl_nib & div_ena) begin
-  if (cfg_dir)  ser_dat <= {         ser_dat[SDW-4-1:0], ser_dti};  // LSB first
-  else          ser_dat <= {ser_dti, ser_dat[SDW  -1:4]         };  // MSB first
+else if (sts_run & sts_nin & div_ena) begin
+  if (cfg_dir)  ser_dat <= {         ser_dat[SDW-4-1:0], ser_dti};  // MSB first
+  else          ser_dat <= {ser_dti, ser_dat[SDW  -1:4]         };  // LSB first
 end
 
 // output mixer
@@ -389,9 +401,15 @@ end
 ////////////////////////////////////////////////////////////////////////////////
 
 // spi slave select
-assign spi_ss_o = {SSW{ctl_sse}} & cfg_sso [SSW-1:0];
-assign spi_ss_e = {SSW{cfg_sse}};
+always @ (posedge clk, posedge rst)
+if (rst)             ioe_sso <= {SSW{1'b0}};
+else begin
+  if      (sts_beg)  ioe_sso <= {SSW{ ctl_sse}} & cfg_sso [SSW-1:0];
+  else if (sts_end)  ioe_sso <= {SSW{~ctl_ssc}} & ioe_sso;
+end
 
+assign spi_ss_o =      ioe_sso  ;
+assign spi_ss_e = {SSW{cfg_sse}};
 
 // spi clock output pin
 assign spi_sclk_o = div_byp ? sts_run & (cfg_pol ^ ~clk) : div_clk;
