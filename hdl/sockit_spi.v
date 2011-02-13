@@ -83,6 +83,7 @@ reg            cfg_pha;  // clock phase
 reg    [8-1:0] div_cnt;  // clock divider counter
 wire           div_byp;  // divider bypass
 reg            div_clk;  // register storing the SCLK clock value (additional division by two)
+wire           div_ena;  // divided clock enable pulse
 
 // control registers
 reg            ctl_ssc;  // slave select clear
