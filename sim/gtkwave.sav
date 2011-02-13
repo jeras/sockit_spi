@@ -1,7 +1,7 @@
-[timestart] 0
+[timestart] 2237900
 [size] 1920 1123
 [pos] -1 -1
-*-18.973610 1650000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-14.973610 2310000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.spi.clk
@@ -58,12 +58,16 @@ spi_tb.spi.cfg_pha
 @28
 spi_tb.spi.ctl_ssc
 spi_tb.spi.ctl_sse
-@29
 spi_tb.spi.ctl_ien
-@28
 spi_tb.spi.ctl_oec
 spi_tb.spi.ctl_oen
 spi_tb.spi.ctl_iow[1:0]
+spi_tb.spi.ctl_btc[1:0]
+@29
+spi_tb.spi.ctl_btn[1:0]
+@22
+spi_tb.spi.ctl_cnt[11:0]
+@28
 spi_tb.spi.sts_beg
 spi_tb.spi.sts_run
 spi_tb.spi.sts_nin

@@ -280,7 +280,7 @@ end
 // nibble end pulse
 always @(posedge clk, posedge rst)
 if (rst)  sts_nib <= 1'b0;
-else      sts_nib <= sts_nin & sts_run;
+else      sts_nib <= sts_nin & (sts_run | (ctl_iow == 2'd3) & sts_beg) & ~sts_end;  // TODO pipelining
 
 // sample pulse
 always @(posedge clk, posedge rst)
@@ -300,7 +300,7 @@ else      sts_run <= sts_beg | sts_run & ~sts_end;
 // spi transfer end pulse
 always @ (posedge clk, posedge rst)
 if (rst)  sts_end <= 1'b0;
-else      sts_end <= (ctl_cnt == 12'd1) & sts_nin;
+else      sts_end <= sts_nin & (ctl_cnt == ((ctl_iow == 2'd3) ? 12'd2 : 12'd1));
 
 // read enable pulse
 always @ (posedge clk, posedge rst)
