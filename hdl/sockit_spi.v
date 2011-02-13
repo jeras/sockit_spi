@@ -92,10 +92,9 @@ reg            ctl_ien;  // data input  enable
 reg            ctl_oec;  // data output enable clear
 reg            ctl_oen;  // data output enable
 reg      [1:0] ctl_iow;  // IO width (0-3wire, 1-SPI, 2-duo, 3-quad)
-reg     [11:0] ctl_byc;  // counter of bytes (default transfere units)
-wire    [11:0] ctl_cbn;  // counter of bytes (default transfere units) next (+1)
-reg      [2:0] ctl_btc;  // counter of shifted bits
-reg      [2:0] ctl_btn;  // counter of shifted bits next (+1)
+reg     [11:0] ctl_cnt;  // counter of transfer units (nibbles by default)
+reg      [1:0] ctl_btc;  // counter of shifted bits
+reg      [1:0] ctl_btn;  // counter of shifted bits next (+1)
 
 // status registers
 reg            sts_beg;  // transfer begin pulse
@@ -149,7 +148,7 @@ assign bus_rdt = bus_dec[0] ?  buf_dat
                                                  ctl_ssc, ctl_sse,
                                ctl_fio, ctl_ien, ctl_oec, ctl_oen,
                                sts_rdt, sts_wdt,          ctl_iow,
-                                                          ctl_byc}
+                                                          ctl_cnt}
                : bus_dec[2] ? {                           cfg_sso,
                                                           cfg_div,
                                cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
@@ -160,6 +159,12 @@ assign bus_rdt = bus_dec[0] ?  buf_dat
 
 assign bus_wrq = 1'b0;
 assign bus_irq = 1'b0;
+
+////////////////////////////////////////////////////////////////////////////////
+// XIP state machine                                                          //
+////////////////////////////////////////////////////////////////////////////////
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // configuration register                                                     //
@@ -210,45 +215,8 @@ else if (~|div_cnt)
 assign div_ena = div_byp ? 1 : ~|div_cnt & (div_clk ^ cfg_pol);
 
 ////////////////////////////////////////////////////////////////////////////////
-// control/status registers (transfer counter and serial output enable)       //
+// control register                                                           //
 ////////////////////////////////////////////////////////////////////////////////
-
-// bit counter
-always @(posedge clk, posedge rst)
-if (rst)                     ctl_btc <= 3'd0;
-else if (sts_run & div_ena)  ctl_btc <= ctl_btn;
-
-// bit counter next
-always @ (*)
-begin
-  case (ctl_iow)
-    2'd0 :  ctl_btn = ctl_btc + 3'd1;  // 3-wire
-    2'd1 :  ctl_btn = ctl_btc + 3'd1;  // spi
-    2'd2 :  ctl_btn = ctl_btc + 3'd2;  // dual
-    2'd3 :  ctl_btn = ctl_btc + 3'd4;  // quad
-  endcase
-end
-
-// nibble end pulse
-always @ (*)
-begin
-  case (ctl_iow)
-    2'd0 :  sts_nin = &ctl_btn[1:0];  // 3-wire
-    2'd1 :  sts_nin = &ctl_btn[1:0];  // spi
-    2'd2 :  sts_nin = &ctl_btn[1  ];  // dual
-    2'd3 :  sts_nin =          1'b1;  // quad
-  endcase
-end
-
-// sample pulse
-always @(posedge clk, posedge rst)
-if (rst)  sts_nib <= 1'b0;
-else      sts_nib <= sts_nin & sts_run;
-
-// sample pulse
-always @(posedge clk, posedge rst)
-if (rst)  sts_smp <= 1'b0;
-else      sts_smp <= sts_nib;
 
 // transfer length counter
 always @(posedge clk, posedge rst)
@@ -260,7 +228,7 @@ if (rst) begin
   ctl_oec <=  1'b0;
   ctl_oen <=  1'b0;
   ctl_iow <=  2'd0;
-  ctl_byc <= 12'd0;
+  ctl_cnt <= 12'd0;
 end else begin
   // write from the CPU bus has priority
   if (bus_wen & bus_dec[1] & ~bus_wrq) begin
@@ -271,12 +239,53 @@ end else begin
     ctl_oec <= bus_wdt[17   ];
     ctl_oen <= bus_wdt[16   ];
     ctl_iow <= bus_wdt[13:12];
-    ctl_byc <= bus_wdt[11: 0];
-  // decrement at the end of each transfer unit (byte by default)
-  end else if (ctl_btc[2] & sts_nib & div_ena) begin
-    ctl_byc <= ctl_byc - 'd1;
+    ctl_cnt <= bus_wdt[11: 0];
+  // decrement at the end of each transfer unit (nibble by default)
+  end else if (sts_nib & div_ena) begin
+    ctl_cnt <= ctl_cnt - 12'd1;
   end
 end
+
+////////////////////////////////////////////////////////////////////////////////
+// status registers                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+// bit counter
+always @(posedge clk, posedge rst)
+if (rst)                     ctl_btc <= 2'd0;
+else if (sts_run & div_ena)  ctl_btc <= ctl_btn;
+
+// bit counter next
+always @ (*)
+begin
+  case (ctl_iow)
+    2'd0 :  ctl_btn = ctl_btc + 2'd1;  // 3-wire
+    2'd1 :  ctl_btn = ctl_btc + 2'd1;  // spi
+    2'd2 :  ctl_btn = ctl_btc + 2'd2;  // dual
+    2'd3 :  ctl_btn = ctl_btc + 2'd4;  // quad
+  endcase
+end
+
+// nibble end next pulse
+always @ (*)
+begin
+  case (ctl_iow)
+    2'd0 :  sts_nin = &ctl_btn[1:0];  // 3-wire
+    2'd1 :  sts_nin = &ctl_btn[1:0];  // spi
+    2'd2 :  sts_nin = &ctl_btn[1  ];  // dual
+    2'd3 :  sts_nin =          1'b1;  // quad
+  endcase
+end
+
+// nibble end pulse
+always @(posedge clk, posedge rst)
+if (rst)  sts_nib <= 1'b0;
+else      sts_nib <= sts_nin & sts_run;
+
+// sample pulse
+always @(posedge clk, posedge rst)
+if (rst)  sts_smp <= 1'b0;
+else      sts_smp <= sts_nib;
 
 // spi transfer beginning pulse
 always @ (posedge clk, posedge rst)
@@ -291,7 +300,7 @@ else      sts_run <= sts_beg | sts_run & ~sts_end;
 // spi transfer end pulse
 always @ (posedge clk, posedge rst)
 if (rst)  sts_end <= 1'b0;
-else      sts_end <= (ctl_byc == 8'd1) & ctl_btn[2] & sts_nin;
+else      sts_end <= (ctl_cnt == 12'd1) & sts_nin;
 
 // read enable pulse
 always @ (posedge clk, posedge rst)
@@ -310,8 +319,8 @@ end else begin
     sts_wdt <= 1'b1;
     sts_rdt <= 1'b1;
   end else begin
-    if ((ctl_byc == 8'd1) & ctl_btn[2] & sts_nin) sts_wdt <= 1'b0;
-    if (sts_end)                                  sts_rdt <= 1'b0;
+    if ((ctl_cnt == 12'd1) & sts_nin) sts_wdt <= 1'b0;
+    if (sts_end)                      sts_rdt <= 1'b0;
   end
 end
 
@@ -347,11 +356,11 @@ end
 
 // input shift register
 always @ (posedge clk)
-if (sts_run)  ser_dsi <= ser_dmi;
+if (sts_run & ctl_ien)  ser_dsi <= ser_dmi;
 
 // input phase register
 always @ (posedge clk)
-if (sts_run) begin
+if (sts_run & ctl_ien) begin
   case (ctl_iow)
     2'd0 :  if (ctl_btc[1:0] == 2'b00)  ser_dpi <= ser_dmi;
     2'd1 :  if (ctl_btc[1:0] == 2'b00)  ser_dpi <= ser_dmi;

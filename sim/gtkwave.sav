@@ -1,7 +1,7 @@
-[timestart] 3163700
+[timestart] 0
 [size] 1920 1123
 [pos] -1 -1
-*-15.950830 3400000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.973610 1650000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.spi.clk
@@ -58,14 +58,12 @@ spi_tb.spi.cfg_pha
 @28
 spi_tb.spi.ctl_ssc
 spi_tb.spi.ctl_sse
+@29
 spi_tb.spi.ctl_ien
+@28
 spi_tb.spi.ctl_oec
 spi_tb.spi.ctl_oen
 spi_tb.spi.ctl_iow[1:0]
-@24
-spi_tb.spi.ctl_byc[11:0]
-@28
-spi_tb.spi.ctl_btc[2:0]
 spi_tb.spi.sts_beg
 spi_tb.spi.sts_run
 spi_tb.spi.sts_nin
@@ -119,14 +117,14 @@ spi_tb.spi.ser_dme[3:0]
 -IOE
 @22
 spi_tb.spi.ioe_pri[3:0]
-@c00023
+@c00022
 spi_tb.spi.ioe_dri[3:0]
 @28
 (0)spi_tb.spi.ioe_dri[3:0]
 (1)spi_tb.spi.ioe_dri[3:0]
 (2)spi_tb.spi.ioe_dri[3:0]
 (3)spi_tb.spi.ioe_dri[3:0]
-@1401201
+@1401200
 -group_end
 @22
 spi_tb.spi.ioe_pro[3:0]
