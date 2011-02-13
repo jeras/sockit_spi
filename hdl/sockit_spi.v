@@ -25,7 +25,7 @@
 // this file contains the system bus interface and static registers           //
 ////////////////////////////////////////////////////////////////////////////////
 
-module spi #(
+module sockit_spi #(
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
   parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
   parameter SDW     = 32,            // shift register data width

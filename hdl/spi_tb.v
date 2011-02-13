@@ -222,7 +222,7 @@ initial begin
   repeat (16) @ (posedge clk);
 
   // end simulation
-  $finish();
+  $finish;
 end
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -265,9 +265,9 @@ endtask
 // spi controller instance                                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
-spi #(
+sockit_spi #(
   .SSW         (SSW)
-) spi (
+) sockit_spi (
   // system signals (used by the CPU bus interface)
   .clk         (clk),
   .rst         (rst),

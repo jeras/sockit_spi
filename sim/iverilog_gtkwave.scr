@@ -8,7 +8,7 @@ rm flash.hex
 # convert Flash binary file into hexdecimal
 xxd -ps -c 1 flash.bin >> flash.hex
 
-# compile the verilog sources (testbench and RTL)
+# compile verilog sources (testbench and RTL)
 iverilog -o spi.out \
 ../hdl/sockit_spi.v \
 ../hdl/spi_tb.v \
@@ -18,6 +18,12 @@ iverilog -o spi.out \
 #../dev/NU_N25Q128A230B_VG14/code/N25Q128A230B.v
 #../hdl/MX25L12845E.v \
 #../hdl/s25fl129p00.v
+
+# compile verilog sources (testbench and RTL) for coverage
+covered score -o spi.cdd -g 2 -t sockit_spi \
+-v ../hdl/sockit_spi.v \
+-v ../hdl/spi_slave_model.v \
+-v ../hdl/spi_flash_model.v
 
 # run the simulation
 vvp spi.out -fst
