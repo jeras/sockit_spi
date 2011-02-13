@@ -232,13 +232,19 @@ end
 // avalon cycle transfer cycle end status
 assign avalon_transfer = (avalon_read | avalon_write) & ~avalon_waitrequest;
 
-task avalon_cycle (
-  input            r_w,  // 0-read or 1-write cycle
-  input  [AAW-1:0] adr,
-  input  [ABW-1:0] ben,
-  input  [ADW-1:0] wdt,
-  output [ADW-1:0] rdt
-);
+task avalon_cycle;
+  input            r_w;  // 0-read or 1-write cycle
+  input  [AAW-1:0] adr;
+  input  [ABW-1:0] ben;
+  input  [ADW-1:0] wdt;
+  output [ADW-1:0] rdt;
+// task avalon_cycle (
+//   input            r_w,  // 0-read or 1-write cycle
+//   input  [AAW-1:0] adr,
+//   input  [ABW-1:0] ben,
+//   input  [ADW-1:0] wdt,
+//   output [ADW-1:0] rdt
+// );
 begin
 //  $display ("Avalon MM cycle start: T=%10tns, %s address=%08x byteenable=%04b writedata=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
   // start an Avalon cycle
@@ -250,11 +256,11 @@ begin
   // wait for waitrequest to be retracted
   @ (posedge clk); while (~avalon_transfer) @ (posedge clk);
   // end Avalon cycle
-  avalon_read       <= 1'b0;
-  avalon_write      <= 1'b0;
-  avalon_address    <=  'dx;
-  avalon_byteenable <=  'dx;
-  avalon_writedata  <=  'dx;
+  avalon_read       <=      1'b0  ;
+  avalon_write      <=      1'b0  ;
+  avalon_address    <= {AAW{1'bx}};
+  avalon_byteenable <= {ABW{1'bx}};
+  avalon_writedata  <= {ADW{1'bx}};
   // read data
   rdt = avalon_readdata;
 //  $display ("Avalon MM cycle end  : T=%10tns, readdata=%08x", $time/1000.0, rdt);
