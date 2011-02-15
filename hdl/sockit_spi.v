@@ -28,6 +28,8 @@
 module sockit_spi #(
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
   parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
+  parameter CTL_RST = 32'h00000000,  // control/status register reset value
+  parameter CTL_MSK = 32'hffffffff,  // control/status register implementation mask
   parameter SDW     = 32,            // shift register data width
   parameter SSW     =  8             // slave select width
 )(
@@ -86,10 +88,11 @@ reg            div_clk;  // register storing the SCLK clock value (additional di
 wire           div_ena;  // divided clock enable pulse
 
 // control registers
+reg            ctl_fio;  // fifo direction (0 - input, 1 - output)
 reg            ctl_ssc;  // slave select clear
 reg            ctl_sse;  // slave select enable
-reg            ctl_fio;  // fifo direction (0 - input, 1 - output)
 reg            ctl_ien;  // data input  enable
+reg            ctl_oel;  // data output enable last
 reg            ctl_oec;  // data output enable clear
 reg            ctl_oen;  // data output enable
 reg      [1:0] ctl_iow;  // IO width (0-3wire, 1-SPI, 2-duo, 3-quad)
@@ -146,14 +149,14 @@ assign bus_dec [3] = (bus_adr == 2'h3);  // XIP base address
 // output data multiplexer
 assign bus_rdt = bus_dec[0] ?  buf_dat
                : bus_dec[1] ? {                           buf_cnt,
-                                                 ctl_ssc, ctl_sse,
-                               ctl_fio, ctl_ien, ctl_oec, ctl_oen,
+                                        ctl_fio, ctl_ssc, ctl_sse,
+                               ctl_ien, ctl_oel, ctl_oec, ctl_oen,
                                sts_rdt, sts_wdt,          ctl_iow,
                                                           ctl_cnt}
                : bus_dec[2] ? {                           cfg_sso,
                                                           cfg_div,
-                               cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
                                                           cfg_xip,
+                               cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
                                cfg_coe, cfg_sse,          ctl_iow,
                                cfg_bit, cfg_dir, cfg_pol, cfg_pha}
                : 32'hxxxxxxxx;
@@ -175,15 +178,15 @@ always @(posedge clk, posedge rst)
 if (rst) begin
   {                           cfg_sso} <= CFG_RST [31:24];
   {                           cfg_div} <= CFG_RST [23:16];
-  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= CFG_RST [15:12];
-  {                           cfg_xip} <= CFG_RST [11: 8];
+  {                           cfg_xip} <= CFG_RST [15:12];
+  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= CFG_RST [11: 8];
   {cfg_coe, cfg_sse}                   <= CFG_RST [ 7: 6];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
 end else if (bus_wen & bus_dec[2] & ~bus_wrq) begin
   {                           cfg_sso} <= bus_wdt [31:24];
   {                           cfg_div} <= bus_wdt [23:16];
-  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= bus_wdt [15:12];
-  {                           cfg_xip} <= bus_wdt [11: 8];
+  {                           cfg_xip} <= bus_wdt [15:12];
+  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= bus_wdt [11: 8];
   {cfg_coe, cfg_sse}                   <= bus_wdt [ 7: 6];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= bus_wdt [ 3: 0];
 end
@@ -222,10 +225,11 @@ assign div_ena = div_byp ? 1 : ~|div_cnt & (div_clk ^ cfg_pol);
 // transfer length counter
 always @(posedge clk, posedge rst)
 if (rst) begin
+  ctl_fio <=  1'b0;
   ctl_ssc <=  1'b0;
   ctl_sse <=  1'b0;
-  ctl_fio <=  1'b0;
   ctl_ien <=  1'b0;
+  ctl_oel <=  1'b0;
   ctl_oec <=  1'b0;
   ctl_oen <=  1'b0;
   ctl_iow <=  2'd0;
@@ -233,16 +237,17 @@ if (rst) begin
 end else begin
   // write from the CPU bus has priority
   if (bus_wen & bus_dec[1] & ~bus_wrq) begin
+    ctl_fio <= bus_wdt[22   ];
     ctl_ssc <= bus_wdt[21   ];
     ctl_sse <= bus_wdt[20   ];
-    ctl_fio <= bus_wdt[19   ];
-    ctl_ien <= bus_wdt[18   ];
+    ctl_ien <= bus_wdt[19   ];
+    ctl_oel <= bus_wdt[18   ];
     ctl_oec <= bus_wdt[17   ];
     ctl_oen <= bus_wdt[16   ];
     ctl_iow <= bus_wdt[13:12];
     ctl_cnt <= bus_wdt[11: 0];
   // decrement at the end of each transfer unit (nibble by default)
-  end else if (sts_nib & div_ena) begin
+  end else if (sts_nib) begin
     ctl_cnt <= ctl_cnt - 12'd1;
   end
 end
@@ -253,8 +258,8 @@ end
 
 // bit counter
 always @(posedge clk, posedge rst)
-if (rst)                     ctl_btc <= 2'd0;
-else if (sts_run & div_ena)  ctl_btc <= ctl_btn;
+if (rst)           ctl_btc <= 2'd0;
+else if (sts_run)  ctl_btc <= ctl_btn;
 
 // bit counter next
 always @ (*)
@@ -384,7 +389,7 @@ end
 // shift register (nibble sized shifts)
 always @ (posedge clk)
 if   (sts_beg)  ser_dat <=           buf_dat                     ;  // par. load
-else if (sts_run & sts_nin & div_ena) begin
+else if (sts_run & sts_nin) begin
   if (cfg_dir)  ser_dat <= {         ser_dat[SDW-4-1:0], ser_dti};  // MSB first
   else          ser_dat <= {ser_dti, ser_dat[SDW  -1:4]         };  // LSB first
 end
@@ -440,21 +445,21 @@ assign spi_sclk_e = cfg_coe;
 
 // phase register input
 always @ (negedge clk)
-if (~cfg_pha & div_ena)  ioe_pri <= spi_sio_i;
+if (~cfg_pha)  ioe_pri <= spi_sio_i;
 
 // phase multiplexer input
 // direct register input
 always @ (posedge clk)
-if            (div_ena)  ioe_dri <= cfg_pha ? ioe_pri : spi_sio_i;
+ioe_dri <= cfg_pha ? ioe_pri : spi_sio_i;
 
 
 // direct register output
 always @ (posedge clk)
-if            (div_ena)  ioe_dro <= ser_dmo;
+ioe_dro <= ser_dmo;
 
 // phase register output
 always @ (negedge clk)
-if  (cfg_pha & div_ena)  ioe_pro <= ioe_dro;
+if  (cfg_pha)  ioe_pro <= ioe_dro;
 
 // phase multiplexer output
 assign spi_sio_o = cfg_pha ? ioe_pro : ioe_dro;
@@ -468,9 +473,9 @@ if  (sts_beg | sts_end)  ioe_dre <= ser_dme;
 
 // phase register output enable
 always @ (negedge clk, posedge rst)
-if  (rst)                ioe_pre <= 4'b0000;
+if  (rst)      ioe_pre <= 4'b0000;
 else
-if  (cfg_pha & div_ena)  ioe_pre <= ioe_dre;
+if  (cfg_pha)  ioe_pre <= ioe_dre;
 
 // phase multiplexer output enable
 assign spi_sio_e = cfg_pha ? ioe_pre : ioe_dre;

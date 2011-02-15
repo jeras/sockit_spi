@@ -29,11 +29,9 @@ covered score -o spi.cdd -g 2 -t sockit_spi -i spi_tb.sockit_spi \
 
 # run the simulation
 vvp spi.out -fst
-#vvp spi.out -vcd
 
 # add simulation data to coverage database
 covered score -cdd spi.cdd -fst spi.fst -t sockit_spi -i spi_tb.sockit_spi
-#covered score -cdd spi.cdd -vcd spi.fst -t sockit_spi -i spi_tb.sockit_spi
 
 # open the waveform and detach it
 gtkwave spi.fst gtkwave.sav &

@@ -99,10 +99,14 @@ initial begin
 
   // write slave select and clock divider
   avalon_cycle (1, 'h2, 4'hf, 32'h0200_0fd4, data);
+
+  // few clock periods
+  repeat (16) @ (posedge clk);
+
   // write data register (command fast read)
   avalon_cycle (1, 'h0, 4'hf, 32'h0b5a_005a, data);
   // write control register (enable a chip and start a 5+4 byte write+read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0037_1012, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h003f_1012, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
@@ -116,7 +120,7 @@ initial begin
   // write data register (command fast read dual output)
   avalon_cycle (1, 'h0, 4'hf, 32'h3b5a_005a, data);
   // write control register (enable a chip and start a 4 byte write)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0013_1008, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0017_1008, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
@@ -128,7 +132,7 @@ initial begin
   while (data & 32'h0000_c000)
   avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
   // write control register (enable a chip and start a 4 byte read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0034_2008, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0038_2008, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
@@ -142,7 +146,7 @@ initial begin
   // write data register (command fast read quad output)
   avalon_cycle (1, 'h0, 4'hf, 32'h6b5a_005a, data);
   // write control register (enable a chip and start a 4 byte write)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0013_1008, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0017_1008, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
@@ -154,7 +158,7 @@ initial begin
   while (data & 32'h0000_c000)
   avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
   // write control register (enable a chip and start a 4 byte read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0034_3008, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0038_3008, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
@@ -168,7 +172,7 @@ initial begin
   // write data register (command fast read dual IO)
   avalon_cycle (1, 'h0, 4'hf, 32'hbb00_0000, data);
   // write control register (send command)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0013_1002, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0017_1002, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
@@ -182,7 +186,7 @@ initial begin
   while (data & 32'h0000_c000)
   avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
   // write control register (4 byte read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0034_2008, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0038_2008, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
@@ -196,7 +200,7 @@ initial begin
   // write data register (command fast read quad IO)
   avalon_cycle (1, 'h0, 4'hf, 32'heb00_0000, data);
   // write control register (send command)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0013_1002, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0017_1002, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
@@ -204,13 +208,13 @@ initial begin
   // write data register (address and dummy)
   avalon_cycle (1, 'h0, 4'hf, 32'h5a00_5a5a, data);
   // write control register (send address and dummy)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0013_3008, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0017_3008, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)
   avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
   // write control register (4 byte read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0034_3008, data);
+  avalon_cycle (1, 'h1, 4'hf, 32'h0038_3008, data);
   // polling for end of cycle
   data = 32'h0000_c000;
   while (data & 32'h0000_c000)

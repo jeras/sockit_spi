@@ -1,7 +1,7 @@
-[timestart] 2237900
+[timestart] 89000
 [size] 1920 1123
 [pos] -1 -1
-*-14.973610 2310000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.973610 2310000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 @28
 spi_tb.sockit_spi.clk
@@ -56,14 +56,17 @@ spi_tb.sockit_spi.cfg_pha
 @800200
 -control
 @28
+spi_tb.sockit_spi.ctl_fio
+@29
 spi_tb.sockit_spi.ctl_ssc
+@28
 spi_tb.sockit_spi.ctl_sse
 spi_tb.sockit_spi.ctl_ien
+spi_tb.sockit_spi.ctl_oel
 spi_tb.sockit_spi.ctl_oec
 spi_tb.sockit_spi.ctl_oen
 spi_tb.sockit_spi.ctl_iow[1:0]
 spi_tb.sockit_spi.ctl_btc[1:0]
-@29
 spi_tb.sockit_spi.ctl_btn[1:0]
 @22
 spi_tb.sockit_spi.ctl_cnt[11:0]
