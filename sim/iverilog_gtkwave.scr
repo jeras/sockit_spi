@@ -10,8 +10,9 @@ xxd -ps -c 1 flash.bin >> flash.hex
 
 # compile verilog sources (testbench and RTL)
 iverilog -o spi.out \
-../hdl/sockit_spi.v \
 ../hdl/spi_tb.v \
+../hdl/sockit_spi.v \
+../hdl/sockit_spi_xip.v \
 ../hdl/spi_slave_model.v \
 ../hdl/spi_flash_model.v
 #-I ../dev/NU_N25Q128A230B_VG14/ \
@@ -22,8 +23,8 @@ iverilog -o spi.out \
 # compile verilog sources (testbench and RTL) for coverage
 #covered score -o spi.cdd -g 2 -t spi_tb \
 covered score -o spi.cdd -g 2 -t sockit_spi -i spi_tb.sockit_spi \
--v ../hdl/sockit_spi.v \
 -v ../hdl/spi_tb.v \
+-v ../hdl/sockit_spi.v \
 -v ../hdl/spi_slave_model.v \
 -v ../hdl/spi_flash_model.v
 
