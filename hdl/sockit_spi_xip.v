@@ -36,28 +36,78 @@ module sockit_spi_xip #(
   input  wire [XAW-1:0] bsi_adr,     // address
   input  wire    [31:0] bsi_wdt,     // write data
   output wire    [31:0] bsi_rdt,     // read data
-  output wire           bsi_wrq,     // wait request
+  output reg            bsi_wrq,     // wait request
   // output bus (interface to SPI master registers)
-  output wire           bso_wen,     // write enable
-  output wire           bso_ren,     // read enable
-  output wire     [1:0] bso_adr,     // address
-  output wire    [31:0] bso_wdt,     // write data
+  output reg            bso_wen,     // write enable
+  output reg            bso_ren,     // read enable
+  output reg            bso_adr,     // address
+  output reg     [31:0] bso_wdt,     // write data
   input  wire    [31:0] bso_rdt,     // read data
   input  wire           bso_wrq,     // wait request
   // configuration
   input  wire [XAW-1:8] xip_adr,     // address offset
   // status
-  input  wire [XAW-1:8] xip_err      // error interrupt
+  output wire [XAW-1:8] xip_err      // error interrupt
 );
 
 ////////////////////////////////////////////////////////////////////////////////
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
+// state names
+localparam IDL_XXX = 4'h0;  // idle
+localparam CMD_WDT = 4'h1;  // command write (load buffer)
+localparam CMD_CTL = 4'h2;  // command control (start cycle)
+localparam CMD_STS = 4'h3;  // command status (wait for cycle end)
+localparam ADR_WDT = 4'h4;  // address write (load buffer)
+localparam ADR_CTL = 4'h5;  // address control (start cycle)
+localparam ADR_STS = 4'h6;  // address status (wait for cycle end)
+localparam DAT_CTL = 4'h7;  // data control (start cycle)
+localparam DAT_RDT = 4'h8;  // data read (read buffer)
+
+// finite state machine
+reg      [3:0] fsm_sts;  // current state
+
 // address adder
 reg  [XAW-1:0] adr_reg;  // input address register
 wire [XAW-1:0] adr_sum;  // input address + offset address
 
+////////////////////////////////////////////////////////////////////////////////
+// state machine                                                              //
+////////////////////////////////////////////////////////////////////////////////
+
+always @ (posedge clk, posedge rst)
+if (rst) begin
+  fsm_sts <= IDL_XXX;
+  bsi_wrq <= 1'b1;  // there is no data available
+  bso_wen <= 1'b0;
+  bso_ren <= 1'b0;
+  bso_adr <= 1'h0;
+  bso_wdt <= 32'h000000;
+end else begin
+  case (fsm_sts)
+    IDL_XXX : begin
+      if (bsi_ren) begin
+      end
+    end
+    CMD_WDT : begin
+    end
+    CMD_CTL : begin
+    end
+    CMD_STS : begin
+    end
+    ADR_WDT : begin
+    end
+    ADR_CTL : begin
+    end
+    ADR_STS : begin
+    end
+    DAT_CTL : begin
+    end
+    DAT_RDT : begin
+    end
+  endcase
+end
 
 
 endmodule
