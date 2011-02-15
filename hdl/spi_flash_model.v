@@ -59,15 +59,17 @@ reg     [7:0] i_dat;  // input data byte
 reg     [2:0] m_bit;  // bit (clock) counter
 reg           m_byt;  // byte end
 integer       m_cnt;  // byte counter
-reg           m_oen;  // output enable
+reg           m_oen;  // output (read) enable
+reg           m_ien;  // input (write) enable
 reg     [1:0] m_iow;  // data IO mode
 reg     [7:0] m_cmd;  // command
 reg    [31:0] m_adr;  // address
-reg     [7:0] m_wdt;  // write data
-reg     [7:0] m_rdt;  // read  data
 
 // internal memory
 reg     [7:0] mem [0:MSZ-1];
+reg    [31:0] m_oad;  // output (read) address
+reg    [31:0] m_iad;  // input (write) address
+wire    [7:0] m_rdt;  // read  data
 
 // output, output enable
 reg     [3:0] o_tmp;  // output data mixer
@@ -76,21 +78,6 @@ wire    [3:0] o_sig;  // output signal vector
 reg           e_reg;  // output enable register
 wire          e_sig;  // output enable signal vector
 reg     [3:0] sio;    // serial input output
-
-////////////////////////////////////////////////////////////////////////////////
-// memory initialization                                                      //
-////////////////////////////////////////////////////////////////////////////////
-
-integer f;  // file pointer
-integer s;  // file status
-
-initial begin
-  f = $fopen(FILE, "r");
-  s = $fread(mem, f);
-  s = $rewind(f);
-  s = $fread(mem, f, 'h5a);
-      $fclose(f);
-end
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock and reset                                                            //
@@ -175,17 +162,47 @@ else if (m_byt) begin
   if (m_cnt == 3)  m_adr[ 7: 0] <= i_dat;
 end
 
-//                 output enable          IO mode                              read data
 always @ (*)
 case (m_cmd)
-  8'h03   : begin  m_oen = (m_cnt >= 4);  m_iow =                       2'd1;  m_rdt = mem [(m_adr + m_cnt - 4) % MSZ];  end  // Read Data
-  8'h0b   : begin  m_oen = (m_cnt >= 5);  m_iow =                       2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read
-  8'h3b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd2 : 2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read Dual Output
-  8'h6b   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd3 : 2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read Quad Output
-  8'hbb   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 1) ? 2'd2 : 2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read Dual IO
-  8'heb   : begin  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 1) ? 2'd3 : 2'd1;  m_rdt = mem [(m_adr + m_cnt - 5) % MSZ];  end  // Fast Read Quad IO
-  default : begin  m_oen = 1'b0        ;  m_iow =                       2'd1;  m_rdt = 8'hxx                          ;  end  //
+  // read memory instuctions
+  8'h03   : begin  m_ien = 1'b0;  m_oen = (m_cnt >= 4);  m_iow =                       2'd1;  m_oad = (m_adr + m_cnt - 4) % MSZ;  end  // Read Data Bytes
+  8'h0b   : begin  m_ien = 1'b0;  m_oen = (m_cnt >= 5);  m_iow =                       2'd1;  m_oad = (m_adr + m_cnt - 5) % MSZ;  end  // Read Data Bytes at Higher Speed
+  8'h3b   : begin  m_ien = 1'b0;  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd2 : 2'd1;  m_oad = (m_adr + m_cnt - 5) % MSZ;  end  // Dual Output Fast Read
+  8'hbb   : begin  m_ien = 1'b0;  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 1) ? 2'd2 : 2'd1;  m_oad = (m_adr + m_cnt - 5) % MSZ;  end  // Dual Input/Output Fast Read
+  8'h6b   : begin  m_ien = 1'b0;  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 5) ? 2'd3 : 2'd1;  m_oad = (m_adr + m_cnt - 5) % MSZ;  end  // Quad Output Fast Read
+  8'heb   : begin  m_ien = 1'b0;  m_oen = (m_cnt >= 5);  m_iow = (m_cnt >= 1) ? 2'd3 : 2'd1;  m_oad = (m_adr + m_cnt - 5) % MSZ;  end  // Quad Input/Output Fast Read
+  // write memory instuctions
+  8'h02   : begin  m_oen = 1'b0;  m_ien = (m_cnt >= 4);  m_iow =                       2'd1;  m_iad = (m_adr + m_cnt - 4) % MSZ;  end  // Page Program
+  8'ha2   : begin  m_oen = 1'b0;  m_ien = (m_cnt >= 4);  m_iow = (m_cnt >= 4) ? 2'd2 : 2'd1;  m_iad = (m_adr + m_cnt - 4) % MSZ;  end  // Dual Input Fast Program
+  8'hd2   : begin  m_oen = 1'b0;  m_ien = (m_cnt >= 4);  m_iow = (m_cnt >= 1) ? 2'd2 : 2'd1;  m_iad = (m_adr + m_cnt - 4) % MSZ;  end  // Dual Input Extended Fast Program
+  8'h32   : begin  m_oen = 1'b0;  m_ien = (m_cnt >= 4);  m_iow = (m_cnt >= 4) ? 2'd3 : 2'd1;  m_iad = (m_adr + m_cnt - 4) % MSZ;  end  // Quad Input Fast Program
+  8'h12   : begin  m_oen = 1'b0;  m_ien = (m_cnt >= 4);  m_iow = (m_cnt >= 1) ? 2'd3 : 2'd1;  m_iad = (m_adr + m_cnt - 4) % MSZ;  end  // Quad Input Extended Fast Program
+  // undefined instructions
+  default : begin  m_ien = 1'b0;  m_oen = 1'b0;          m_iow =                       2'd1;  m_iad = 8'hxx;  m_oad = 8'hxx;      end  //
 endcase
+
+////////////////////////////////////////////////////////////////////////////////
+// memory                                                                     //
+////////////////////////////////////////////////////////////////////////////////
+
+integer f;  // file pointer
+integer s;  // file status
+
+// initialization from file
+initial begin
+  f = $fopen(FILE, "r");
+  s = $fread(mem, f);
+  s = $rewind(f);
+  s = $fread(mem, f, 'h5a);
+      $fclose(f);
+end
+
+// read from memory
+assign m_rdt = mem [m_oad];
+
+// write to memory
+always @ (posedge clk)
+if (m_ien & m_byt)  mem [m_iad] <= i_dat;
 
 ////////////////////////////////////////////////////////////////////////////////
 // data output                                                                //

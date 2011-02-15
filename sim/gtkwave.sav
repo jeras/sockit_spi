@@ -57,9 +57,7 @@ spi_tb.sockit_spi.cfg_pha
 -control
 @28
 spi_tb.sockit_spi.ctl_fio
-@29
 spi_tb.sockit_spi.ctl_ssc
-@28
 spi_tb.sockit_spi.ctl_sse
 spi_tb.sockit_spi.ctl_ien
 spi_tb.sockit_spi.ctl_oel
@@ -184,6 +182,12 @@ spi_tb.slave_spi.m_adr[31:0]
 @28
 spi_tb.slave_spi.m_iow[1:0]
 spi_tb.slave_spi.m_oen
+@22
+spi_tb.slave_spi.m_oad[31:0]
+@28
+spi_tb.slave_spi.m_ien
+@23
+spi_tb.slave_spi.m_iad[31:0]
 @22
 spi_tb.slave_spi.m_rdt[7:0]
 @820
