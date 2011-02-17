@@ -1,23 +1,57 @@
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//  SPI (3 wire, dual, quad) master                                           //
+//                                                                            //
+//  FIFO (sychronous or asynchronous)                                         //
+//                                                                            //
+//  Copyright (C) 2008  Iztok Jeras                                           //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//  This RTL is free hardware: you can redistribute it and/or modify          //
+//  it under the terms of the GNU Lesser General Public License               //
+//  as published by the Free Software Foundation, either                      //
+//  version 3 of the License, or (at your option) any later version.          //
+//                                                                            //
+//  This RTL is distributed in the hope that it will be useful,               //
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of            //
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             //
+//  GNU General Public License for more details.                              //
+//                                                                            //
+//  You should have received a copy of the GNU General Public License         //
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.     //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
 module sockit_spi_fifo #(
-  parameter FSZ = 1024  // FIFO deepth
+  parameter FDW = 32,    // FIFO data width  
+  parameter FSZ = 1024,  // FIFO deepth
+  parameter ASY = 1'b1   // asynchronous mode
 )(
   // system signals
-  input  wire           clk,         // clock
-  input  wire           rst,         // reset
-  // input bus
-  input  wire           bsi_wen,     // write enable
-  input  wire           bsi_ren,     // read enable
-  input  wire [BAW-1:0] bsi_adr,     // address
-  input  wire    [31:0] bsi_wdt,     // write data
-  output wire    [31:0] bsi_rdt,     // read data
-  output wire           bsi_wrq,     // wait request
-  // output bus
-  output wire           bso_wen,     // write enable
-  output wire           bso_ren,     // read enable
-  output wire [BAW-1:0] bso_adr,     // address
-  output wire    [31:0] bso_wdt,     // write data
-  input  wire    [31:0] bso_rdt,     // read data
-  input  wire           bso_wrq,     // wait request
+  input  wire           clk,      // clock
+  input  wire           rst,      // reset
+  // CPU side bus
+  input  wire           bsc_wen,  // write enable
+  input  wire           bsc_ren,  // read enable
+  input  wire    [31:0] bsc_wdt,  // write data
+  output wire    [31:0] bsc_rdt,  // read data
+  input  wire           bsc_ful,  // full
+  input  wire           bsc_emp,  // empty
+  // SPI side bus
+  output wire           bss_wen,  // write enable
+  output wire           bss_ren,  // read enable
+  output wire    [31:0] bss_wdt,  // write data
+  input  wire    [31:0] bss_rdt,  // read data
+  input  wire           bss_ful,  // full
+  input  wire           bss_emp   // empty
 );
+
+////////////////////////////////////////////////////////////////////////////////
+// local signals                                                              //
+////////////////////////////////////////////////////////////////////////////////
+
+// memory
+
 
 endmodule
