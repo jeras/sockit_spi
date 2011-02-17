@@ -55,18 +55,16 @@ module sockit_spi_xip #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // state names
-localparam IDL_XXX = 4'h0;  // idle
+localparam IDL_RST = 4'h0;  // idle, reset
 localparam CMD_WDT = 4'h1;  // command write (load buffer)
 localparam CMD_CTL = 4'h2;  // command control (start cycle)
 localparam CMD_STS = 4'h3;  // command status (wait for cycle end)
-localparam ADR_WDT = 4'h4;  // address write (load buffer)
-localparam ADR_CTL = 4'h5;  // address control (start cycle)
-localparam ADR_STS = 4'h6;  // address status (wait for cycle end)
-localparam DAT_CTL = 4'h7;  // data control (start cycle)
-localparam DAT_RDT = 4'h8;  // data read (read buffer)
+localparam DAT_CTL = 4'h4;  // data control (start cycle)
+localparam DAT_RDT = 4'h5;  // data read (read buffer)
 
-// finite state machine
-reg      [3:0] fsm_sts;  // current state
+// XIP state machine status
+reg            xip_cyc;  // cycle
+reg      [2:0] xip_fsm;  // current state
 
 // address adder
 reg  [XAW-1:0] adr_reg;  // input address register
@@ -78,33 +76,71 @@ wire [XAW-1:0] adr_sum;  // input address + offset address
 
 always @ (posedge clk, posedge rst)
 if (rst) begin
-  fsm_sts <= IDL_XXX;
-  bsi_wrq <= 1'b1;  // there is no data available
+  bsi_wrq <= 1'b1;  // there is no data available initially
   bso_wen <= 1'b0;
   bso_ren <= 1'b0;
   bso_adr <= 1'h0;
   bso_wdt <= 32'h000000;
+  xip_fsm <= IDL_RST;
 end else begin
-  case (fsm_sts)
-    IDL_XXX : begin
+  case (xip_fsm)
+    IDL_RST : begin
       if (bsi_ren) begin
+        bsi_wrq <= 1'b1;
+        bso_wen <= 1'b1;
+        bso_ren <= 1'b0;
+        bso_adr <= 1'b0;
+        bso_wdt <= {8'h0b, bsi_adr};
+        xip_fsm <= CMD_WDT;
       end
     end
     CMD_WDT : begin
+      if (bsi_ren) begin
+        bsi_wrq <= 1'b1;
+        bso_wen <= 1'b1;
+        bso_ren <= 1'b0;
+        bso_adr <= 1'b1;
+        bso_wdt <= 32'h001f_100a;
+        xip_fsm <= CMD_CTL;
+      end
     end
     CMD_CTL : begin
+      if (bsi_ren) begin
+        bsi_wrq <= 1'b0;
+        bso_wen <= 1'b0;
+        bso_ren <= 1'b0;
+        bso_adr <= 1'b1;
+        bso_wdt <= 32'hxxxx_xxxx;
+        xip_fsm <= |(bso_rdt & 32'h0000_c0000) ? CMD_CTL : CMD_STS;
+      end
     end
     CMD_STS : begin
-    end
-    ADR_WDT : begin
-    end
-    ADR_CTL : begin
-    end
-    ADR_STS : begin
+      if (bsi_ren) begin
+        bsi_wrq <= 1'b1;
+        bso_wen <= 1'b1;
+        bso_ren <= 1'b0;
+        bso_adr <= 1'b1;
+        bso_wdt <= 32'h0038_1008;
+        xip_fsm <= CMD_CTL;
+      end
     end
     DAT_CTL : begin
+      if (bsi_ren) begin
+        bsi_wrq <= 1'b0;
+        bso_wen <= 1'b0;
+        bso_ren <= 1'b0;
+        bso_adr <= 1'b1;
+        bso_wdt <= 32'hxxxx_xxxx;
+        xip_fsm <= |(bso_rdt & 32'h0000_c0000) ? CMD_CTL : CMD_STS;
+      end
     end
     DAT_RDT : begin
+        bsi_wrq <= 1'b0;
+        bso_wen <= 1'b0;
+        bso_ren <= 1'b0;
+        bso_adr <= 1'b0;
+        bso_wdt <= 32'hxxxx_xxxx;
+        xip_fsm <= IDL_RST;
     end
   endcase
 end
