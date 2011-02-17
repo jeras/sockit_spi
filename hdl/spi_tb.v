@@ -98,7 +98,7 @@ initial begin
   repeat (4) @ (posedge clk);
 
   // write slave select and clock divider
-  avalon_cycle (1, 'h2, 4'hf, 32'h0200_0fd4, data);
+  avalon_cycle (1, 'h2, 4'hf, 32'h0100_0fd4, data);
 
   // few clock periods
   repeat (16) @ (posedge clk);
@@ -328,11 +328,10 @@ assign spi_ss_i =             spi_ss_n;
 //assign spi_miso = ~spi_ss_n[0] ? spi_mosi : 1'bz;
 
 // SPI slave model
-spi_slave_model #(
-  .MODE_DAT  (2'd0),
-  .MODE_CLK  (2'd0),
-  .DLY       (32)
-) slave_3wire (
+spi_flash_model #(
+  .DIOM      (2'd1),
+  .MODE      (2'd0)
+) slave_spi (
   .ss_n      (spi_ss_n[0]),
   .sclk      (spi_sclk),
   .mosi      (spi_mosi),
@@ -342,10 +341,11 @@ spi_slave_model #(
 );
 
 // SPI slave model
-spi_flash_model #(
-  .DIOM      (2'd1),
-  .MODE      (2'd0)
-) slave_spi (
+spi_slave_model #(
+  .MODE_DAT  (2'd0),
+  .MODE_CLK  (2'd0),
+  .DLY       (32)
+) slave_3wire (
   .ss_n      (spi_ss_n[1]),
   .sclk      (spi_sclk),
   .mosi      (spi_mosi),
