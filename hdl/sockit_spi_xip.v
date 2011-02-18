@@ -24,30 +24,27 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_xip #(
-  parameter XAW = 24,                // bus address width
-  parameter NOP = 32'h00000000       // no operation instruction (returned on error)
+  parameter XAW = 24,             // bus address width
+  parameter NOP = 32'h00000000    // no operation instruction (returned on error)
 )(
   // system signals
-  input  wire           clk,         // clock
-  input  wire           rst,         // reset
+  input  wire           clk,      // clock
+  input  wire           rst,      // reset
   // input bus (XIP requests)
-  input  wire           bsi_wen,     // write enable
-  input  wire           bsi_ren,     // read enable
-  input  wire [XAW-1:0] bsi_adr,     // address
-  input  wire    [31:0] bsi_wdt,     // write data
-  output wire    [31:0] bsi_rdt,     // read data
-  output reg            bsi_wrq,     // wait request
+  input  wire           xip_ren,  // read enable
+  input  wire [XAW-1:0] xip_adr,  // address
+  output wire    [31:0] xip_rdt,  // read data
+  output reg            xip_wrq,  // wait request
+  output wire [XAW-1:8] xip_err,  // error interrupt
   // output bus (interface to SPI master registers)
-  output reg            bso_wen,     // write enable
-  output reg            bso_ren,     // read enable
-  output reg            bso_adr,     // address
-  output reg     [31:0] bso_wdt,     // write data
-  input  wire    [31:0] bso_rdt,     // read data
-  input  wire           bso_wrq,     // wait request
+  output reg            fsm_wen,  // write enable
+  output reg            fsm_ren,  // read enable
+  output reg            fsm_adr,  // address
+  output reg     [31:0] fsm_wdt,  // write data
+  input  wire    [31:0] fsm_rdt,  // read data
+  input  wire           fsm_wrq,  // wait request
   // configuration
-  input  wire [XAW-1:8] xip_adr,     // address offset
-  // status
-  output wire [XAW-1:8] xip_err      // error interrupt
+  input  wire [XAW-1:8] adr_off   // address offset
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,70 +73,70 @@ wire [XAW-1:0] adr_sum;  // input address + offset address
 
 always @ (posedge clk, posedge rst)
 if (rst) begin
-  bsi_wrq <= 1'b1;  // there is no data available initially
-  bso_wen <= 1'b0;
-  bso_ren <= 1'b0;
-  bso_adr <= 1'h0;
-  bso_wdt <= 32'h000000;
+  xip_wrq <= 1'b1;  // there is no data available initially
+  fsm_wen <= 1'b0;
+  fsm_ren <= 1'b0;
+  fsm_adr <= 1'h0;
+  fsm_wdt <= 32'h000000;
   xip_fsm <= IDL_RST;
 end else begin
   case (xip_fsm)
     IDL_RST : begin
-      if (bsi_ren) begin
-        bsi_wrq <= 1'b1;
-        bso_wen <= 1'b1;
-        bso_ren <= 1'b0;
-        bso_adr <= 1'b0;
-        bso_wdt <= {8'h0b, bsi_adr};
+      if (xip_ren) begin
+        xip_wrq <= 1'b1;
+        fsm_wen <= 1'b1;
+        fsm_ren <= 1'b0;
+        fsm_adr <= 1'b0;
+        fsm_wdt <= {8'h0b, xip_adr};
         xip_fsm <= CMD_WDT;
       end
     end
     CMD_WDT : begin
-      if (bsi_ren) begin
-        bsi_wrq <= 1'b1;
-        bso_wen <= 1'b1;
-        bso_ren <= 1'b0;
-        bso_adr <= 1'b1;
-        bso_wdt <= 32'h001f_100a;
+      if (xip_ren) begin
+        xip_wrq <= 1'b1;
+        fsm_wen <= 1'b1;
+        fsm_ren <= 1'b0;
+        fsm_adr <= 1'b1;
+        fsm_wdt <= 32'h001f_100a;
         xip_fsm <= CMD_CTL;
       end
     end
     CMD_CTL : begin
-      if (bsi_ren) begin
-        bsi_wrq <= 1'b0;
-        bso_wen <= 1'b0;
-        bso_ren <= 1'b0;
-        bso_adr <= 1'b1;
-        bso_wdt <= 32'hxxxx_xxxx;
-        xip_fsm <= |(bso_rdt & 32'h0000_c0000) ? CMD_CTL : CMD_STS;
+      if (xip_ren) begin
+        xip_wrq <= 1'b0;
+        fsm_wen <= 1'b0;
+        fsm_ren <= 1'b0;
+        fsm_adr <= 1'b1;
+        fsm_wdt <= 32'hxxxx_xxxx;
+        xip_fsm <= |(fsm_rdt & 32'h0000_c000) ? CMD_CTL : CMD_STS;
       end
     end
     CMD_STS : begin
-      if (bsi_ren) begin
-        bsi_wrq <= 1'b1;
-        bso_wen <= 1'b1;
-        bso_ren <= 1'b0;
-        bso_adr <= 1'b1;
-        bso_wdt <= 32'h0038_1008;
+      if (xip_ren) begin
+        xip_wrq <= 1'b1;
+        fsm_wen <= 1'b1;
+        fsm_ren <= 1'b0;
+        fsm_adr <= 1'b1;
+        fsm_wdt <= 32'h0038_1008;
         xip_fsm <= CMD_CTL;
       end
     end
     DAT_CTL : begin
-      if (bsi_ren) begin
-        bsi_wrq <= 1'b0;
-        bso_wen <= 1'b0;
-        bso_ren <= 1'b0;
-        bso_adr <= 1'b1;
-        bso_wdt <= 32'hxxxx_xxxx;
-        xip_fsm <= |(bso_rdt & 32'h0000_c0000) ? CMD_CTL : CMD_STS;
+      if (xip_ren) begin
+        xip_wrq <= 1'b0;
+        fsm_wen <= 1'b0;
+        fsm_ren <= 1'b0;
+        fsm_adr <= 1'b1;
+        fsm_wdt <= 32'hxxxx_xxxx;
+        xip_fsm <= |(fsm_rdt & 32'h0000_c000) ? CMD_CTL : CMD_STS;
       end
     end
     DAT_RDT : begin
-        bsi_wrq <= 1'b0;
-        bso_wen <= 1'b0;
-        bso_ren <= 1'b0;
-        bso_adr <= 1'b0;
-        bso_wdt <= 32'hxxxx_xxxx;
+        xip_wrq <= 1'b0;
+        fsm_wen <= 1'b0;
+        fsm_ren <= 1'b0;
+        fsm_adr <= 1'b0;
+        fsm_wdt <= 32'hxxxx_xxxx;
         xip_fsm <= IDL_RST;
     end
   endcase

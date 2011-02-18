@@ -281,14 +281,20 @@ sockit_spi #(
   // system signals (used by the CPU bus interface)
   .clk         (clk),
   .rst         (rst),
-  // avalon interface
-  .bus_wen     (avalon_write      ),
-  .bus_ren     (avalon_read       ),
-  .bus_adr     (avalon_address    ),
-  .bus_wdt     (avalon_writedata  ),
-  .bus_rdt     (avalon_readdata   ),
-  .bus_wrq     (avalon_waitrequest),
-  .bus_irq     (avalon_interrupt  ),
+  // XIP interface
+  .xip_ren     ('b0),
+  .xip_adr     ('bx),
+  .xip_rdt     (),
+  .xip_wrq     (),
+  .xip_irq     (),
+  // register interface
+  .reg_wen     (avalon_write      ),
+  .reg_ren     (avalon_read       ),
+  .reg_adr     (avalon_address    ),
+  .reg_wdt     (avalon_writedata  ),
+  .reg_rdt     (avalon_readdata   ),
+  .reg_wrq     (avalon_waitrequest),
+  .reg_irq     (avalon_interrupt  ),
   // SPI signals (should be connected to tristate IO pads)
   // serial clock
   .spi_sclk_i  (spi_sclk_i),

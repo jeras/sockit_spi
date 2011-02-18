@@ -26,24 +26,34 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi #(
-  parameter CFG_RST = 32'h00000000,  // configuration register reset value
-  parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
   parameter CTL_RST = 32'h00000000,  // control/status register reset value
   parameter CTL_MSK = 32'hffffffff,  // control/status register implementation mask
+  parameter CFG_RST = 32'h00000000,  // configuration register reset value
+  parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
+  parameter XIP_RST = 32'h00000000,  // XIP configuration register reset value
+  parameter XIP_MSK = 32'h00000001,  // XIP configuration register implentation mask
+  parameter NOP     = 32'h00000000,  // no operation instuction for the given CPU
+  parameter XAW     = 24,            // XIP address width
   parameter SDW     = 32,            // shift register data width
   parameter SSW     =  8             // slave select width
 )(
   // system signals (used by the CPU interface)
   input  wire           clk,         // clock
   input  wire           rst,         // reset
-  // CPU interface bus
-  input  wire           bus_wen,     // write enable
-  input  wire           bus_ren,     // read enable
-  input  wire     [1:0] bus_adr,     // address
-  input  wire    [31:0] bus_wdt,     // write data
-  output wire    [31:0] bus_rdt,     // read data
-  output wire           bus_wrq,     // wait request
-  output wire           bus_irq,     // interrupt request
+  // XIP interface bus
+  input  wire           xip_ren,     // read enable
+  input  wire [XAW-1:0] xip_adr,     // address
+  output wire    [31:0] xip_rdt,     // read data
+  output wire           xip_wrq,     // wait request
+  output wire           xip_irq,     // interrupt request
+  // registers interface bus
+  input  wire           reg_wen,     // write enable
+  input  wire           reg_ren,     // read enable
+  input  wire     [1:0] reg_adr,     // address
+  input  wire    [31:0] reg_wdt,     // write data
+  output wire    [31:0] reg_rdt,     // read data
+  output wire           reg_wrq,     // wait request
+  output wire           reg_irq,     // interrupt request
   // SPI signals (at a higher level should be connected to tristate IO pads)
   // serial clock
   input  wire           spi_sclk_i,  // input (clock loopback)
@@ -63,10 +73,16 @@ module sockit_spi #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-// bus interface signals
-wire     [3:0] bus_dec;
+// internal bus, finite state machine master
+wire        bus_wen, fsm_wen;  // write enable
+wire        bus_ren, fsm_ren;  // read enable
+wire        bus_adr, fsm_adr;  // address
+wire [31:0] bus_wdt, fsm_wdt;  // write data
+wire [31:0] bus_rdt, fsm_rdt;  // read data
+wire        bus_wrq, fsm_wrq;  // wait request
 
 // configuration registers
+wire    [31:0] cfg_reg;  // 32bit register
 reg    [8-1:0] cfg_sso;  // slave select outputs
 reg    [8-1:0] cfg_div;  // clock divider ratio
 reg    [4-1:0] cfg_xip;  // clock divider ratio
@@ -81,6 +97,10 @@ reg            cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
 reg            cfg_pol;  // clock polarity
 reg            cfg_pha;  // clock phase
 
+// XIP configuration TODO
+reg     [31:0] xip_reg;  // XIP configuration
+wire           xip_ena;  // XIP configuration
+
 // clock divider signals
 reg    [8-1:0] div_cnt;  // clock divider counter
 wire           div_byp;  // divider bypass
@@ -88,6 +108,7 @@ reg            div_clk;  // register storing the SCLK clock value (additional di
 wire           div_ena;  // divided clock enable pulse
 
 // control registers
+wire    [31:0] ctl_reg;  // 32bit register
 reg            ctl_fio;  // fifo direction (0 - input, 1 - output)
 reg            ctl_ssc;  // slave select clear
 reg            ctl_sse;  // slave select enable
@@ -134,61 +155,107 @@ reg      [3:0] ioe_dre;  // direct register output enable
 reg      [3:0] ioe_pre;  // phase  register output enable
 
 ////////////////////////////////////////////////////////////////////////////////
-// address decoder                                                            //
+// XIP, registers interface multiplexer                                       //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign bus_dec [0] = (bus_adr == 2'h0);  // data
-assign bus_dec [1] = (bus_adr == 2'h1);  // control/status
-assign bus_dec [2] = (bus_adr == 2'h2);  // configuratio
-assign bus_dec [3] = (bus_adr == 2'h3);  // XIP base address
+// TODO
+assign xip_ena = xip_reg[0];
+
+sockit_spi_xip #(
+  .XAW      (XAW),      // bus address width
+  .NOP      (NOP)       // no operation instruction (returned on error)
+) xip (
+  // system signals
+  .clk      (clk),      // clock
+  .rst      (rst),      // reset
+  // input bus (XIP requests)
+  .xip_ren  (xip_ren),  // read enable
+  .xip_adr  (xip_adr),  // address
+  .xip_rdt  (xip_rdt),  // read data
+  .xip_wrq  (xip_wrq),  // wait request
+  .xip_err  (       ),  // error interrupt
+  // output bus (interface to SPI master registers)
+  .fsm_wen  (fsm_wen),  // write enable
+  .fsm_ren  (fsm_ren),  // read enable
+  .fsm_adr  (fsm_adr),  // address
+  .fsm_wdt  (fsm_wdt),  // write data
+  .fsm_rdt  (fsm_rdt),  // read data
+  .fsm_wrq  (fsm_wrq),  // wait request
+  // configuration
+  .adr_off  ()          // address offset
+);
+
+// data & controll register access multipleser between two busses
+assign bus_wen = xip_ena ? fsm_wen : reg_wen & ~reg_adr[1];  // write enable
+assign bus_ren = xip_ena ? fsm_ren : reg_ren & ~reg_adr[1];  // read enable
+assign bus_adr = xip_ena ? fsm_adr : reg_adr[0];             // address
+assign bus_wdt = xip_ena ? fsm_wdt : reg_wdt;                // write data
+
+// register interface return signals
+assign reg_rdt = reg_adr[1] ? (reg_adr[0] ? xip_reg : cfg_reg) : bus_rdt;  // read data
+assign reg_wrq = reg_adr[1] ?                             1'b0 : bus_wrq;  // wait request
+
+// XIP interface return signals
+assign fsm_rdt = bus_rdt;  // read data
+assign fsm_wrq = bus_wrq;  // wait request
+
+// wait request timing
+assign bus_wrq = 1'b0;
+
+////////////////////////////////////////////////////////////////////////////////
+// interrupt request                                                          //
+////////////////////////////////////////////////////////////////////////////////
+
+assign bus_irq = 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // bus read access                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-// output data multiplexer
-assign bus_rdt = bus_dec[0] ?  buf_dat
-               : bus_dec[1] ? {                           buf_cnt,
-                                        ctl_fio, ctl_ssc, ctl_sse,
-                               ctl_ien, ctl_oel, ctl_oec, ctl_oen,
-                               sts_rdt, sts_wdt,          ctl_iow,
-                                                          ctl_cnt}
-               : bus_dec[2] ? {                           cfg_sso,
-                                                          cfg_div,
-                                                          cfg_xip,
-                               cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
-                               cfg_coe, cfg_sse,          ctl_iow,
-                               cfg_bit, cfg_dir, cfg_pol, cfg_pha}
-               : 32'hxxxxxxxx;
+// read data multiplexer
+assign bus_rdt = bus_adr ? ctl_reg : buf_dat;
 
-assign bus_wrq = 1'b0;
-assign bus_irq = 1'b0;
+// control/status register read data
+assign ctl_reg = {                           buf_cnt,
+                           ctl_fio, ctl_ssc, ctl_sse,
+                  ctl_ien, ctl_oel, ctl_oec, ctl_oen,
+                  sts_rdt, sts_wdt,          ctl_iow,
+                                             ctl_cnt};
 
-////////////////////////////////////////////////////////////////////////////////
-// XIP state machine                                                          //
-////////////////////////////////////////////////////////////////////////////////
-
-
+// SPI configuration register
+assign cfg_reg = {                           cfg_sso,
+                                             cfg_div,
+                                                4'h0,
+                  cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
+                  cfg_coe, cfg_sse,          ctl_iow,
+                  cfg_bit, cfg_dir, cfg_pol, cfg_pha};
 
 ////////////////////////////////////////////////////////////////////////////////
-// configuration register                                                     //
+// configuration registers                                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
+// SPI configuration
 always @(posedge clk, posedge rst)
 if (rst) begin
   {                           cfg_sso} <= CFG_RST [31:24];
   {                           cfg_div} <= CFG_RST [23:16];
-  {                           cfg_xip} <= CFG_RST [15:12];
   {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= CFG_RST [11: 8];
   {cfg_coe, cfg_sse}                   <= CFG_RST [ 7: 6];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
-end else if (bus_wen & bus_dec[2] & ~bus_wrq) begin
+end else if (reg_wen & (reg_adr == 2'd2) & ~reg_wrq) begin
   {                           cfg_sso} <= bus_wdt [31:24];
   {                           cfg_div} <= bus_wdt [23:16];
-  {                           cfg_xip} <= bus_wdt [15:12];
   {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= bus_wdt [11: 8];
   {cfg_coe, cfg_sse}                   <= bus_wdt [ 7: 6];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= bus_wdt [ 3: 0];
+end
+
+// XIP configuration
+always @(posedge clk, posedge rst)
+if (rst) begin
+  xip_reg <= XIP_RST [31:24];
+end else if (reg_wen & (reg_adr == 2'd3) & ~reg_wrq) begin
+  xip_reg <= reg_wdt;
 end
 
 //////////////////////////////////////////////////////////////////////////////
@@ -236,7 +303,7 @@ if (rst) begin
   ctl_cnt <= 12'd0;
 end else begin
   // write from the CPU bus has priority
-  if (bus_wen & bus_dec[1] & ~bus_wrq) begin
+  if (bus_wen & bus_adr & ~bus_wrq) begin
     ctl_fio <= bus_wdt[22   ];
     ctl_ssc <= bus_wdt[21   ];
     ctl_sse <= bus_wdt[20   ];
@@ -268,7 +335,7 @@ begin
     2'd0 :  ctl_btn = ctl_btc + 2'd1;  // 3-wire
     2'd1 :  ctl_btn = ctl_btc + 2'd1;  // spi
     2'd2 :  ctl_btn = ctl_btc + 2'd2;  // dual
-    2'd3 :  ctl_btn = ctl_btc + 2'd4;  // quad
+    2'd3 :  ctl_btn = ctl_btc + 2'd0;  // quad (increment by 4)
   endcase
 end
 
@@ -296,7 +363,7 @@ else      sts_smp <= sts_nib;
 // spi transfer beginning pulse
 always @ (posedge clk, posedge rst)
 if (rst)  sts_beg <= 1'b0;
-else      sts_beg <= bus_wen & bus_dec[1] & ~bus_wrq & |bus_wdt[11:0];
+else      sts_beg <= bus_wen & bus_adr & ~bus_wrq & |bus_wdt[11:0];
 
 // spi transfer run status
 always @ (posedge clk, posedge rst)
@@ -319,7 +386,7 @@ if (rst) begin
   sts_wdt <= 1'b0;
   sts_rdt <= 1'b0;
 end else begin
-  if (bus_wen & bus_dec[1] & ~bus_wrq & |bus_wdt[11:0]) begin
+  if (bus_wen & bus_adr & ~bus_wrq & |bus_wdt[11:0]) begin
 //    sts_wdt <= bus_wdt[16];
 //    sts_rdt <= bus_wdt[18];
     sts_wdt <= 1'b1;
@@ -338,7 +405,7 @@ initial buf_cnt = 10'd0;
 
 // shift register implementation
 always @ (posedge clk)
-if (bus_wen & bus_dec[0] & ~bus_wrq)
+if (bus_wen & ~bus_adr & ~bus_wrq)
   buf_dat <= bus_wdt; // TODO add fifo code
 else if (sts_ren) begin
   buf_dat <= cfg_dir ? {         ser_dat[SDW-4-1:0], ser_dmi}   // MSB first
