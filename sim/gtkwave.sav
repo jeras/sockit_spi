@@ -1,26 +1,79 @@
-[timestart] 89000
+[timestart] 3085000
 [size] 1920 1123
 [pos] -1 -1
-*-18.973610 2310000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.973610 4010000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
+[treeopen] spi_tb.sockit_spi.
 @28
 spi_tb.sockit_spi.clk
 spi_tb.sockit_spi.rst
 @800200
+-XIP bus
+@28
+spi_tb.sockit_spi.xip_ren
+@22
+spi_tb.sockit_spi.xip_adr[23:0]
+@23
+spi_tb.sockit_spi.xip_rdt[31:0]
+@28
+spi_tb.sockit_spi.xip_wrq
+@22
+spi_tb.sockit_spi.xip_reg[31:0]
+@1000200
+-XIP bus
+@800200
+-XIP
+@22
+spi_tb.sockit_spi.xip.xip_adr[23:0]
+@28
+spi_tb.sockit_spi.xip.xip_wrq
+spi_tb.sockit_spi.xip.fsm_wen
+spi_tb.sockit_spi.xip.fsm_adr
+spi_tb.sockit_spi.xip.fsm_wrq
+@22
+spi_tb.sockit_spi.xip.fsm_wdt[31:0]
+spi_tb.sockit_spi.xip.fsm_ctl[31:0]
+@c02028
+^1 /home/izi/Workplace/sockit_spi/sim/gtkwave_xip_sts.filter
+spi_tb.sockit_spi.xip.fsm_sts[5:0]
+@28
+(0)spi_tb.sockit_spi.xip.fsm_sts[5:0]
+(1)spi_tb.sockit_spi.xip.fsm_sts[5:0]
+(2)spi_tb.sockit_spi.xip.fsm_sts[5:0]
+(3)spi_tb.sockit_spi.xip.fsm_sts[5:0]
+(4)spi_tb.sockit_spi.xip.fsm_sts[5:0]
+(5)spi_tb.sockit_spi.xip.fsm_sts[5:0]
+@1401200
+-group_end
+@1000200
+-XIP
+@800200
+-register bus
+@28
+spi_tb.sockit_spi.reg_wen
+spi_tb.sockit_spi.reg_ren
+spi_tb.sockit_spi.reg_adr[1:0]
+@22
+spi_tb.sockit_spi.reg_wdt[31:0]
+spi_tb.sockit_spi.reg_rdt[31:0]
+@28
+spi_tb.sockit_spi.reg_wrq
+spi_tb.sockit_spi.reg_irq
+@1000200
+-register bus
+@800200
 -bus
 @28
 spi_tb.sockit_spi.bus_wen
-spi_tb.sockit_spi.bus_ren
-spi_tb.sockit_spi.bus_adr[1:0]
+spi_tb.sockit_spi.bus_adr
 @22
 spi_tb.sockit_spi.bus_wdt[31:0]
-spi_tb.sockit_spi.bus_rdt[31:0]
 @28
 spi_tb.sockit_spi.bus_wrq
-spi_tb.sockit_spi.bus_irq
-spi_tb.sockit_spi.bus_dec[3:0]
 @1000200
 -bus
+@22
+spi_tb.sockit_spi.xip_reg[31:0]
 @c00200
 -clock divider
 @28
@@ -42,9 +95,6 @@ spi_tb.sockit_spi.cfg_hle
 spi_tb.sockit_spi.cfg_hlo
 spi_tb.sockit_spi.cfg_wpe
 spi_tb.sockit_spi.cfg_wpo
-@22
-spi_tb.sockit_spi.cfg_xip[3:0]
-@28
 spi_tb.sockit_spi.cfg_coe
 spi_tb.sockit_spi.cfg_sse
 spi_tb.sockit_spi.cfg_bit
@@ -186,9 +236,8 @@ spi_tb.slave_spi.m_oen
 spi_tb.slave_spi.m_oad[31:0]
 @28
 spi_tb.slave_spi.m_ien
-@23
-spi_tb.slave_spi.m_iad[31:0]
 @22
+spi_tb.slave_spi.m_iad[31:0]
 spi_tb.slave_spi.m_rdt[7:0]
 @820
 spi_tb.slave_spi.m_rdt[7:0]

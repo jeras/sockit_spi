@@ -1,0 +1,11 @@
+#
+# filter for fsm_sts (finite state machine status)
+#
+
+010000 IDL_RST
+011000 CMD_WDT
+011001 CMD_CTL
+01001z CMD_STS
+011100 DAT_CTL
+011101 DAT_STS
+00011z DAT_RDT

@@ -107,8 +107,11 @@ always  #5 clk <= ~clk;
 
 // test sequence
 initial begin
+  // put register interface into idle
   avalon_write <= 1'b0;
   avalon_read  <= 1'b0;
+  // put xip interface into idle
+  xip_ren <= 1'b0;
   // reset generation
   rst = 1'b1;
   repeat (2) @ (posedge clk); #1;
@@ -246,6 +249,7 @@ initial begin
   // enable XIP
   avalon_cycle (1, 'h3, 4'hf, 32'h0000_0001, data);
   // read data from xip port
+  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxx_xxxx, data);
 
   // few clock periods
   repeat (16) @ (posedge clk);

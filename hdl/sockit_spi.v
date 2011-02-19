@@ -75,10 +75,10 @@ module sockit_spi #(
 
 // internal bus, finite state machine master
 wire        bus_wen, fsm_wen;  // write enable
-wire        bus_ren, fsm_ren;  // read enable
+                               // read enable
 wire        bus_adr, fsm_adr;  // address
 wire [31:0] bus_wdt, fsm_wdt;  // write data
-wire [31:0] bus_rdt, fsm_rdt;  // read data
+                               // read data
 wire        bus_wrq, fsm_wrq;  // wait request
 
 // configuration registers
@@ -162,42 +162,38 @@ reg      [3:0] ioe_pre;  // phase  register output enable
 assign xip_ena = xip_reg[0];
 
 sockit_spi_xip #(
-  .XAW      (XAW),      // bus address width
-  .NOP      (NOP)       // no operation instruction (returned on error)
+.XAW      (XAW),      // bus address width
+.NOP      (NOP)       // no operation instruction (returned on error)
 ) xip (
-  // system signals
-  .clk      (clk),      // clock
-  .rst      (rst),      // reset
-  // input bus (XIP requests)
-  .xip_ren  (xip_ren),  // read enable
-  .xip_adr  (xip_adr),  // address
-  .xip_rdt  (xip_rdt),  // read data
-  .xip_wrq  (xip_wrq),  // wait request
-  .xip_err  (       ),  // error interrupt
-  // output bus (interface to SPI master registers)
-  .fsm_wen  (fsm_wen),  // write enable
-  .fsm_ren  (fsm_ren),  // read enable
-  .fsm_adr  (fsm_adr),  // address
-  .fsm_wdt  (fsm_wdt),  // write data
-  .fsm_rdt  (fsm_rdt),  // read data
-  .fsm_wrq  (fsm_wrq),  // wait request
-  // configuration
-  .adr_off  ()          // address offset
+// system signals
+.clk      (clk),      // clock
+.rst      (rst),      // reset
+// input bus (XIP requests)
+.xip_ren  (xip_ren),  // read enable
+.xip_adr  (xip_adr),  // address
+.xip_rdt  (xip_rdt),  // read data
+.xip_wrq  (xip_wrq),  // wait request
+.xip_err  (       ),  // error interrupt
+// output bus (interface to SPI master registers)
+.fsm_wen  (fsm_wen),  // write enable
+.fsm_adr  (fsm_adr),  // address
+.fsm_wdt  (fsm_wdt),  // write data
+.fsm_wrq  (bus_wrq),  // wait request
+.fsm_rdt  (buf_dat),  // read data
+.fsm_ctl  (ctl_reg),  // read control/status
+// configuration
+.adr_off  ()          // address offset
 );
 
 // data & controll register access multipleser between two busses
 assign bus_wen = xip_ena ? fsm_wen : reg_wen & ~reg_adr[1];  // write enable
-assign bus_ren = xip_ena ? fsm_ren : reg_ren & ~reg_adr[1];  // read enable
 assign bus_adr = xip_ena ? fsm_adr : reg_adr[0];             // address
 assign bus_wdt = xip_ena ? fsm_wdt : reg_wdt;                // write data
 
 // register interface return signals
-assign reg_rdt = reg_adr[1] ? (reg_adr[0] ? xip_reg : cfg_reg) : bus_rdt;  // read data
-assign reg_wrq = reg_adr[1] ?                             1'b0 : bus_wrq;  // wait request
-
-// XIP interface return signals
-assign fsm_rdt = bus_rdt;  // read data
-assign fsm_wrq = bus_wrq;  // wait request
+assign reg_rdt = reg_adr[1] ? (reg_adr[0] ? xip_reg : cfg_reg)
+                            : (reg_adr[0] ? ctl_reg : buf_dat);  // read data
+assign reg_wrq = reg_adr[1] ?                  1'b0 : bus_wrq;   // wait request
 
 // wait request timing
 assign bus_wrq = 1'b0;
@@ -209,11 +205,8 @@ assign bus_wrq = 1'b0;
 assign reg_irq = 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
-// bus read access                                                            //
+// bus read register concatenations                                           //
 ////////////////////////////////////////////////////////////////////////////////
-
-// read data multiplexer
-assign bus_rdt = bus_adr ? ctl_reg : buf_dat;
 
 // control/status register read data
 assign ctl_reg = {                           buf_cnt,

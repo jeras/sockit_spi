@@ -34,15 +34,15 @@ module sockit_spi_xip #(
   input  wire           xip_ren,  // read enable
   input  wire [XAW-1:0] xip_adr,  // address
   output wire    [31:0] xip_rdt,  // read data
-  output reg            xip_wrq,  // wait request
-  output wire [XAW-1:8] xip_err,  // error interrupt
+  output wire           xip_wrq,  // wait request
+  output wire           xip_err,  // error interrupt
   // output bus (interface to SPI master registers)
-  output reg            fsm_wen,  // write enable
-  output reg            fsm_ren,  // read enable
+  output wire           fsm_wen,  // write enable
   output reg            fsm_adr,  // address
   output reg     [31:0] fsm_wdt,  // write data
-  input  wire    [31:0] fsm_rdt,  // read data
   input  wire           fsm_wrq,  // wait request
+  input  wire    [31:0] fsm_rdt,  // read data
+  input  wire    [31:0] fsm_ctl,  // read control/status
   // configuration
   input  wire [XAW-1:8] adr_off   // address offset
 );
@@ -51,17 +51,25 @@ module sockit_spi_xip #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
+//                       x x f
+//                       i i s
+//                       p p m
+//                       | | |
+//                       e w w
+//                       r r e
+//                       r q n
 // state names
-localparam IDL_RST = 3'h0;  // idle, reset
-localparam CMD_WDT = 3'h1;  // command write (load buffer)
-localparam CMD_CTL = 3'h2;  // command control (start cycle)
-localparam CMD_STS = 3'h3;  // command status (wait for cycle end)
-localparam DAT_CTL = 3'h4;  // data control (start cycle)
-localparam DAT_RDT = 3'h5;  // data read (read buffer)
+localparam IDL_RST = 6'b 0_1_0_000;  // idle, reset
+localparam CMD_WDT = 6'b 0_1_1_000;  // command write (load buffer)
+localparam CMD_CTL = 6'b 0_1_1_001;  // command control (start cycle)
+localparam CMD_STS = 6'b 0_1_0_01?;  // command status (wait for cycle end)
+localparam DAT_CTL = 6'b 0_1_1_100;  // data control (start cycle)
+localparam DAT_STS = 6'b 0_1_1_101;  // data read (read buffer)
+localparam DAT_RDT = 6'b 0_0_0_11?;  // data read (read buffer)
 
 // XIP state machine status
-reg            xip_cyc;  // cycle
-reg      [2:0] xip_fsm;  // current state
+reg      [5:0] fsm_sts;  // current state
+reg      [5:0] fsm_nxt;  // next state
 
 // address adder
 reg  [XAW-1:0] adr_reg;  // input address register
@@ -72,77 +80,57 @@ wire [XAW-1:0] adr_sum;  // input address + offset address
 ////////////////////////////////////////////////////////////////////////////////
 
 always @ (posedge clk, posedge rst)
-if (rst) begin
-  xip_wrq <= 1'b1;  // there is no data available initially
-  fsm_wen <= 1'b0;
-  fsm_ren <= 1'b0;
-  fsm_adr <= 1'h0;
-  fsm_wdt <= 32'h000000;
-  xip_fsm <= IDL_RST;
-end else begin
-  case (xip_fsm)
-    IDL_RST : begin
-      if (xip_ren) begin
-        xip_wrq <= 1'b1;
-        fsm_wen <= 1'b1;
-        fsm_ren <= 1'b0;
-        fsm_adr <= 1'b0;
-        fsm_wdt <= {8'h0b, xip_adr};
-        xip_fsm <= CMD_WDT;
-      end
-    end
-    CMD_WDT : begin
-      if (xip_ren) begin
-        xip_wrq <= 1'b1;
-        fsm_wen <= 1'b1;
-        fsm_ren <= 1'b0;
-        fsm_adr <= 1'b1;
-        fsm_wdt <= 32'h001f_100a;
-        xip_fsm <= CMD_CTL;
-      end
-    end
-    CMD_CTL : begin
-      if (xip_ren) begin
-        xip_wrq <= 1'b0;
-        fsm_wen <= 1'b0;
-        fsm_ren <= 1'b0;
-        fsm_adr <= 1'b1;
-        fsm_wdt <= 32'hxxxx_xxxx;
-        xip_fsm <= |(fsm_rdt & 32'h0000_c000) ? CMD_CTL : CMD_STS;
-      end
-    end
-    CMD_STS : begin
-      if (xip_ren) begin
-        xip_wrq <= 1'b1;
-        fsm_wen <= 1'b1;
-        fsm_ren <= 1'b0;
-        fsm_adr <= 1'b1;
-        fsm_wdt <= 32'h0038_1008;
-        xip_fsm <= CMD_CTL;
-      end
-    end
-    DAT_CTL : begin
-      if (xip_ren) begin
-        xip_wrq <= 1'b0;
-        fsm_wen <= 1'b0;
-        fsm_ren <= 1'b0;
-        fsm_adr <= 1'b1;
-        fsm_wdt <= 32'hxxxx_xxxx;
-        xip_fsm <= |(fsm_rdt & 32'h0000_c000) ? CMD_CTL : CMD_STS;
-      end
-    end
-    DAT_RDT : begin
-        xip_wrq <= 1'b0;
-        fsm_wen <= 1'b0;
-        fsm_ren <= 1'b0;
-        fsm_adr <= 1'b0;
-        fsm_wdt <= 32'hxxxx_xxxx;
-        xip_fsm <= IDL_RST;
-    end
-    default : begin
-        xip_fsm <= 3'dx;
-    end
-  endcase
-end
+if (rst) fsm_sts <= IDL_RST;
+else     fsm_sts <= fsm_nxt;
+
+always @ (*)
+casez (fsm_sts)
+  IDL_RST : begin
+    fsm_adr = 1'bx;
+    fsm_wdt = 32'hxxxx_xxxx;
+    fsm_nxt = xip_ren          ? CMD_WDT : fsm_sts;
+  end
+  CMD_WDT : begin
+    fsm_adr = 1'b0;
+    fsm_wdt = {8'h0b, xip_adr};
+    fsm_nxt = ~fsm_wrq         ? CMD_CTL : fsm_sts;
+  end
+  CMD_CTL : begin
+    fsm_adr = 1'b1;
+    fsm_wdt = 32'h001f_100a;
+    fsm_nxt = ~fsm_wrq         ? CMD_STS : fsm_sts;
+  end
+  CMD_STS : begin
+    fsm_adr = 1'bx;
+    fsm_wdt = 32'hxxxxxxxx;
+    fsm_nxt = ~|fsm_ctl[15:14] ? DAT_CTL : fsm_sts;
+  end
+  DAT_CTL : begin
+    fsm_adr = 1'b1;
+    fsm_wdt = 32'h0038_1008;
+    fsm_nxt = ~fsm_wrq         ? DAT_STS : fsm_sts;
+  end
+  DAT_STS : begin
+    fsm_adr = 1'bx;
+    fsm_wdt = 32'hxxxxxxxx;
+    fsm_nxt = ~|fsm_ctl[15:14] ? DAT_RDT : fsm_sts;
+  end
+  DAT_RDT : begin
+    fsm_adr = 1'bx;
+    fsm_wdt = 32'hxxxx_xxxx;
+    fsm_nxt = IDL_RST;
+  end
+  default : begin
+    fsm_nxt = 6'b1_0_0_???;
+  end
+endcase
+
+// XIP return signals
+assign xip_rdt = fsm_rdt;
+assign xip_wrq = fsm_sts[4];
+assign xip_err = fsm_sts[5];
+
+// register access signals
+assign fsm_wen = fsm_sts[3];
 
 endmodule
