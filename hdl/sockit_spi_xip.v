@@ -52,12 +52,12 @@ module sockit_spi_xip #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // state names
-localparam IDL_RST = 4'h0;  // idle, reset
-localparam CMD_WDT = 4'h1;  // command write (load buffer)
-localparam CMD_CTL = 4'h2;  // command control (start cycle)
-localparam CMD_STS = 4'h3;  // command status (wait for cycle end)
-localparam DAT_CTL = 4'h4;  // data control (start cycle)
-localparam DAT_RDT = 4'h5;  // data read (read buffer)
+localparam IDL_RST = 3'h0;  // idle, reset
+localparam CMD_WDT = 3'h1;  // command write (load buffer)
+localparam CMD_CTL = 3'h2;  // command control (start cycle)
+localparam CMD_STS = 3'h3;  // command status (wait for cycle end)
+localparam DAT_CTL = 3'h4;  // data control (start cycle)
+localparam DAT_RDT = 3'h5;  // data read (read buffer)
 
 // XIP state machine status
 reg            xip_cyc;  // cycle
@@ -139,8 +139,10 @@ end else begin
         fsm_wdt <= 32'hxxxx_xxxx;
         xip_fsm <= IDL_RST;
     end
+    default : begin
+        xip_fsm <= 3'dx;
+    end
   endcase
 end
-
 
 endmodule

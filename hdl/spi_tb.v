@@ -29,9 +29,17 @@ module spi_tb ();
 // local parameters and signals                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
+// XIP interface parameters
+localparam XAW = 24;
+localparam XDW = 32;
+localparam XBW = XDW/8;
+
+// register interface parameters
+localparam AAW =  2;
 localparam ADW = 32;
-localparam AAW = 32;
 localparam ABW = ADW/8;
+
+// SPI parameters
 localparam SSW = 8;
 
 // system signals
@@ -45,9 +53,19 @@ reg  [ABW-1:0] avalon_byteenable;
 reg  [ADW-1:0] avalon_writedata;
 wire [ADW-1:0] avalon_readdata;
 wire           avalon_waitrequest;
-
 wire           avalon_transfer;
 
+// XIP bus
+reg            xip_wen;  // read enable
+reg            xip_ren;  // read enable
+reg  [XAW-1:0] xip_adr;  // address
+reg  [XBW-1:0] xip_ben;  // byte enable
+reg  [XDW-1:0] xip_wdt;  // read data
+wire [XDW-1:0] xip_rdt;  // read data
+wire           xip_wrq;  // wait request
+wire           xip_trn;  // transfer
+ 
+// transfer data
 reg  [ADW-1:0] data;
 
 // SPI signals
@@ -225,9 +243,58 @@ initial begin
   // few clock periods
   repeat (16) @ (posedge clk);
 
+  // enable XIP
+  avalon_cycle (1, 'h3, 4'hf, 32'h0000_0001, data);
+  // read data from xip port
+
+  // few clock periods
+  repeat (16) @ (posedge clk);
+
   // end simulation
   $finish;
 end
+
+////////////////////////////////////////////////////////////////////////////////
+// avalon tasks                                                               //
+////////////////////////////////////////////////////////////////////////////////
+
+// transfer cycle end status
+assign xip_trn = (xip_ren | xip_wen) & ~xip_wrq;
+
+task xip_cyc;
+  input            r_w;  // 0-read or 1-write cycle
+  input  [XAW-1:0] adr;
+  input  [XBW-1:0] ben;
+  input  [XDW-1:0] wdt;
+  output [XDW-1:0] rdt;
+// task avalon_cycle (
+//   input            r_w,  // 0-read or 1-write cycle
+//   input  [XAW-1:0] adr,
+//   input  [XBW-1:0] ben,
+//   input  [XDW-1:0] wdt,
+//   output [XDW-1:0] rdt
+// );
+begin
+//  $display ("XIP cycle start: T=%10tns, %s adr=%08x ben=%04b wdt=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
+  // begin cycle
+  xip_ren <= ~r_w;
+  xip_wen <=  r_w;
+  xip_adr <=  adr;
+  xip_ben <=  ben;
+  xip_wdt <=  wdt;
+  // wait for waitrequest to be retracted
+  @ (posedge clk); while (~xip_trn) @ (posedge clk);
+  // end cycle
+  xip_ren <=      1'b0  ;
+  xip_wen <=      1'b0  ;
+  xip_adr <= {XAW{1'bx}};
+  xip_ben <= {XBW{1'bx}};
+  xip_wdt <= {XDW{1'bx}};
+  // read data
+  rdt = xip_rdt;
+//  $display ("XIP cycle end  : T=%10tns, rdt=%08x", $time/1000.0, rdt);
+end
+endtask
 
 ////////////////////////////////////////////////////////////////////////////////
 // avalon tasks                                                               //
@@ -276,16 +343,17 @@ endtask
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi #(
+  .XAW         (XAW),
   .SSW         (SSW)
 ) sockit_spi (
   // system signals (used by the CPU bus interface)
   .clk         (clk),
   .rst         (rst),
   // XIP interface
-  .xip_ren     ('b0),
-  .xip_adr     ('bx),
-  .xip_rdt     (),
-  .xip_wrq     (),
+  .xip_ren     (xip_ren),
+  .xip_adr     (xip_adr),
+  .xip_rdt     (xip_rdt),
+  .xip_wrq     (xip_wrq),
   .xip_irq     (),
   // register interface
   .reg_wen     (avalon_write      ),

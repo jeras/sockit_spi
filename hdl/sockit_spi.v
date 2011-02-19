@@ -133,7 +133,7 @@ reg            sts_wdt;  // write cycle status
 reg            sts_rdt;  // read  cycle status
 
 // fifo buffer
-reg      [9:0] buf_cnt;  // fifo load counter
+reg      [8:0] buf_cnt;  // fifo load counter
 reg  [SDW-1:0] buf_dat;  // fifo data register
 
 // serialization
@@ -206,7 +206,7 @@ assign bus_wrq = 1'b0;
 // interrupt request                                                          //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign bus_irq = 1'b0;
+assign reg_irq = 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // bus read access                                                            //
@@ -253,7 +253,7 @@ end
 // XIP configuration
 always @(posedge clk, posedge rst)
 if (rst) begin
-  xip_reg <= XIP_RST [31:24];
+  xip_reg <= XIP_RST [31: 0];
 end else if (reg_wen & (reg_adr == 2'd3) & ~reg_wrq) begin
   xip_reg <= reg_wdt;
 end
@@ -401,7 +401,7 @@ end
 // fifo buffer                                                                //
 ////////////////////////////////////////////////////////////////////////////////
 
-initial buf_cnt = 10'd0;
+initial buf_cnt = 9'd0;
 
 // shift register implementation
 always @ (posedge clk)
