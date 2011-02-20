@@ -135,10 +135,10 @@ endcase
 // byte end
 always @ (*)
 case (m_iow)
-  2'd0 :  m_byt <= &m_bit[2:0];  // 3-wire
-  2'd1 :  m_byt <= &m_bit[2:0];  // spi
-  2'd2 :  m_byt <= &m_bit[2:1];  // dual
-  2'd3 :  m_byt <= &m_bit[2:2];  // quad
+  2'd0 :  m_byt = &m_bit[2:0];  // 3-wire
+  2'd1 :  m_byt = &m_bit[2:0];  // spi
+  2'd2 :  m_byt = &m_bit[2:1];  // dual
+  2'd3 :  m_byt = &m_bit[2:2];  // quad
 endcase
 
 // clock period counter
@@ -155,7 +155,7 @@ end
 
 // address register
 always @ (posedge clk, posedge rst)
-if (rst)           m_adr        <= 31'h00xxxxxx;
+if (rst)           m_adr        <= 32'h00xxxxxx;
 else if (m_byt) begin
   if (m_cnt == 1)  m_adr[23:16] <= i_dat;
   if (m_cnt == 2)  m_adr[15: 8] <= i_dat;
@@ -178,7 +178,8 @@ case (m_cmd)
   8'h32   : begin  m_oen = 1'b0;  m_ien = (m_cnt >= 4);  m_iow = (m_cnt >= 4) ? 2'd3 : 2'd1;  m_iad = (m_adr + m_cnt - 4) % MSZ;  end  // Quad Input Fast Program
   8'h12   : begin  m_oen = 1'b0;  m_ien = (m_cnt >= 4);  m_iow = (m_cnt >= 1) ? 2'd3 : 2'd1;  m_iad = (m_adr + m_cnt - 4) % MSZ;  end  // Quad Input Extended Fast Program
   // undefined instructions
-  default : begin  m_ien = 1'b0;  m_oen = 1'b0;          m_iow =                       2'd1;  m_iad = 8'hxx;  m_oad = 8'hxx;      end  //
+  default : begin  m_ien = 1'b0;  m_oen = 1'b0;          m_iow =                       2'd1;  m_iad = 32'hxxxxxxxx;
+                                                                                              m_oad = 32'hxxxxxxxx;               end  //
 endcase
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -189,6 +190,7 @@ integer f;  // file pointer
 integer s;  // file status
 
 // initialization from file
+`ifndef verilator
 initial begin
   f = $fopen(FILE, "r");
   s = $fread(mem, f);
@@ -196,6 +198,7 @@ initial begin
   s = $fread(mem, f, 'h5a);
       $fclose(f);
 end
+`endif
 
 // read from memory
 assign m_rdt = mem [m_oad];
