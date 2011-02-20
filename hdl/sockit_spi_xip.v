@@ -121,6 +121,8 @@ casez (fsm_sts)
     fsm_nxt = IDL_RST;
   end
   default : begin
+    fsm_adr = 1'bx;
+    fsm_wdt = 32'hxxxx_xxxx;
     fsm_nxt = 6'b1_0_0_???;
   end
 endcase
