@@ -2,7 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
-//  Copyright (C) 2011  Iztok Jeras                                           //
+//  Copyright (C) 2008-2011  Iztok Jeras                                      //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -40,6 +40,7 @@ module sockit_spi #(
   // system signals (used by the CPU interface)
   input  wire           clk,         // clock
   input  wire           rst,         // reset
+  input  wire           clk_spi,     // clock for SPI IO
   // XIP interface bus
   input  wire           xip_ren,     // read enable
   input  wire [XAW-1:0] xip_adr,     // address

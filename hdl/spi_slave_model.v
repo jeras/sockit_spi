@@ -2,7 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) slave model                                      //
 //                                                                            //
-//  Copyright (C) 2010  Iztok Jeras                                           //
+//  Copyright (C) 2011  Iztok Jeras                                           //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //

@@ -353,6 +353,7 @@ sockit_spi #(
   // system signals (used by the CPU bus interface)
   .clk         (clk),
   .rst         (rst),
+  .clk_spi     (clk),
   // XIP interface
   .xip_ren     (xip_ren),
   .xip_adr     (xip_adr),

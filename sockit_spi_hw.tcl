@@ -77,7 +77,7 @@ add_file hdl/sockit_spi_fifo.v {SYNTHESIS SIMULATION}
 add_parameter XAW INTEGER
 set_parameter_property XAW DESCRIPTION "XIP address width (memory size)"
 set_parameter_property XAW DEFAULT_VALUE 24
-set_parameter_property XAW ALLOWED_RANGES {16 17 18 19 20 21 22 23 24 25}
+set_parameter_property XAW ALLOWED_RANGES {16:512-kbit 17:1-Mbit 18:2-Mbit 19:4-Mbit 20:8-Mbit 21:16-Mbit 22:32-Mbit 23:64-Mbit 24:128-Mbit 25:256-Mbit}
 set_parameter_property XAW AFFECTS_GENERATION false
 set_parameter_property XAW AFFECTS_ELABORATION true
 set_parameter_property XAW HDL_PARAMETER true
@@ -97,6 +97,12 @@ set_parameter_property F_CLK DISPLAY_NAME F_CLK
 set_parameter_property F_CLK DESCRIPTION "System clock frequency"
 set_parameter_property F_CLK UNITS megahertz
 
+add_parameter F_SPI INTEGER
+set_parameter_property F_SPI SYSTEM_INFO {CLOCK_RATE clock_spi}
+set_parameter_property F_SPI DISPLAY_NAME F_SPI
+set_parameter_property F_SPI DESCRIPTION "SPI clock frequency"
+set_parameter_property F_SPI UNITS megahertz
+
 # add_display_item "Base time period options" BTP_N parameter
 # add_display_item "Base time period options" BTP_O parameter
 # add_display_item "Clock dividers"           F_CLK parameter
@@ -114,7 +120,7 @@ add_interface_port clock_reset rst reset Input 1
 # connection point clock_spi
 add_interface clock_spi clock end
 
-set_interface_property clock_spi ENABLED false
+set_interface_property clock_spi ENABLED true
 
 add_interface_port clock_spi clk_spi clk Input 1
 
@@ -195,6 +201,7 @@ add_interface_port irq reg_irq irq Output 1
 # connection point conduit
 add_interface spi conduit end
 
+set_interface_property irq ASSOCIATED_CLOCK clock_spi
 set_interface_property spi ENABLED true
 
 add_interface_port spi spi_sclk_i export Input  1

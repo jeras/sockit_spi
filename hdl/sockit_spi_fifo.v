@@ -4,7 +4,7 @@
 //                                                                            //
 //  FIFO (sychronous or asynchronous)                                         //
 //                                                                            //
-//  Copyright (C) 2008  Iztok Jeras                                           //
+//  Copyright (C) 2011  Iztok Jeras                                           //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
