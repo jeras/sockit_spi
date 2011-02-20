@@ -3,6 +3,7 @@
 # cleanup first
 rm spi.out
 rm spi.fst
+rm spi.cdd
 rm flash.hex
 
 # convert Flash binary file into hexdecimal
