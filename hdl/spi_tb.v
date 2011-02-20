@@ -2,7 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) testbench                                        //
 //                                                                            //
-//  Copyright (C) 2008  Iztok Jeras                                           //
+//  Copyright (C) 2008-2011  Iztok Jeras                                      //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //

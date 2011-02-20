@@ -2,7 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
-//  Copyright (C) 2008  Iztok Jeras                                           //
+//  Copyright (C) 2011  Iztok Jeras                                           //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
