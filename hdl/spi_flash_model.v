@@ -77,7 +77,10 @@ reg     [3:0] o_reg;  // output register
 wire    [3:0] o_sig;  // output signal vector
 reg           e_reg;  // output enable register
 wire          e_sig;  // output enable signal vector
-reg     [3:0] sio;    // serial input output
+
+// ports output, output enable
+reg     [3:0] sio_o;  // serial output
+reg     [3:0] sio_e;  // serial output enable
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock and reset                                                            //
@@ -239,13 +242,25 @@ assign e_sig = CPHA ? e_reg : m_oen;
 // output drivers
 always @ (*)
 case (m_iow)
-  2'd0 :  sio = e_sig ? {    1'bz,     1'bz,     1'bz, o_sig[0]} : 4'bzzzz;  // 3-wire
-  2'd1 :  sio = e_sig ? {    1'bz,     1'bz, o_sig[1],     1'bz} : 4'bzzzz;  // spi
-  2'd2 :  sio = e_sig ? {    1'bz,     1'bz, o_sig[1], o_sig[0]} : 4'bzzzz;  // dual
-  2'd3 :  sio = e_sig ? {o_sig[3], o_sig[2], o_sig[1], o_sig[0]} : 4'bzzzz;  // quad
+  2'd0 :  sio_o = {    1'b?,     1'b?,     1'b?, o_sig[0]};  // 3-wire
+  2'd1 :  sio_o = {    1'b?,     1'b?, o_sig[1],     1'b?};  // spi
+  2'd2 :  sio_o = {    1'b?,     1'b?, o_sig[1], o_sig[0]};  // dual
+  2'd3 :  sio_o = {o_sig[3], o_sig[2], o_sig[1], o_sig[0]};  // quad
+endcase
+
+// output enable drivers
+always @ (*)
+case (m_iow)
+  2'd0 :  sio_e = e_sig ? 4'b0001 : 4'b0000;  // 3-wire
+  2'd1 :  sio_e = e_sig ? 4'b0010 : 4'b0000;  // spi
+  2'd2 :  sio_e = e_sig ? 4'b0011 : 4'b0000;  // dual
+  2'd3 :  sio_e = e_sig ? 4'b1111 : 4'b0000;  // quad
 endcase
 
 // output data
-assign {hold_n, wp_n, miso, mosi} = sio;
+assign mosi   = sio_e[0] ? sio_o[0] : 1'bz;
+assign miso   = sio_e[1] ? sio_o[1] : 1'bz;
+assign wp_n   = sio_e[2] ? sio_o[2] : 1'bz;
+assign hold_n = sio_e[3] ? sio_o[3] : 1'bz;
 
 endmodule
