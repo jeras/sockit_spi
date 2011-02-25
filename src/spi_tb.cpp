@@ -2,6 +2,24 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
+unsigned int t=0;
+
+void clk_tgl (Vspi* top, VerilatedVcdC* tfp) {
+  for (int clk=0; clk<2; clk++) {
+    tfp->dump (2*t+clk);
+    top->clk     = !top->clk    ;
+    top->clk_spi = !top->clk_spi;
+    top->eval ();
+  }
+  t++;
+}
+
+void IOWR32 (int adr, int wdt) {
+}
+
+int  IORD32 (int adr) {
+}
+
 int main(int argc, char **argv, char **env) {
   int i;
   int clk;
@@ -23,11 +41,7 @@ int main(int argc, char **argv, char **env) {
     top->rst     = (i < 2);
     top->rst_spi = (i < 2);
     // dump variables into VCD file and toggle clock
-    for (clk=0; clk<2; clk++) {
-      tfp->dump (2*i+clk);
-      top->clk = !top->clk;
-      top->eval ();
-    }
+    clk_tgl (top, tfp);
     if (Verilated::gotFinish())  exit(0);
   }
   tfp->close();
