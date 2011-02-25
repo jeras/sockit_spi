@@ -42,7 +42,9 @@ module sockit_spi_xip #(
   output reg     [31:0] fsm_wdt,  // write data
   input  wire           fsm_wrq,  // wait request
   input  wire    [31:0] fsm_rdt,  // read data
+/* verilator lint_off UNUSED */
   input  wire    [31:0] fsm_ctl,  // read control/status
+/* verilator lint_on  UNUSED */
   // configuration
   input  wire [XAW-1:8] adr_off   // address offset
 );
@@ -72,8 +74,8 @@ reg      [5:0] fsm_sts;  // current state
 reg      [5:0] fsm_nxt;  // next state
 
 // address adder
-reg  [XAW-1:0] adr_reg;  // input address register
-wire [XAW-1:0] adr_sum;  // input address + offset address
+// reg  [XAW-1:0] adr_reg;  // input address register
+// wire [XAW-1:0] adr_sum;  // input address + offset address
 
 ////////////////////////////////////////////////////////////////////////////////
 // state machine                                                              //
@@ -92,7 +94,7 @@ casez (fsm_sts)
   end
   CMD_WDT : begin
     fsm_adr = 1'b0;
-    fsm_wdt = {8'h0b, xip_adr};
+    fsm_wdt = {8'h0b, xip_adr + {adr_off, 8'h00}};
     fsm_nxt = ~fsm_wrq         ? CMD_CTL : fsm_sts;
   end
   CMD_CTL : begin

@@ -52,7 +52,7 @@ wire          rst;    // local reset
 // input stage
 reg     [3:0] i_sig;  // input signal vector
 reg     [3:0] i_reg;  // input phase register
-reg     [7:0] i_tmp;  // input data byte temporary register
+reg     [6:0] i_tmp;  // input data byte temporary register
 reg     [7:0] i_dat;  // input data byte
 
 // internal machinery
@@ -67,8 +67,10 @@ reg    [31:0] m_adr;  // address
 
 // internal memory
 reg     [7:0] mem [0:MSZ-1];
+/* verilator lint_off UNUSED */
 reg    [31:0] m_oad;  // output (read) address
 reg    [31:0] m_iad;  // input (write) address
+/* verilator lint_on  UNUSED */
 wire    [7:0] m_rdt;  // read  data
 
 // output, output enable
@@ -118,8 +120,8 @@ endcase
 
 // temporary input data register
 always @ (posedge clk, posedge rst)
-if (rst)  i_tmp <= 8'hxx;
-else      i_tmp <= i_dat;
+if (rst)  i_tmp <= 7'hxx;
+else      i_tmp <= i_dat[6:0];
 
 ////////////////////////////////////////////////////////////////////////////////
 // internals                                                                  //
@@ -189,11 +191,10 @@ endcase
 // memory                                                                     //
 ////////////////////////////////////////////////////////////////////////////////
 
-integer f;  // file pointer
-integer s;  // file status
-
 // initialization from file
 `ifndef verilator
+integer f;  // file pointer
+integer s;  // file status
 initial begin
   f = $fopen(FILE, "r");
   s = $fread(mem, f);

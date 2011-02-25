@@ -43,7 +43,8 @@ localparam ABW = ADW/8;
 localparam SSW = 8;
 
 // system signals
-reg clk, rst;
+reg clk    , rst    ;
+reg clk_spi, rst_spi;
 
 // Avalon MM interfacie
 reg            avalon_write;
@@ -105,6 +106,13 @@ end
 initial    clk <= 1'b1;
 always  #5 clk <= ~clk;
 
+// TODO enable asynchronous clocking
+always @ (*)
+begin
+  clk_spi = clk;
+  rst_spi = rst;
+end
+
 // test sequence
 initial begin
   // put register interface into idle
@@ -119,7 +127,7 @@ initial begin
   repeat (4) @ (posedge clk);
 
   // write slave select and clock divider
-  avalon_cycle (1, 'h2, 4'hf, 32'h0100_0fd4, data);
+  avalon_cycle (1, 'h2, 4'hf, 32'h01ff_0f84, data);
 
   // few clock periods
   repeat (16) @ (posedge clk);
@@ -353,13 +361,14 @@ sockit_spi #(
   // system signals (used by the CPU bus interface)
   .clk         (clk),
   .rst         (rst),
-  .clk_spi     (clk),
+  .clk_spi     (clk_spi),
+  .rst_spi     (rst_spi),
   // XIP interface
   .xip_ren     (xip_ren),
   .xip_adr     (xip_adr),
   .xip_rdt     (xip_rdt),
   .xip_wrq     (xip_wrq),
-  .xip_irq     (),
+  .xip_err     (),
   // register interface
   .reg_wen     (avalon_write      ),
   .reg_ren     (avalon_read       ),

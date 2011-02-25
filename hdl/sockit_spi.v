@@ -41,15 +41,18 @@ module sockit_spi #(
   input  wire           clk,         // clock
   input  wire           rst,         // reset
   input  wire           clk_spi,     // clock for SPI IO
+  input  wire           rst_spi,     // reset for SPI IO
   // XIP interface bus
   input  wire           xip_ren,     // read enable
   input  wire [XAW-1:0] xip_adr,     // address
   output wire    [31:0] xip_rdt,     // read data
   output wire           xip_wrq,     // wait request
-  output wire           xip_irq,     // interrupt request
+  output wire           xip_err,     // error interrupt
   // registers interface bus
   input  wire           reg_wen,     // write enable
+/* verilator lint_off UNUSED */
   input  wire           reg_ren,     // read enable
+/* verilator lint_on  UNUSED */
   input  wire     [1:0] reg_adr,     // address
   input  wire    [31:0] reg_wdt,     // write data
   output wire    [31:0] reg_rdt,     // read data
@@ -57,7 +60,9 @@ module sockit_spi #(
   output wire           reg_irq,     // interrupt request
   // SPI signals (at a higher level should be connected to tristate IO pads)
   // serial clock
+/* verilator lint_off UNUSED */
   input  wire           spi_sclk_i,  // input (clock loopback)
+/* verilator lint_on  UNUSED */
   output wire           spi_sclk_o,  // output
   output wire           spi_sclk_e,  // output enable
   // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
@@ -65,7 +70,7 @@ module sockit_spi #(
   output wire     [3:0] spi_sio_o,   // output
   output wire     [3:0] spi_sio_e,   // output enable
   // active low slave select signal
-  output wire [SSW-1:0] spi_ss_i,    // input  (requires inverter at the pad)
+  input  wire [SSW-1:0] spi_ss_i,    // input  (requires inverter at the pad)
   output wire [SSW-1:0] spi_ss_o,    // output (requires inverter at the pad)
   output wire [SSW-1:0] spi_ss_e     // output enable
 );
@@ -80,19 +85,17 @@ wire        bus_wen, fsm_wen;  // write enable
 wire        bus_adr, fsm_adr;  // address
 wire [31:0] bus_wdt, fsm_wdt;  // write data
                                // read data
-wire        bus_wrq, fsm_wrq;  // wait request
+wire        bus_wrq         ;  // wait request
 
 // configuration registers
 wire    [31:0] cfg_reg;  // 32bit register
-reg    [8-1:0] cfg_sso;  // slave select outputs
-reg    [8-1:0] cfg_div;  // clock divider ratio
-reg    [4-1:0] cfg_xip;  // clock divider ratio
+reg    [8-1:0] cfg_sso;  // slave select output
+reg    [8-1:0] cfg_sse;  // slave select output enable
 reg            cfg_hle;  // hold output enable
 reg            cfg_hlo;  // hold output
 reg            cfg_wpe;  // write protect output enable
 reg            cfg_wpo;  // write protect output
 reg            cfg_coe;  // clock output enable
-reg            cfg_sse;  // slave select output enable
 reg            cfg_bit;  // bit mode
 reg            cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
 reg            cfg_pol;  // clock polarity
@@ -101,12 +104,6 @@ reg            cfg_pha;  // clock phase
 // XIP configuration TODO
 reg     [31:0] xip_reg;  // XIP configuration
 wire           xip_ena;  // XIP configuration
-
-// clock divider signals
-reg    [8-1:0] div_cnt;  // clock divider counter
-wire           div_byp;  // divider bypass
-reg            div_clk;  // register storing the SCLK clock value (additional division by two)
-wire           div_ena;  // divided clock enable pulse
 
 // control registers
 wire    [31:0] ctl_reg;  // 32bit register
@@ -125,9 +122,8 @@ reg      [1:0] ctl_btn;  // counter of shifted bits next (+1)
 // status registers
 reg            sts_beg;  // transfer begin pulse
 reg            sts_run;  // transfer run status
-reg            sts_nin;  // transfer nibble pulse // TODO
-reg            sts_nib;  // transfer nibble pulse
-reg            sts_smp;  // transfer sample pulse
+reg            sts_nin;  // transfer nibble pulse next
+reg            sts_nib;  // transfer nibble pulse (registered version of sts_nin)
 reg            sts_end;  // transfer end pulse
 reg            sts_ren;  // transfer read pulse
 reg            sts_wdt;  // write cycle status
@@ -139,7 +135,7 @@ reg  [SDW-1:0] buf_dat;  // fifo data register
 
 // serialization
 reg      [3:0] ser_dmi;  // data mixer input register
-reg      [3:0] ser_dsi;  // data shift input register
+reg      [2:0] ser_dsi;  // data shift input register
 reg      [3:0] ser_dpi;  // data shift phase synchronization
 reg      [3:0] ser_dti;  // data shift input
 reg  [SDW-1:0] ser_dat;  // data shift register
@@ -174,7 +170,7 @@ sockit_spi_xip #(
 .xip_adr  (xip_adr),  // address
 .xip_rdt  (xip_rdt),  // read data
 .xip_wrq  (xip_wrq),  // wait request
-.xip_err  (       ),  // error interrupt
+.xip_err  (xip_err),  // error interrupt
 // output bus (interface to SPI master registers)
 .fsm_wen  (fsm_wen),  // write enable
 .fsm_adr  (fsm_adr),  // address
@@ -183,7 +179,7 @@ sockit_spi_xip #(
 .fsm_rdt  (buf_dat),  // read data
 .fsm_ctl  (ctl_reg),  // read control/status
 // configuration
-.adr_off  ()          // address offset
+.adr_off  (xip_reg[XAW-1:8])  // address offset
 );
 
 // data & controll register access multipleser between two busses
@@ -217,11 +213,11 @@ assign ctl_reg = {                           buf_cnt,
                                              ctl_cnt};
 
 // SPI configuration register
-assign cfg_reg = {                           cfg_sso,
-                                             cfg_div,
+assign cfg_reg = {                          spi_ss_i,
+                                             cfg_sse,
                                                 4'h0,
                   cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
-                  cfg_coe, cfg_sse,          ctl_iow,
+                  cfg_coe,                      3'h0,
                   cfg_bit, cfg_dir, cfg_pol, cfg_pha};
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -232,15 +228,15 @@ assign cfg_reg = {                           cfg_sso,
 always @(posedge clk, posedge rst)
 if (rst) begin
   {                           cfg_sso} <= CFG_RST [31:24];
-  {                           cfg_div} <= CFG_RST [23:16];
+  {                           cfg_sse} <= CFG_RST [23:16];
   {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= CFG_RST [11: 8];
-  {cfg_coe, cfg_sse}                   <= CFG_RST [ 7: 6];
+  {cfg_coe}                            <= CFG_RST [ 7   ];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
 end else if (reg_wen & (reg_adr == 2'd2) & ~reg_wrq) begin
   {                           cfg_sso} <= bus_wdt [31:24];
-  {                           cfg_div} <= bus_wdt [23:16];
+  {                           cfg_sse} <= bus_wdt [23:16];
   {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= bus_wdt [11: 8];
-  {cfg_coe, cfg_sse}                   <= bus_wdt [ 7: 6];
+  {cfg_coe}                            <= bus_wdt [ 7   ];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= bus_wdt [ 3: 0];
 end
 
@@ -251,33 +247,6 @@ if (rst) begin
 end else if (reg_wen & (reg_adr == 2'd3) & ~reg_wrq) begin
   xip_reg <= reg_wdt;
 end
-
-//////////////////////////////////////////////////////////////////////////////
-// clock divider                                                            //
-//////////////////////////////////////////////////////////////////////////////
-
-// divider bypass bit
-assign div_byp = ~|cfg_div;
-
-// clock counter
-always @(posedge clk, posedge rst)
-if (rst)
-  div_cnt <= 'b0;
-else begin
-  if (~sts_run | ~|div_cnt)
-    div_cnt <= cfg_div ;
-  else if (sts_run)
-    div_cnt <= div_cnt - 1;
-end
-
-// clock output register (divider by 2)
-always @(posedge clk)
-if (~sts_run)
-  div_clk <= cfg_pol;
-else if (~|div_cnt)
-  div_clk <= ~div_clk;
-
-assign div_ena = div_byp ? 1 : ~|div_cnt & (div_clk ^ cfg_pol);
 
 ////////////////////////////////////////////////////////////////////////////////
 // control register                                                           //
@@ -349,11 +318,6 @@ always @(posedge clk, posedge rst)
 if (rst)  sts_nib <= 1'b0;
 else      sts_nib <= sts_nin & (sts_run | (ctl_iow == 2'd3) & sts_beg) & ~sts_end;  // TODO pipelining
 
-// sample pulse
-always @(posedge clk, posedge rst)
-if (rst)  sts_smp <= 1'b0;
-else      sts_smp <= sts_nib;
-
 // spi transfer beginning pulse
 always @ (posedge clk, posedge rst)
 if (rst)  sts_beg <= 1'b0;
@@ -422,11 +386,11 @@ begin
 end
 
 // input shift register
-always @ (posedge clk)
-if (sts_run & ctl_ien)  ser_dsi <= ser_dmi;
+always @ (posedge clk_spi)
+if (sts_run & ctl_ien)  ser_dsi <= ser_dmi[2:0];
 
 // input phase register
-always @ (posedge clk)
+always @ (posedge clk_spi)
 if (sts_run & ctl_ien) begin
   case (ctl_iow)
     2'd0 :  if (ctl_btc[1:0] == 2'b00)  ser_dpi <= ser_dmi;
@@ -448,7 +412,7 @@ begin
 end
 
 // shift register (nibble sized shifts)
-always @ (posedge clk)
+always @ (posedge clk_spi)
 if   (sts_beg)  ser_dat <=           buf_dat                     ;  // par. load
 else if (sts_run & sts_nin) begin
   if (cfg_dir)  ser_dat <= {         ser_dat[SDW-4-1:0], ser_dti};  // MSB first
@@ -469,7 +433,7 @@ end else begin
     2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-{30'b0, ctl_btn[1:0]}+:1] : ser_dat[{30'b0, ctl_btn[1:0]}+:1]};
     2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[SDW-1-{30'b0, ctl_btn[1:0]}+:1] : ser_dat[{30'b0, ctl_btn[1:0]}+:1]};
     2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dat[SDW-2-{30'b0, ctl_btn[1:0]}+:2] : ser_dat[{30'b0, ctl_btn[1:0]}+:2]};
-    2'd3 :  ser_dmo = {                        cfg_dir ? ser_dat[SDW-8                      +:4] : ser_dat[0                    +:4]}; // this probably only works with divider bypass
+    2'd3 :  ser_dmo = {                        cfg_dir ? ser_dat[SDW-8                      +:4] : ser_dat[0                    +:4]};
   endcase
 end
 
@@ -489,37 +453,38 @@ end
 ////////////////////////////////////////////////////////////////////////////////
 
 // spi slave select
-always @ (posedge clk, posedge rst)
-if (rst)             ioe_sso <= {SSW{1'b0}};
+always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi)         ioe_sso <= {SSW{1'b0}};
 else begin
   if      (sts_beg)  ioe_sso <= {SSW{ ctl_sse}} & cfg_sso [SSW-1:0];
   else if (sts_end)  ioe_sso <= {SSW{~ctl_ssc}} & ioe_sso;
 end
 
-assign spi_ss_o =      ioe_sso  ;
-assign spi_ss_e = {SSW{cfg_sse}};
+assign spi_ss_o = ioe_sso;
+assign spi_ss_e = cfg_sse;
+
 
 // spi clock output pin
-assign spi_sclk_o = div_byp ? sts_run & (cfg_pol ^ ~clk) : div_clk;
+assign spi_sclk_o = cfg_pol ^ ~(~sts_run | clk_spi);
 assign spi_sclk_e = cfg_coe;
 
 
 // phase register input
-always @ (negedge clk)
+always @ (negedge clk_spi)
 if (~cfg_pha)  ioe_pri <= spi_sio_i;
 
 // phase multiplexer input
 // direct register input
-always @ (posedge clk)
+always @ (posedge clk_spi)
 ioe_dri <= cfg_pha ? ioe_pri : spi_sio_i;
 
 
 // direct register output
-always @ (posedge clk)
+always @ (posedge clk_spi)
 ioe_dro <= ser_dmo;
 
 // phase register output
-always @ (negedge clk)
+always @ (negedge clk_spi)
 if  (cfg_pha)  ioe_pro <= ioe_dro;
 
 // phase multiplexer output
@@ -527,14 +492,14 @@ assign spi_sio_o = cfg_pha ? ioe_pro : ioe_dro;
 
 
 // direct register output enable
-always @ (posedge clk, posedge rst)
-if  (rst)                ioe_dre <= 4'b0000;
+always @ (posedge clk_spi, posedge rst_spi)
+if  (rst_spi)            ioe_dre <= 4'b0000;
 else
 if  (sts_beg | sts_end)  ioe_dre <= ser_dme;
 
 // phase register output enable
-always @ (negedge clk, posedge rst)
-if  (rst)      ioe_pre <= 4'b0000;
+always @ (negedge clk_spi, posedge rst_spi)
+if  (rst_spi)  ioe_pre <= 4'b0000;
 else
 if  (cfg_pha)  ioe_pre <= ioe_dre;
 

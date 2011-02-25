@@ -39,12 +39,13 @@ module spi_wrp #(
   input  wire           clk,         // clock
   input  wire           rst,         // reset
   input  wire           clk_spi,     // clock for SPI IO
+  input  wire           rst_spi,     // reset for SPI IO
   // XIP interface bus
   input  wire           xip_ren,     // read enable
   input  wire [XAW-1:0] xip_adr,     // address
   output wire    [31:0] xip_rdt,     // read data
   output wire           xip_wrq,     // wait request
-  output wire           xip_irq,     // interrupt request
+  output wire           xip_err,     // error interrupt
   // registers interface bus
   input  wire           reg_wen,     // write enable
   input  wire           reg_ren,     // read enable
@@ -89,13 +90,14 @@ sockit_spi #(
   // system signals (used by the CPU bus interface)
   .clk         (clk),
   .rst         (rst),
-  .clk_spi     (clk),
+  .clk_spi     (clk_spi),
+  .rst_spi     (rst_spi),
   // XIP interface
   .xip_ren     (xip_ren),
   .xip_adr     (xip_adr),
   .xip_rdt     (xip_rdt),
   .xip_wrq     (xip_wrq),
-  .xip_irq     (xip_irq),
+  .xip_err     (xip_err),
   // register interface
   .reg_wen     (reg_wen),
   .reg_ren     (reg_ren),
@@ -144,6 +146,13 @@ assign spi_sio_i =   {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
 // slave select (active low)
 //bufif1 buffer_ss_n [SSW-1:0] (spi_ss_n, ~spi_ss_o, spi_ss_e);
 assign spi_ss_n[0] = spi_ss_e[0] ? ~spi_ss_o[0] : 1'bz;
+assign spi_ss_n[1] = spi_ss_e[1] ? ~spi_ss_o[1] : 1'bz;
+assign spi_ss_n[2] = spi_ss_e[2] ? ~spi_ss_o[2] : 1'bz;
+assign spi_ss_n[3] = spi_ss_e[3] ? ~spi_ss_o[3] : 1'bz;
+assign spi_ss_n[4] = spi_ss_e[4] ? ~spi_ss_o[4] : 1'bz;
+assign spi_ss_n[5] = spi_ss_e[5] ? ~spi_ss_o[5] : 1'bz;
+assign spi_ss_n[6] = spi_ss_e[6] ? ~spi_ss_o[6] : 1'bz;
+assign spi_ss_n[7] = spi_ss_e[7] ? ~spi_ss_o[7] : 1'bz;
 assign spi_ss_i = spi_ss_n;
 
 ////////////////////////////////////////////////////////////////////////////////
