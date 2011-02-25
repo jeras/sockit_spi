@@ -1,7 +1,7 @@
-[timestart] 3085000
+[timestart] 0
 [size] 1920 1123
 [pos] -1 -1
-*-17.973610 4010000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.331989 4010000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 @28
@@ -13,7 +13,6 @@ spi_tb.sockit_spi.rst
 spi_tb.sockit_spi.xip_ren
 @22
 spi_tb.sockit_spi.xip_adr[23:0]
-@23
 spi_tb.sockit_spi.xip_rdt[31:0]
 @28
 spi_tb.sockit_spi.xip_wrq
@@ -21,7 +20,7 @@ spi_tb.sockit_spi.xip_wrq
 spi_tb.sockit_spi.xip_reg[31:0]
 @1000200
 -XIP bus
-@800200
+@c00200
 -XIP
 @22
 spi_tb.sockit_spi.xip.xip_adr[23:0]
@@ -45,7 +44,6 @@ spi_tb.sockit_spi.xip.fsm_sts[5:0]
 (5)spi_tb.sockit_spi.xip.fsm_sts[5:0]
 @1401200
 -group_end
-@1000200
 -XIP
 @800200
 -register bus
@@ -72,38 +70,29 @@ spi_tb.sockit_spi.bus_wdt[31:0]
 spi_tb.sockit_spi.bus_wrq
 @1000200
 -bus
-@22
-spi_tb.sockit_spi.xip_reg[31:0]
 @c00200
 -clock divider
-@28
-spi_tb.sockit_spi.div_byp
-@22
-spi_tb.sockit_spi.div_cnt[7:0]
-@28
-spi_tb.sockit_spi.div_clk
-spi_tb.sockit_spi.div_ena
 @1401200
 -clock divider
-@c00200
+@800200
 -configuration
 @22
 spi_tb.sockit_spi.cfg_sso[7:0]
-spi_tb.sockit_spi.cfg_div[7:0]
 @28
 spi_tb.sockit_spi.cfg_hle
 spi_tb.sockit_spi.cfg_hlo
 spi_tb.sockit_spi.cfg_wpe
 spi_tb.sockit_spi.cfg_wpo
 spi_tb.sockit_spi.cfg_coe
-spi_tb.sockit_spi.cfg_sse
 spi_tb.sockit_spi.cfg_bit
 spi_tb.sockit_spi.cfg_dir
 spi_tb.sockit_spi.cfg_pol
 spi_tb.sockit_spi.cfg_pha
-@1401200
+@23
+spi_tb.sockit_spi.xip_reg[31:0]
+@1000200
 -configuration
-@800200
+@c00200
 -control
 @28
 spi_tb.sockit_spi.ctl_fio
@@ -123,12 +112,11 @@ spi_tb.sockit_spi.sts_beg
 spi_tb.sockit_spi.sts_run
 spi_tb.sockit_spi.sts_nin
 spi_tb.sockit_spi.sts_nib
-spi_tb.sockit_spi.sts_smp
 spi_tb.sockit_spi.sts_end
 spi_tb.sockit_spi.sts_ren
 spi_tb.sockit_spi.sts_wdt
 spi_tb.sockit_spi.sts_rdt
-@1000200
+@1401200
 -control
 @800200
 -FIFO
@@ -149,14 +137,6 @@ spi_tb.sockit_spi.ser_dmi[3:0]
 (3)spi_tb.sockit_spi.ser_dmi[3:0]
 @1401200
 -group_end
-@c00022
-spi_tb.sockit_spi.ser_dsi[3:0]
-@28
-(0)spi_tb.sockit_spi.ser_dsi[3:0]
-(1)spi_tb.sockit_spi.ser_dsi[3:0]
-(2)spi_tb.sockit_spi.ser_dsi[3:0]
-(3)spi_tb.sockit_spi.ser_dsi[3:0]
-@1401200
 -group_end
 @22
 spi_tb.sockit_spi.ser_dmi[3:0]
@@ -166,95 +146,5 @@ spi_tb.sockit_spi.ser_dat[31:0]
 @28
 spi_tb.sockit_spi.ser_dmo[3:0]
 spi_tb.sockit_spi.ser_dme[3:0]
-@1000200
--serialization
-@800200
--IOE
-@22
-spi_tb.sockit_spi.ioe_pri[3:0]
-@c00022
-spi_tb.sockit_spi.ioe_dri[3:0]
-@28
-(0)spi_tb.sockit_spi.ioe_dri[3:0]
-(1)spi_tb.sockit_spi.ioe_dri[3:0]
-(2)spi_tb.sockit_spi.ioe_dri[3:0]
-(3)spi_tb.sockit_spi.ioe_dri[3:0]
-@1401200
--group_end
-@22
-spi_tb.sockit_spi.ioe_pro[3:0]
-spi_tb.sockit_spi.ioe_dro[3:0]
-spi_tb.sockit_spi.ioe_pre[3:0]
-spi_tb.sockit_spi.ioe_dre[3:0]
-@1000200
--IOE
-@800200
--SPI
-@22
-spi_tb.sockit_spi.spi_ss_o[7:0]
-spi_tb.sockit_spi.spi_ss_e[7:0]
-spi_tb.sockit_spi.spi_ss_i[7:0]
-@28
-spi_tb.sockit_spi.spi_sclk_o
-spi_tb.sockit_spi.spi_sclk_e
-spi_tb.sockit_spi.spi_sclk_i
-spi_tb.sockit_spi.spi_sio_o[3:0]
-spi_tb.sockit_spi.spi_sio_e[3:0]
-spi_tb.sockit_spi.spi_sio_i[3:0]
-@1000200
--SPI
-@22
-spi_tb.sockit_spi.ioe_dre[3:0]
-spi_tb.sockit_spi.ser_dme[3:0]
-@800200
--slave
-@28
-spi_tb.slave_spi.clk
-spi_tb.slave_spi.rst
-spi_tb.slave_spi.hold_n
-spi_tb.slave_spi.wp_n
-spi_tb.slave_spi.miso
-spi_tb.slave_spi.mosi
-spi_tb.slave_spi.m_bit[2:0]
-@24
-spi_tb.slave_spi.m_bit[2:0]
-@28
-spi_tb.slave_spi.m_byt
-@22
-spi_tb.slave_spi.i_dat[7:0]
-@28
-spi_tb.slave_spi.i_reg[3:0]
-spi_tb.slave_spi.i_sig[3:0]
-@22
-spi_tb.slave_spi.i_tmp[7:0]
-spi_tb.slave_spi.m_cmd[7:0]
-spi_tb.slave_spi.m_adr[31:0]
-@28
-spi_tb.slave_spi.m_iow[1:0]
-spi_tb.slave_spi.m_oen
-@22
-spi_tb.slave_spi.m_oad[31:0]
-@28
-spi_tb.slave_spi.m_ien
-@22
-spi_tb.slave_spi.m_iad[31:0]
-spi_tb.slave_spi.m_rdt[7:0]
-@820
-spi_tb.slave_spi.m_rdt[7:0]
-@c00028
-spi_tb.slave_spi.o_tmp[3:0]
-@28
-(0)spi_tb.slave_spi.o_tmp[3:0]
-(1)spi_tb.slave_spi.o_tmp[3:0]
-(2)spi_tb.slave_spi.o_tmp[3:0]
-(3)spi_tb.slave_spi.o_tmp[3:0]
-@1401200
--group_end
-@1000200
--slave
-@22
-spi_tb.data[31:0]
-@820
-spi_tb.data[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
