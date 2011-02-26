@@ -3,6 +3,7 @@
 #include "verilated_vcd_c.h"
 
 // global time variable
+unsigned int n=0;
 unsigned int t=0;
 
 // global pointer to top module
@@ -14,14 +15,14 @@ VerilatedVcdC* tfp;
 
 // dump variables into VCD file and toggle clock
 void clk_tgl () {
-  top->clk     = 1;
-  top->clk_spi = 1;
-  top->eval ();
-  tfp->dump (2*t);
+  tfp->dump (n++);
   top->clk     = 0;
   top->clk_spi = 0;
   top->eval ();
-  tfp->dump (2*t+1);
+  tfp->dump (n++);
+  top->clk     = 1;
+  top->clk_spi = 1;
+  top->eval ();
   t++;
 }
 

@@ -1,7 +1,10 @@
 [timestart] 0
 [size] 1366 691
 [pos] -1 -1
-*-3.061903 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-5.270249 16 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.v.
+[treeopen] TOP.v.sockit_spi.
 @28
 TOP.clk
 TOP.rst
@@ -9,6 +12,7 @@ TOP.clk_spi
 TOP.rst_spi
 TOP.reg_wen
 TOP.reg_ren
+@24
 TOP.reg_adr[1:0]
 @22
 TOP.reg_wdt[31:0]
@@ -22,7 +26,36 @@ TOP.xip_adr[23:0]
 TOP.xip_rdt[31:0]
 @28
 TOP.xip_wrq
-@29
 TOP.xip_err
+@800200
+-SPI bus
+@22
+TOP.v.spi_ss_n[7:0]
+TOP.v.spi_ss_o[7:0]
+TOP.v.spi_ss_e[7:0]
+TOP.v.spi_ss_i[7:0]
+@28
+TOP.v.spi_sclk
+TOP.v.spi_sclk_o
+TOP.v.spi_sclk_e
+TOP.v.spi_sclk_i
+@22
+TOP.v.spi_sio_o[3:0]
+TOP.v.spi_sio_e[3:0]
+@c00022
+TOP.v.spi_sio_i[3:0]
+@28
+(0)TOP.v.spi_sio_i[3:0]
+(1)TOP.v.spi_sio_i[3:0]
+(2)TOP.v.spi_sio_i[3:0]
+(3)TOP.v.spi_sio_i[3:0]
+@1401200
+-group_end
+@1000200
+-SPI bus
+@23
+TOP.v.slave_spi.m_cmd[7:0]
+@22
+TOP.v.slave_spi.m_adr[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
