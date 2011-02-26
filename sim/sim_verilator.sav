@@ -1,0 +1,28 @@
+[timestart] 0
+[size] 1366 691
+[pos] -1 -1
+*-3.061903 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+@28
+TOP.clk
+TOP.rst
+TOP.clk_spi
+TOP.rst_spi
+TOP.reg_wen
+TOP.reg_ren
+TOP.reg_adr[1:0]
+@22
+TOP.reg_wdt[31:0]
+TOP.reg_rdt[31:0]
+@28
+TOP.reg_wrq
+TOP.reg_irq
+TOP.xip_ren
+@22
+TOP.xip_adr[23:0]
+TOP.xip_rdt[31:0]
+@28
+TOP.xip_wrq
+@29
+TOP.xip_err
+[pattern_trace] 1
+[pattern_trace] 0

@@ -2,33 +2,56 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
+// global time variable
 unsigned int t=0;
 
-void clk_tgl (Vspi* top, VerilatedVcdC* tfp) {
-  for (int clk=0; clk<2; clk++) {
-    tfp->dump (2*t+clk);
-    top->clk     = !top->clk    ;
-    top->clk_spi = !top->clk_spi;
-    top->eval ();
-  }
+// global pointer to top module
+Vspi* top;
+
+// global trace file pointer
+VerilatedVcdC* tfp;
+
+
+// dump variables into VCD file and toggle clock
+void clk_tgl () {
+  top->clk     = 1;
+  top->clk_spi = 1;
+  top->eval ();
+  tfp->dump (2*t);
+  top->clk     = 0;
+  top->clk_spi = 0;
+  top->eval ();
+  tfp->dump (2*t+1);
   t++;
 }
 
-void IOWR32 (int adr, int wdt) {
+void IOWR (int adr, int wdt) {
+  top->reg_wen = 1;
+  top->reg_adr = adr;
+  top->reg_wdt = wdt;
+  clk_tgl ();
+  top->reg_wen = 0;
 }
 
-int  IORD32 (int adr) {
+int  IORD (int adr) {
+  int rdt;
+  top->reg_ren = 1;
+  top->reg_adr = adr;
+  clk_tgl ();
+  rdt = top->reg_rdt;
+  top->reg_ren = 0;
+  return (rdt);
 }
 
 int main(int argc, char **argv, char **env) {
   int i;
-  int clk;
+  int data;
   Verilated::commandArgs(argc, argv);
   // init top verilog instance
-  Vspi* top = new Vspi;
+  top = new Vspi;
   // init trace dump
   Verilated::traceEverOn(true);
-  VerilatedVcdC* tfp = new VerilatedVcdC;
+  tfp = new VerilatedVcdC;
   top->trace (tfp, 99);
   tfp->open ("spi.vcd");
   // initialize simulation inputs
@@ -36,14 +59,28 @@ int main(int argc, char **argv, char **env) {
   top->rst     = 1;
   top->clk_spi = 1;
   top->rst_spi = 1;
-  // run simulation for 100 clock periods
-  for (i=0; i<20; i++) {
-    top->rst     = (i < 2);
-    top->rst_spi = (i < 2);
-    // dump variables into VCD file and toggle clock
-    clk_tgl (top, tfp);
-    if (Verilated::gotFinish())  exit(0);
-  }
+  // after two clock periods remove reset
+  for (i=0; i<2; i++) clk_tgl ();
+  top->rst     = 0;
+  top->rst_spi = 0;
+  for (i=0; i<2; i++) clk_tgl ();
+
+  // write SPI configuration
+  IOWR (2, 0x01ff0f84);
+  // write data register (command fast read)
+  IOWR (0, 0x0b5a005a);
+  // write control register (enable a chip and start a 5+4 byte write+read)
+  IOWR (1, 0x003f1012);
+  // polling for end of cycle
+  data = 0x0000c000;
+  while (data & 0x0000c000)
+//  for (i=0; i<100; i++)
+  data = IORD (1);
+  // read flash data
+  data = IORD (0);
+
+  // add dummy clock periods and end simulation
+  for (i=0; i<4; i++) clk_tgl ();
   tfp->close();
   exit(0);
 }
