@@ -287,8 +287,8 @@ end
 ////////////////////////////////////////////////////////////////////////////////
 
 // bit counter
-always @(posedge clk, posedge rst)
-if (rst)           ctl_btc <= 2'd0;
+always @(posedge clk_spi, posedge rst_spi)
+if (rst_spi)       ctl_btc <= 2'd0;
 else if (sts_run)  ctl_btc <= ctl_btn;
 
 // bit counter next
@@ -314,33 +314,33 @@ begin
 end
 
 // nibble end pulse
-always @(posedge clk, posedge rst)
-if (rst)  sts_nib <= 1'b0;
-else      sts_nib <= sts_nin & (sts_run | (ctl_iow == 2'd3) & sts_beg) & ~sts_end;  // TODO pipelining
+always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi)  sts_nib <= 1'b0;
+else          sts_nib <= sts_nin & (sts_run | (ctl_iow == 2'd3) & sts_beg) & ~sts_end;  // TODO pipelining
 
 // spi transfer beginning pulse
-always @ (posedge clk, posedge rst)
-if (rst)  sts_beg <= 1'b0;
-else      sts_beg <= bus_wen & bus_adr & ~bus_wrq & |bus_wdt[11:0];
+always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi)  sts_beg <= 1'b0;
+else          sts_beg <= bus_wen & bus_adr & ~bus_wrq & |bus_wdt[11:0];
 
 // spi transfer run status
-always @ (posedge clk, posedge rst)
-if (rst)  sts_run <= 1'b0;
+always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi)  sts_run <= 1'b0;
 else      sts_run <= sts_beg | sts_run & ~sts_end;
 
 // spi transfer end pulse
-always @ (posedge clk, posedge rst)
-if (rst)  sts_end <= 1'b0;
-else      sts_end <= sts_nin & (ctl_cnt == ((ctl_iow == 2'd3) ? 12'd2 : 12'd1));
+always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi)  sts_end <= 1'b0;
+else          sts_end <= sts_nin & (ctl_cnt == ((ctl_iow == 2'd3) ? 12'd2 : 12'd1));
 
 // read enable pulse
-always @ (posedge clk, posedge rst)
-if (rst)  sts_ren <= 1'b0;
-else      sts_ren <= sts_end;
+always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi)  sts_ren <= 1'b0;
+else          sts_ren <= sts_end;
 
 // status registers
-always @ (posedge clk, posedge rst)
-if (rst) begin
+always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi) begin
   sts_wdt <= 1'b0;
   sts_rdt <= 1'b0;
 end else begin
