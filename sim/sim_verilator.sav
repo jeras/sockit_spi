@@ -53,9 +53,11 @@ TOP.v.spi_sio_i[3:0]
 -group_end
 @1000200
 -SPI bus
-@23
-TOP.v.slave_spi.m_cmd[7:0]
 @22
+TOP.v.slave_spi.m_cmd[7:0]
 TOP.v.slave_spi.m_adr[31:0]
+TOP.v.xip_rdt[31:0]
+@821
+TOP.v.xip_rdt[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

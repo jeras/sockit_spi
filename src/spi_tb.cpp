@@ -46,7 +46,8 @@ int  IORD (int adr) {
 
 int main(int argc, char **argv, char **env) {
   int i;
-  int data;
+  int rdt;
+  char mem [1024];
   Verilated::commandArgs(argc, argv);
   // init top verilog instance
   top = new Vspi;
@@ -66,19 +67,12 @@ int main(int argc, char **argv, char **env) {
   top->rst_spi = 0;
   for (i=0; i<2; i++) clk_tgl ();
 
-  // write SPI configuration
-  IOWR (2, 0x01ff0f84);
-  // write data register (command fast read)
-  IOWR (0, 0x0b5a005a);
-  // write control register (enable a chip and start a 5+4 byte write+read)
-  IOWR (1, 0x003f1012);
-  // polling for end of cycle
-  data = 0x0000c000;
-  while (data & 0x0000c000)
-//  for (i=0; i<100; i++)
-  data = IORD (1);
-  // read flash data
-  data = IORD (0);
+  IOWR (2, 0x01ff0f84);  // write SPI configuration
+
+  IOWR (0, 0x0b5a0000);  // write data register (command fast read)
+  IOWR (1, 0x003f1012);  // write control register (enable a chip and start a 5+4 byte write+read)
+  while (IORD (1) & 0x0000c000);
+  rdt = IORD (0);        // read flash data
 
   // add dummy clock periods and end simulation
   for (i=0; i<4; i++) clk_tgl ();

@@ -47,14 +47,14 @@ reg clk    , rst    ;
 reg clk_spi, rst_spi;
 
 // Avalon MM interfacie
-reg            avalon_write;
-reg            avalon_read;
-reg  [AAW-1:0] avalon_address;
-reg  [ABW-1:0] avalon_byteenable;
-reg  [ADW-1:0] avalon_writedata;
-wire [ADW-1:0] avalon_readdata;
-wire           avalon_waitrequest;
-wire           avalon_transfer;
+reg            reg_wen;
+reg            reg_ren;
+reg  [AAW-1:0] reg_adr;
+reg  [ABW-1:0] reg_ben;
+reg  [ADW-1:0] reg_wdt;
+wire [ADW-1:0] reg_rdt;
+wire           reg_wrq;
+wire           reg_trn;
 
 // XIP bus
 reg            xip_wen;  // read enable
@@ -116,8 +116,8 @@ end
 // test sequence
 initial begin
   // put register interface into idle
-  avalon_write <= 1'b0;
-  avalon_read  <= 1'b0;
+  reg_wen <= 1'b0;
+  reg_ren <= 1'b0;
   // put xip interface into idle
   xip_ren <= 1'b0;
   // reset generation
@@ -126,144 +126,70 @@ initial begin
   rst = 1'b0;
   repeat (4) @ (posedge clk);
 
-  // write slave select and clock divider
-  avalon_cycle (1, 'h2, 4'hf, 32'h01ff0f84, data);
+  IOWR (2, 32'h01ff0f84);  // write slave select and clock divider
 
-  // few clock periods
-  repeat (16) @ (posedge clk);
+  repeat (16) @ (posedge clk);  // few clock periods
 
-  // write data register (command fast read)
-  avalon_cycle (1, 'h0, 4'hf, 32'h0b5a0000, data);
-  // write control register (enable a chip and start a 5+4 byte write+read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h003f1012, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // read flash data
-  avalon_cycle (0, 'h0, 4'hf, 32'hxxxxxxxx, data);
+  IOWR (0, 32'h0b5a0000);  // write data register (command fast read)
+  IOWR (1, 32'h003f1012);  // write control register (enable a chip and start a 5+4 byte write+read)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IORD (0, data);          // read flash data
 
-  // few clock periods
-  repeat (16) @ (posedge clk);
+  repeat (16) @ (posedge clk);  // few clock periods
 
-  // write data register (command fast read dual output)
-  avalon_cycle (1, 'h0, 4'hf, 32'h3b5a0000, data);
-  // write control register (enable a chip and start a 4 byte write)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00171008, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // write control register (enable a chip and start a 1 byte dummy)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00101002, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // write control register (enable a chip and start a 4 byte read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00382008, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // read flash data
-  avalon_cycle (0, 'h0, 4'hf, 32'hxxxxxxxx, data);
+  IOWR (0, 32'h3b5a0000);  // write data register (command fast read dual output)
+  IOWR (1, 32'h00171008);  // write control register (enable a chip and start a 4 byte write)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IOWR (1, 32'h00101002);  // write control register (enable a chip and start a 1 byte dummy)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IOWR (1, 32'h00382008);  // write control register (enable a chip and start a 4 byte read)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IORD (0, data);          // read flash data
 
-  // few clock periods
-  repeat (16) @ (posedge clk);
+  repeat (16) @ (posedge clk);  // few clock periods
 
-  // write data register (command fast read quad output)
-  avalon_cycle (1, 'h0, 4'hf, 32'h6b5a0000, data);
-  // write control register (enable a chip and start a 4 byte write)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00171008, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // write control register (enable a chip and start a 1 byte dummy)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00101002, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxx_xxxx, data);
-  // write control register (enable a chip and start a 4 byte read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00383008, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // read flash data
-  avalon_cycle (0, 'h0, 4'hf, 32'hxxxxxxxx, data);
+  IOWR (0, 32'h6b5a0000);  // write data register (command fast read quad output)
+  IOWR (1, 32'h00171008);  // write control register (enable a chip and start a 4 byte write)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IOWR (1, 32'h00101002);  // write control register (enable a chip and start a 1 byte dummy)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IOWR (1, 32'h00383008);  // write control register (enable a chip and start a 4 byte read)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IORD (0, data);          // read flash data
 
-  // few clock periods
-  repeat (16) @ (posedge clk);
+  repeat (16) @ (posedge clk);  // few clock periods
 
-  // write data register (command fast read dual IO)
-  avalon_cycle (1, 'h0, 4'hf, 32'hbb000000, data);
-  // write control register (send command)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00171002, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // write data register (address and dummy)
-  avalon_cycle (1, 'h0, 4'hf, 32'h5a000000, data);
-  // write control register (send address and dummy)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00132008, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // write control register (4 byte read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00382008, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // read flash data
-  avalon_cycle (0, 'h0, 4'hf, 32'hxxxxxxxx, data);
+  IOWR (0, 32'hbb000000);  // write data register (command fast read dual IO)
+  IOWR (1, 32'h00171002);  // write control register (send command)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IOWR (0, 32'h5a000000);  // write data register (address and dummy)
+  IOWR (1, 32'h00132008);  // write control register (send address and dummy)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IOWR (1, 32'h00382008);  // write control register (4 byte read)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IORD (0, data);          // read flash data
 
-  // few clock periods
-  repeat (16) @ (posedge clk);
+  repeat (16) @ (posedge clk);  // few clock periods
 
-  // write data register (command fast read quad IO)
-  avalon_cycle (1, 'h0, 4'hf, 32'heb000000, data);
-  // write control register (send command)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00171002, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // write data register (address and dummy)
-  avalon_cycle (1, 'h0, 4'hf, 32'h5a000000, data);
-  // write control register (send address and dummy)
-  avalon_cycle (1, 'h1, 4'hf, 32'h0017_3008, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // write control register (4 byte read)
-  avalon_cycle (1, 'h1, 4'hf, 32'h00383008, data);
-  // polling for end of cycle
-  data = 32'h0000_c000;
-  while (data & 32'h0000_c000)
-  avalon_cycle (0, 'h1, 4'hf, 32'hxxxxxxxx, data);
-  // read flash data
-  avalon_cycle (0, 'h0, 4'hf, 32'hxxxxxxxx, data);
+  IOWR (0, 32'heb000000);  // write data register (command fast read quad IO)
+  IOWR (1, 32'h00171002);  // write control register (send command)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IOWR (0, 32'h5a000000);  // write data register (address and dummy)
+  IOWR (1, 32'h00173008);  // write control register (send address and dummy)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IOWR (1, 32'h00383008);  // write control register (4 byte read)
+  POLL (1, 32'h0000c000);  // polling for end of cycle
+  IORD (0, data);          // read flash data
 
-  // few clock periods
-  repeat (16) @ (posedge clk);
+  repeat (16) @ (posedge clk);  // few clock periods
 
-  // enable XIP
-  avalon_cycle (1, 'h3, 4'hf, 32'h00000001, data);
-  // read data from xip port
-  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);
+  IOWR (3, 32'h00000001);  // enable XIP
 
-  // few clock periods
-  repeat (16) @ (posedge clk);
+  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from xip port
 
-  // end simulation
-  $finish;
+  repeat (16) @ (posedge clk);  // few clock periods
+
+  $finish;  // end simulation
 end
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -279,7 +205,7 @@ task xip_cyc;
   input  [XBW-1:0] ben;
   input  [XDW-1:0] wdt;
   output [XDW-1:0] rdt;
-// task avalon_cycle (
+// task reg_cyc (
 //   input            r_w,  // 0-read or 1-write cycle
 //   input  [XAW-1:0] adr,
 //   input  [XBW-1:0] ben,
@@ -313,15 +239,15 @@ endtask
 ////////////////////////////////////////////////////////////////////////////////
 
 // avalon cycle transfer cycle end status
-assign avalon_transfer = (avalon_read | avalon_write) & ~avalon_waitrequest;
+assign reg_trn = (reg_ren | reg_wen) & ~reg_wrq;
 
-task avalon_cycle;
+task reg_cyc;
   input            r_w;  // 0-read or 1-write cycle
   input  [AAW-1:0] adr;
   input  [ABW-1:0] ben;
   input  [ADW-1:0] wdt;
   output [ADW-1:0] rdt;
-// task avalon_cycle (
+// task reg_cyc (
 //   input            r_w,  // 0-read or 1-write cycle
 //   input  [AAW-1:0] adr,
 //   input  [ABW-1:0] ben,
@@ -329,24 +255,49 @@ task avalon_cycle;
 //   output [ADW-1:0] rdt
 // );
 begin
-//  $display ("Avalon MM cycle start: T=%10tns, %s address=%08x byteenable=%04b writedata=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
+//  $display ("REG cycle start: T=%10tns, %s adr=%08x ben=%04b wdt=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
   // start an Avalon cycle
-  avalon_read       <= ~r_w;
-  avalon_write      <=  r_w;
-  avalon_address    <=  adr;
-  avalon_byteenable <=  ben;
-  avalon_writedata  <=  wdt;
+  reg_ren <= ~r_w;
+  reg_wen <=  r_w;
+  reg_adr <=  adr;
+  reg_ben <=  ben;
+  reg_wdt <=  wdt;
   // wait for waitrequest to be retracted
-  @ (posedge clk); while (~avalon_transfer) @ (posedge clk);
+  @ (posedge clk); while (~reg_trn) @ (posedge clk);
   // end Avalon cycle
-  avalon_read       <=      1'b0  ;
-  avalon_write      <=      1'b0  ;
-  avalon_address    <= {AAW{1'bx}};
-  avalon_byteenable <= {ABW{1'bx}};
-  avalon_writedata  <= {ADW{1'bx}};
+  reg_ren <=      1'b0  ;
+  reg_wen <=      1'b0  ;
+  reg_adr <= {AAW{1'bx}};
+  reg_ben <= {ABW{1'bx}};
+  reg_wdt <= {ADW{1'bx}};
   // read data
-  rdt = avalon_readdata;
-//  $display ("Avalon MM cycle end  : T=%10tns, readdata=%08x", $time/1000.0, rdt);
+  rdt = reg_rdt;
+//  $display ("REG cycle end  : T=%10tns, rdt=%08x", $time/1000.0, rdt);
+end
+endtask
+
+// IO register write
+task IOWR (input [AAW-1:0] adr,  input [ADW-1:0] wdt);
+  reg [ADW-1:0] rdt;
+begin
+  reg_cyc (1'b1, adr, 4'hf, wdt, rdt);
+end
+endtask
+
+// IO register read
+task IORD (input [AAW-1:0] adr, output [ADW-1:0] rdt);
+begin
+  reg_cyc (1'b0, adr, 4'hf, {ADW{1'bx}}, rdt);
+end
+endtask
+
+// polling for end of cycle
+task POLL (input [AAW-1:0] adr,  input [ADW-1:0] msk);
+  reg [ADW-1:0] rdt;
+begin
+  rdt = msk;
+  while (rdt & 32'h0000c000)
+  IORD (adr, rdt);
 end
 endtask
 
@@ -370,13 +321,13 @@ sockit_spi #(
   .xip_wrq     (xip_wrq),
   .xip_err     (),
   // register interface
-  .reg_wen     (avalon_write      ),
-  .reg_ren     (avalon_read       ),
-  .reg_adr     (avalon_address    ),
-  .reg_wdt     (avalon_writedata  ),
-  .reg_rdt     (avalon_readdata   ),
-  .reg_wrq     (avalon_waitrequest),
-  .reg_irq     (avalon_interrupt  ),
+  .reg_wen     (reg_wen),
+  .reg_ren     (reg_ren),
+  .reg_adr     (reg_adr),
+  .reg_wdt     (reg_wdt),
+  .reg_rdt     (reg_rdt),
+  .reg_wrq     (reg_wrq),
+  .reg_irq     (reg_irq),
   // SPI signals (should be connected to tristate IO pads)
   // serial clock
   .spi_sclk_i  (spi_sclk_i),
