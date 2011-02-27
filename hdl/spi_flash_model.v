@@ -25,13 +25,14 @@
 
 module spi_flash_model #(
   // hardware layer protocol parameters
-  parameter DIOM = 2'd1,        // data IO mode (0-3wire, 1-SPI, 2-duo, 3-quad)
-  parameter MODE = 2'd0,        // clock mode {CPOL, CPHA}
-  parameter CPOL = MODE[1],     // clock polarity
-  parameter CPHA = MODE[0],     // clock phase
+  parameter DIOM = 2'd1,         // data IO mode (0-3wire, 1-SPI, 2-duo, 3-quad)
+  parameter MODE = 2'd0,         // clock mode {CPOL, CPHA}
+  parameter CPOL = MODE[1],      // clock polarity
+  parameter CPHA = MODE[0],      // clock phase
   // internal logic parameters
-  parameter MSZ  = 1024,        // data memory size in bytes
-  parameter FILE = "flash.bin"  // flash contents (binary) file name
+  parameter FBIN = "flash.bin",  // flash contents (binary) file name
+  parameter FHEX = "flash.hex",  // flash contents (hex)    file name
+  parameter MSZ  = 1024          // data memory size in bytes
 )(
   input wire ss_n,   // slave select  (active low)
   input wire sclk,   // serial clock
@@ -196,12 +197,16 @@ endcase
 integer f;  // file pointer
 integer s;  // file status
 initial begin
-  f = $fopen(FILE, "r");
+  f = $fopen(FBIN, "r");
   s = $fread(mem, f);
   s = $rewind(f);
-  s = $fread(mem, f, 'h5a);
       $fclose(f);
 end
+`else
+initial begin
+  $readmemh (FHEX, mem);
+end
+`else
 `endif
 
 // read from memory
