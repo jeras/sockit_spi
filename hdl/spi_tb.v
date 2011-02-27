@@ -98,20 +98,17 @@ integer i;
 initial begin
   $dumpfile("spi.fst");
   $dumpvars(0, spi_tb);
-//  for (i=0; i<64; i=i+1)
-//  $dumpvars(0, slave_spi.mem[i]);
 end
 
 // clock generation
 initial    clk <= 1'b1;
 always  #5 clk <= ~clk;
 
+// clock generation
+initial    clk_spi <= 1'b1;
+always  #5 clk_spi <= ~clk_spi;
+
 // TODO enable asynchronous clocking
-always @ (*)
-begin
-  clk_spi = clk;
-  rst_spi = rst;
-end
 
 // test sequence
 initial begin
@@ -121,21 +118,24 @@ initial begin
   // put xip interface into idle
   xip_ren <= 1'b0;
   // reset generation
-  rst = 1'b1;
+  rst     = 1'b1;
+  rst_spi = 1'b1;
   repeat (2) @ (posedge clk); #1;
-  rst = 1'b0;
-  repeat (4) @ (posedge clk);
+  rst     = 1'b0;
+  rst_spi = 1'b0;
+
+  IDLE (4);                // few clock periods
 
   IOWR (2, 32'h01ff0f84);  // write slave select and clock divider
 
-  repeat (16) @ (posedge clk);  // few clock periods
+  IDLE (16);               // few clock periods
 
   IOWR (0, 32'h0b5a0000);  // write data register (command fast read)
   IOWR (1, 32'h003f1012);  // write control register (enable a chip and start a 5+4 byte write+read)
   POLL (1, 32'h0000c000);  // polling for end of cycle
   IORD (0, data);          // read flash data
 
-  repeat (16) @ (posedge clk);  // few clock periods
+  IDLE (16);               // few clock periods
 
   IOWR (0, 32'h3b5a0000);  // write data register (command fast read dual output)
   IOWR (1, 32'h00171008);  // write control register (enable a chip and start a 4 byte write)
@@ -146,7 +146,7 @@ initial begin
   POLL (1, 32'h0000c000);  // polling for end of cycle
   IORD (0, data);          // read flash data
 
-  repeat (16) @ (posedge clk);  // few clock periods
+  IDLE (16);               // few clock periods
 
   IOWR (0, 32'h6b5a0000);  // write data register (command fast read quad output)
   IOWR (1, 32'h00171008);  // write control register (enable a chip and start a 4 byte write)
@@ -157,7 +157,7 @@ initial begin
   POLL (1, 32'h0000c000);  // polling for end of cycle
   IORD (0, data);          // read flash data
 
-  repeat (16) @ (posedge clk);  // few clock periods
+  IDLE (16);               // few clock periods
 
   IOWR (0, 32'hbb000000);  // write data register (command fast read dual IO)
   IOWR (1, 32'h00171002);  // write control register (send command)
@@ -169,7 +169,7 @@ initial begin
   POLL (1, 32'h0000c000);  // polling for end of cycle
   IORD (0, data);          // read flash data
 
-  repeat (16) @ (posedge clk);  // few clock periods
+  IDLE (16);               // few clock periods
 
   IOWR (0, 32'heb000000);  // write data register (command fast read quad IO)
   IOWR (1, 32'h00171002);  // write control register (send command)
@@ -181,13 +181,13 @@ initial begin
   POLL (1, 32'h0000c000);  // polling for end of cycle
   IORD (0, data);          // read flash data
 
-  repeat (16) @ (posedge clk);  // few clock periods
+  IDLE (16);               // few clock periods
 
   IOWR (3, 32'h00000001);  // enable XIP
 
   xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from xip port
 
-  repeat (16) @ (posedge clk);  // few clock periods
+  IDLE (16);               // few clock periods
 
   $finish;  // end simulation
 end
@@ -298,6 +298,13 @@ begin
   rdt = msk;
   while (rdt & 32'h0000c000)
   IORD (adr, rdt);
+end
+endtask
+
+// idle for a specified number of clock periods
+task IDLE (input integer num);
+begin
+  repeat (num) @ (posedge clk);
 end
 endtask
 
