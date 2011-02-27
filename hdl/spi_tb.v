@@ -130,55 +130,56 @@ initial begin
 
   IDLE (16);               // few clock periods
 
-  IOWR (0, 32'h0b5a0000);  // write data register (command fast read)
+  // command fast read
+  IOWR (0, 32'h0b5a0000);  // write data    register
   IOWR (1, 32'h003f1012);  // write control register (enable a chip and start a 5+4 byte write+read)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IORD (0, data);          // read flash data
 
   IDLE (16);               // few clock periods
 
-  IOWR (0, 32'h3b5a0000);  // write data register (command fast read dual output)
+  IOWR (0, 32'h3b5a0000);  // write data    register (command fast read dual output)
   IOWR (1, 32'h00171008);  // write control register (enable a chip and start a 4 byte write)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IOWR (1, 32'h00101002);  // write control register (enable a chip and start a 1 byte dummy)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IOWR (1, 32'h00382008);  // write control register (enable a chip and start a 4 byte read)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IORD (0, data);          // read flash data
 
   IDLE (16);               // few clock periods
 
-  IOWR (0, 32'h6b5a0000);  // write data register (command fast read quad output)
+  IOWR (0, 32'h6b5a0000);  // write data    register (command fast read quad output)
   IOWR (1, 32'h00171008);  // write control register (enable a chip and start a 4 byte write)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IOWR (1, 32'h00101002);  // write control register (enable a chip and start a 1 byte dummy)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IOWR (1, 32'h00383008);  // write control register (enable a chip and start a 4 byte read)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IORD (0, data);          // read flash data
 
   IDLE (16);               // few clock periods
 
-  IOWR (0, 32'hbb000000);  // write data register (command fast read dual IO)
+  IOWR (0, 32'hbb000000);  // write data    register (command fast read dual IO)
   IOWR (1, 32'h00171002);  // write control register (send command)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
-  IOWR (0, 32'h5a000000);  // write data register (address and dummy)
+  POLL (1, 32'h0000c000);
+  IOWR (0, 32'h5a000000);  // write data    register (address and dummy)
   IOWR (1, 32'h00132008);  // write control register (send address and dummy)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IOWR (1, 32'h00382008);  // write control register (4 byte read)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IORD (0, data);          // read flash data
 
   IDLE (16);               // few clock periods
 
-  IOWR (0, 32'heb000000);  // write data register (command fast read quad IO)
+  IOWR (0, 32'heb000000);  // write data    register (command fast read quad IO)
   IOWR (1, 32'h00171002);  // write control register (send command)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
-  IOWR (0, 32'h5a000000);  // write data register (address and dummy)
+  POLL (1, 32'h0000c000);
+  IOWR (0, 32'h5a000000);  // write data    register (address and dummy)
   IOWR (1, 32'h00173008);  // write control register (send address and dummy)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IOWR (1, 32'h00383008);  // write control register (4 byte read)
-  POLL (1, 32'h0000c000);  // polling for end of cycle
+  POLL (1, 32'h0000c000);
   IORD (0, data);          // read flash data
 
   IDLE (16);               // few clock periods
