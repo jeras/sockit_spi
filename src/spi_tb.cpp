@@ -16,11 +16,11 @@ VerilatedVcdC* tfp;
 // dump variables into VCD file and toggle clock
 void clk_tgl () {
   tfp->dump (n++);
-  top->clk     = 0;
+  top->clk_cpu = 0;
   top->clk_spi = 0;
   top->eval ();
   tfp->dump (n++);
-  top->clk     = 1;
+  top->clk_cpu = 1;
   top->clk_spi = 1;
   top->eval ();
   t++;
@@ -57,8 +57,8 @@ int main(int argc, char **argv, char **env) {
   top->trace (tfp, 99);
   tfp->open ("spi.vcd");
   // initialize simulation inputs
-  top->clk     = 1;
-  top->rst     = 1;
+  top->clk_cpu = 1;
+  top->rst_cpu = 1;
   top->clk_spi = 1;
   top->rst_spi = 1;
   // after two clock periods remove reset
