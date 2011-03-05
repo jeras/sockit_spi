@@ -32,12 +32,11 @@ module spi_wrp #(
   parameter XIP_MSK = 32'h00000001,  // XIP configuration register implentation mask
   parameter NOP     = 32'h00000000,  // no operation instuction for the given CPU
   parameter XAW     =           24,  // XIP address width
-  parameter SDW     =           32,  // shift register data width
   parameter SSW     =            8   // slave select width
 )(
   // system signals (used by the CPU interface)
-  input  wire           clk,         // clock
-  input  wire           rst,         // reset
+  input  wire           clk_cpu,     // clock
+  input  wire           rst_cpu,     // reset
   input  wire           clk_spi,     // clock for SPI IO
   input  wire           rst_spi,     // reset for SPI IO
   // XIP interface bus
@@ -88,8 +87,8 @@ sockit_spi #(
   .SSW         (SSW)
 ) sockit_spi (
   // system signals (used by the CPU bus interface)
-  .clk         (clk),
-  .rst         (rst),
+  .clk_cpu     (clk_cpu),
+  .rst_cpu     (rst_cpu),
   .clk_spi     (clk_spi),
   .rst_spi     (rst_spi),
   // XIP interface

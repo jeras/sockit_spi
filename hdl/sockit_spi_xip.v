@@ -38,6 +38,7 @@ module sockit_spi_xip #(
   output wire           xip_err,  // error interrupt
   // output bus (interface to SPI master registers)
   output wire           fsm_wen,  // write enable
+  output wire           fsm_ren,  // read  enable
   output reg            fsm_adr,  // address
   output reg     [31:0] fsm_wdt,  // write data
   input  wire           fsm_wrq,  // wait request

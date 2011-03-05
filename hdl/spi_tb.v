@@ -43,7 +43,7 @@ localparam ABW = ADW/8;
 localparam SSW = 8;
 
 // system signals
-reg clk    , rst    ;
+reg clk_cpu    , rst_cpu    ;
 reg clk_spi, rst_spi;
 
 // Avalon MM interfacie
@@ -101,8 +101,8 @@ initial begin
 end
 
 // clock generation
-initial    clk <= 1'b1;
-always  #5 clk <= ~clk;
+initial    clk_cpu <= 1'b1;
+always  #5 clk_cpu <= ~clk_cpu;
 
 // clock generation
 initial    clk_spi <= 1'b1;
@@ -118,11 +118,11 @@ initial begin
   // put xip interface into idle
   xip_ren <= 1'b0;
   // reset generation
-  rst     = 1'b1;
-  rst_spi = 1'b1;
-  repeat (2) @ (posedge clk); #1;
-  rst     = 1'b0;
-  rst_spi = 1'b0;
+  rst_cpu  = 1'b1;
+  rst_spi  = 1'b1;
+  repeat (2) @ (posedge clk_cpu); #1;
+  rst_cpu  = 1'b0;
+  rst_spi  = 1'b0;
 
   IDLE (4);                // few clock periods
 
@@ -193,6 +193,12 @@ initial begin
   $finish;  // end simulation
 end
 
+// end test on timeout
+initial begin
+  repeat (100) @ (posedge clk_cpu);
+  $finish;  // end simulation
+end
+
 ////////////////////////////////////////////////////////////////////////////////
 // avalon tasks                                                               //
 ////////////////////////////////////////////////////////////////////////////////
@@ -222,7 +228,7 @@ begin
   xip_ben <=  ben;
   xip_wdt <=  wdt;
   // wait for waitrequest to be retracted
-  @ (posedge clk); while (~xip_trn) @ (posedge clk);
+  @ (posedge clk_cpu); while (~xip_trn) @ (posedge clk_cpu);
   // end cycle
   xip_ren <=      1'b0  ;
   xip_wen <=      1'b0  ;
@@ -264,7 +270,7 @@ begin
   reg_ben <=  ben;
   reg_wdt <=  wdt;
   // wait for waitrequest to be retracted
-  @ (posedge clk); while (~reg_trn) @ (posedge clk);
+  @ (posedge clk_cpu); while (~reg_trn) @ (posedge clk_cpu);
   // end Avalon cycle
   reg_ren <=      1'b0  ;
   reg_wen <=      1'b0  ;
@@ -305,7 +311,7 @@ endtask
 // idle for a specified number of clock periods
 task IDLE (input integer num);
 begin
-  repeat (num) @ (posedge clk);
+  repeat (num) @ (posedge clk_cpu);
 end
 endtask
 
@@ -318,8 +324,8 @@ sockit_spi #(
   .SSW         (SSW)
 ) sockit_spi (
   // system signals (used by the CPU bus interface)
-  .clk         (clk),
-  .rst         (rst),
+  .clk_cpu     (clk_cpu),
+  .rst_cpu     (rst_cpu),
   .clk_spi     (clk_spi),
   .rst_spi     (rst_spi),
   // XIP interface
