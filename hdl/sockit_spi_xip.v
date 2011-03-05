@@ -41,11 +41,10 @@ module sockit_spi_xip #(
   output wire           fsm_ren,  // read  enable
   output reg            fsm_adr,  // address
   output reg     [31:0] fsm_wdt,  // write data
-  input  wire           fsm_wrq,  // wait request
   input  wire    [31:0] fsm_rdt,  // read data
-/* verilator lint_off UNUSED */
-  input  wire    [31:0] fsm_ctl,  // read control/status
-/* verilator lint_on  UNUSED */
+  input  wire           fsm_wrq,  // wait request
+  // SPI master status
+  input  wire           sts_cyc,  // read control/status
   // configuration
   input  wire [XAW-1:8] adr_off   // address offset
 );
@@ -91,32 +90,32 @@ casez (fsm_sts)
   IDL_RST : begin
     fsm_adr = 1'bx;
     fsm_wdt = 32'hxxxx_xxxx;
-    fsm_nxt = xip_ren          ? CMD_WDT : fsm_sts;
+    fsm_nxt =  xip_ren ? CMD_WDT : fsm_sts;
   end
   CMD_WDT : begin
     fsm_adr = 1'b0;
     fsm_wdt = {8'h0b, xip_adr + {adr_off, 8'h00}};
-    fsm_nxt = ~fsm_wrq         ? CMD_CTL : fsm_sts;
+    fsm_nxt = ~fsm_wrq ? CMD_CTL : fsm_sts;
   end
   CMD_CTL : begin
     fsm_adr = 1'b1;
     fsm_wdt = 32'h001f_100a;
-    fsm_nxt = ~fsm_wrq         ? CMD_STS : fsm_sts;
+    fsm_nxt = ~fsm_wrq ? CMD_STS : fsm_sts;
   end
   CMD_STS : begin
     fsm_adr = 1'bx;
     fsm_wdt = 32'hxxxxxxxx;
-    fsm_nxt = ~|fsm_ctl[15:14] ? DAT_CTL : fsm_sts;
+    fsm_nxt = ~sts_cyc ? DAT_CTL : fsm_sts;
   end
   DAT_CTL : begin
     fsm_adr = 1'b1;
     fsm_wdt = 32'h0038_1008;
-    fsm_nxt = ~fsm_wrq         ? DAT_STS : fsm_sts;
+    fsm_nxt = ~fsm_wrq ? DAT_STS : fsm_sts;
   end
   DAT_STS : begin
     fsm_adr = 1'bx;
     fsm_wdt = 32'hxxxxxxxx;
-    fsm_nxt = ~|fsm_ctl[15:14] ? DAT_RDT : fsm_sts;
+    fsm_nxt = ~sts_cyc ? DAT_RDT : fsm_sts;
   end
   DAT_RDT : begin
     fsm_adr = 1'bx;

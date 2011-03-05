@@ -79,13 +79,18 @@ module sockit_spi #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
+// register interface read data signals
+wire    [31:0] reg_sts;  // read status
+wire    [31:0] reg_cfg;  // read SPI configuration
+wire    [31:0] reg_xip;  // read XIP configuration
+
 // internal bus, finite state machine master
-wire        bus_wen, fsm_wen;  // write enable
-wire        bus_ren, fsm_ren;  // read  enable
-wire        bus_adr, fsm_adr;  // address
-wire [31:0] bus_wdt, fsm_wdt;  // write data
-                               // read data
-wire        bus_wrq         ;  // wait request
+wire           bus_wen, fsm_wen;  // write enable
+wire           bus_ren, fsm_ren;  // read  enable
+wire           bus_adr, fsm_adr;  // address
+wire    [31:0] bus_wdt, fsm_wdt;  // write data
+wire    [31:0] bus_rdt         ;  // read data
+wire           bus_wrq         ;  // wait request
 
 // data and control/status register write/read access transfers
 wire           bus_wtr_dat;  // write data register
@@ -100,7 +105,6 @@ reg     [31:0] bus_wdt_ctl;  // control register write enable
 wire           bus_wen_ctl;  // control register write data
 
 // configuration registers
-wire    [31:0] cfg_reg;  // 32bit register
 reg    [8-1:0] cfg_sso;  // slave select output
 reg    [8-1:0] cfg_sse;  // slave select output enable
 reg            cfg_hle;  // hold output enable
@@ -124,7 +128,6 @@ reg      [1:0] cds_cwt;  // clock domain SPI, control register write toggle
 reg      [1:0] cds_cwe;  // clock domain SPI, control register write enable
 
 // control registers
-wire    [31:0] ctl_reg;  // 32bit register
 reg            ctl_fio;  // fifo direction (0 - input, 1 - output)
 reg            ctl_ssc;  // slave select clear
 reg            ctl_sse;  // slave select enable
@@ -212,9 +215,10 @@ sockit_spi_xip #(
 .fsm_ren  (fsm_ren),  // read  enable
 .fsm_adr  (fsm_adr),  // address
 .fsm_wdt  (fsm_wdt),  // write data
-.fsm_wrq  (bus_wrq),  // wait request
 .fsm_rdt  (buf_dat),  // read data
-.fsm_ctl  (ctl_reg),  // read control/status
+.fsm_wrq  (bus_wrq),  // wait request
+// SPI master status
+.sts_cyc  (sts_cyc),  // cycle status
 // configuration
 .adr_off  (xip_reg[XAW-1:8])  // address offset
 );
@@ -226,8 +230,8 @@ assign bus_adr = xip_ena ? fsm_adr : reg_adr[0];             // address
 assign bus_wdt = xip_ena ? fsm_wdt : reg_wdt;                // write data
 
 // register interface return signals
-assign reg_rdt = reg_adr[1] ? (reg_adr[0] ? xip_reg : cfg_reg)
-                            : (reg_adr[0] ? ctl_reg : buf_dat);  // read data
+assign reg_rdt = reg_adr[1] ? (reg_adr[0] ? reg_xip : reg_cfg)
+                            : (reg_adr[0] ? reg_sts : bus_rdt);  // read data
 assign reg_wrq = reg_adr[1] ?                  1'b0 : bus_wrq;   // wait request
 
 // wait request timing
@@ -240,8 +244,10 @@ assign bus_wtr_dat = bus_wen & ~bus_adr & ~bus_wrq;  // write data register
 assign bus_rtr_dat = bus_ren & ~bus_adr & ~bus_wrq;  // read  data register
 
 ////////////////////////////////////////////////////////////////////////////////
-// interrupt request                                                          //
+// SPI status, interrupt request                                              //
 ////////////////////////////////////////////////////////////////////////////////
+
+assign reg_sts = {28'h0000000, sts_idt, sts_odt, sts_cyc, sts_ctl};
 
 assign reg_irq = 1'b0;
 
@@ -250,7 +256,7 @@ assign reg_irq = 1'b0;
 ////////////////////////////////////////////////////////////////////////////////
 
 // SPI configuration (read access)
-assign cfg_reg = {                          spi_ss_i,
+assign reg_cfg = {                          spi_ss_i,
                                              cfg_sse,
                                                 4'h0,
                   cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
@@ -272,6 +278,9 @@ end else if (reg_wen & (reg_adr == 2'd2) & ~reg_wrq) begin
   {cfg_coe}                            <= reg_wdt [ 7   ];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= reg_wdt [ 3: 0];
 end
+
+// XIP configuration (read access)
+assign reg_xip = xip_reg;
 
 // XIP configuration
 always @(posedge clk_cpu, posedge rst_cpu)
@@ -311,6 +320,9 @@ if (CDC) begin
   if (bus_wtr_dat)  bus_wdt_dat <= bus_wdt;
 
 end else begin
+
+  // bus read data
+  assign bus_rdt = buf_dat;
 
   // data registers write enable
   assign bus_wen_dat = bus_wtr_dat;
