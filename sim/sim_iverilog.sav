@@ -1,12 +1,9 @@
 [timestart] 0
 [size] 1920 1123
 [pos] -1 -1
-*-19.331989 4010000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.225300 4010000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
-@28
-spi_tb.sockit_spi.clk
-spi_tb.sockit_spi.rst
 @800200
 -XIP bus
 @28
@@ -31,7 +28,6 @@ spi_tb.sockit_spi.xip.fsm_adr
 spi_tb.sockit_spi.xip.fsm_wrq
 @22
 spi_tb.sockit_spi.xip.fsm_wdt[31:0]
-spi_tb.sockit_spi.xip.fsm_ctl[31:0]
 @c02028
 ^1 /home/izi/Workplace/sockit_spi/sim/gtkwave_xip_sts.filter
 spi_tb.sockit_spi.xip.fsm_sts[5:0]
@@ -70,10 +66,6 @@ spi_tb.sockit_spi.bus_wdt[31:0]
 spi_tb.sockit_spi.bus_wrq
 @1000200
 -bus
-@c00200
--clock divider
-@1401200
--clock divider
 @800200
 -configuration
 @22
@@ -88,7 +80,7 @@ spi_tb.sockit_spi.cfg_bit
 spi_tb.sockit_spi.cfg_dir
 spi_tb.sockit_spi.cfg_pol
 spi_tb.sockit_spi.cfg_pha
-@23
+@22
 spi_tb.sockit_spi.xip_reg[31:0]
 @1000200
 -configuration
@@ -107,19 +99,15 @@ spi_tb.sockit_spi.ctl_btc[1:0]
 spi_tb.sockit_spi.ctl_btn[1:0]
 @22
 spi_tb.sockit_spi.ctl_cnt[11:0]
-@28
-spi_tb.sockit_spi.sts_beg
-spi_tb.sockit_spi.sts_run
-spi_tb.sockit_spi.sts_nin
-spi_tb.sockit_spi.sts_nib
-spi_tb.sockit_spi.sts_end
-spi_tb.sockit_spi.sts_ren
-spi_tb.sockit_spi.sts_wdt
-spi_tb.sockit_spi.sts_rdt
 @1401200
 -control
 @800200
 -FIFO
+@28
+spi_tb.sockit_spi.pct_sts
+spi_tb.sockit_spi.pct_cdl[1:0]
+spi_tb.sockit_spi.pct_sdl[1:0]
+spi_tb.sockit_spi.pct_req
 @1000200
 -FIFO
 @22

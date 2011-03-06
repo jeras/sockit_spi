@@ -93,16 +93,14 @@ wire    [31:0] bus_rdt         ;  // read data
 wire           bus_wrq         ;  // wait request
 
 // data and control/status register write/read access transfers
-wire           bus_wtr_dat;  // write data register
-wire           bus_rtr_dat;  // read  data register
-wire           bus_wtr_ctl;  // write control register
-wire           bus_rtr_ctl;  // read  control register
+wire           bus_wed;  // write data register
+wire           bus_red;  // read  data register
+wire           bus_wec;  // write control register
+wire           bus_rec;  // read  control register
 
 // data and control/status register write enable/data
 reg     [31:0] bus_wdt_dat;  // data register write enable
 wire           bus_wen_dat;  // data register write data
-reg     [31:0] bus_wdt_ctl;  // control register write enable
-wire           bus_wen_ctl;  // control register write data
 
 // configuration registers
 reg    [8-1:0] cfg_sso;  // slave select output
@@ -120,12 +118,6 @@ reg            cfg_pha;  // clock phase
 // XIP configuration TODO
 reg     [31:0] xip_reg;  // XIP configuration
 wire           xip_ena;  // XIP configuration
-
-// clock domain crossing, control register
-reg      [1:0] cdc_cwe;  // clock domain CPU, control register write enable
-reg      [1:0] cdc_cwt;  // clock domain CPU, control register write toggle
-reg      [1:0] cds_cwt;  // clock domain SPI, control register write toggle
-reg      [1:0] cds_cwe;  // clock domain SPI, control register write enable
 
 // control registers
 reg            ctl_fio;  // fifo direction (0 - input, 1 - output)
@@ -151,23 +143,35 @@ reg            cyc_ren;  // transfer read pulse
 reg            cyc_odt;  // output data status
 reg            cyc_idt;  // outpu input data status
 
+// clock domain crossing pipeline for control register
+reg            pct_sts;  // pipeline status
+reg      [1:0] pct_cdl;  // CPU clock domain loop
+reg      [1:0] pct_sdl;  // SPI clock domain loop
+reg            pct_req;  // pipeline request
+reg     [31:0] pct_wdt;  // write data
+wire           pct_wen;  // write enable
+
+// clock domain crossing pipeline for SPI cycle
+reg            pcy_sts;  // pipeline status
+reg      [1:0] pcy_cdl;  // CPU clock domain loop
+reg      [1:0] pcy_sdl;  // SPI clock domain loop
+reg            pcy_req;  // pipeline request
+
 // status signals
-wire           sts_ctl;  // control register pipeline status
-wire           sts_cyc;  // SPI cycle status
 wire           sts_odt;  // data output pipeline status
 wire           sts_idt;  // data  input pipeline status
 
 // clock domain crossing, output data
-reg      [1:0] cdc_doe;  // clock domain CPU, data output enable
+//reg      [1:0] cdc_doe;  // clock domain CPU, data output enable
 reg      [1:0] cdc_dot;  // clock domain CPU, data output toggle
 reg      [1:0] cds_dot;  // clock domain SPI, data output toggle
-reg      [1:0] cds_doe;  // clock domain SPI, data output enable
+//reg      [1:0] cds_doe;  // clock domain SPI, data output enable
 
 // clock domain crossing, input data
-reg      [1:0] cdc_die;  // clock domain CPU, data input enable
+//reg      [1:0] cdc_die;  // clock domain CPU, data input enable
 reg      [1:0] cdc_dit;  // clock domain CPU, data input toggle
 reg      [1:0] cds_dit;  // clock domain SPI, data input toggle
-reg      [1:0] cds_die;  // clock domain SPI, data input enable
+//reg      [1:0] cds_die;  // clock domain SPI, data input enable
 
 // fifo buffer
 reg     [31:0] buf_dat;  // fifo data register
@@ -218,7 +222,7 @@ sockit_spi_xip #(
 .fsm_rdt  (buf_dat),  // read data
 .fsm_wrq  (bus_wrq),  // wait request
 // SPI master status
-.sts_cyc  (sts_cyc),  // cycle status
+.sts_cyc  (pcy_sts),  // cycle status
 // configuration
 .adr_off  (xip_reg[XAW-1:8])  // address offset
 );
@@ -238,16 +242,16 @@ assign reg_wrq = reg_adr[1] ?                  1'b0 : bus_wrq;   // wait request
 assign bus_wrq = 1'b0;
 
 // control/status and data register write/read access transfers
-assign bus_wtr_ctl = bus_wen &  bus_adr & ~bus_wrq;  // write control register
-assign bus_rtr_ctl = bus_ren &  bus_adr & ~bus_wrq;  // read  control register
-assign bus_wtr_dat = bus_wen & ~bus_adr & ~bus_wrq;  // write data register
-assign bus_rtr_dat = bus_ren & ~bus_adr & ~bus_wrq;  // read  data register
+assign bus_wec = bus_wen &  bus_adr & ~bus_wrq;  // write control register
+assign bus_rec = bus_ren &  bus_adr & ~bus_wrq;  // read  control register
+assign bus_wed = bus_wen & ~bus_adr & ~bus_wrq;  // write data register
+assign bus_red = bus_ren & ~bus_adr & ~bus_wrq;  // read  data register
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI status, interrupt request                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign reg_sts = {28'h0000000, sts_idt, sts_odt, sts_cyc, sts_ctl};
+assign reg_sts = {28'h0000000, sts_idt, sts_odt, pcy_sts, pct_sts};
 
 assign reg_irq = 1'b0;
 
@@ -295,31 +299,11 @@ end
 ////////////////////////////////////////////////////////////////////////////////
 
 generate
-if (CDC) begin
+//if (CDC) begin
+if (0) begin
 
-  // clock domain CPU, control register write toggle
-  always @ (posedge clk_cpu, posedge rst_cpu)
-  if (rst_cpu)  cdc_dot <= 2'b00;
-  else          cdc_dot <= {cds_dot [0], cdc_dot [1] ^ bus_wtr_dat};
-
-  // clock domain SPI, control register write toggle
-  always @ (posedge clk_spi, posedge rst_spi)
-  if (rst_spi)  cds_dot <= 2'b00;
-  else          cds_dot <= {cdc_dot [0], cds_dot [1] ^ cyc_beg};
-
-  // clock domain SPI, control register write register
-  always @ (posedge clk_spi, posedge rst_spi)
-  if (rst_spi)  cds_doe <= 1'b0;
-  else          cds_doe <= 1'b0;
-
-  // data registers write enable // TODO
-  assign bus_wen_dat = ~cyc_run & (cds_dot [1] ^ cds_doe);
-
-  // data registers write data
-  always @ (posedge clk_cpu)
-  if (bus_wtr_dat)  bus_wdt_dat <= bus_wdt;
-
-end else begin
+  // bus read data
+  assign bus_rdt = buf_dat;
 
   // status of output data pipeline
   assign sts_odt = cyc_odt;
@@ -327,11 +311,36 @@ end else begin
   // status of  input data pipeline
   assign sts_idt = cyc_idt;
 
+  // clock domain CPU, control register write toggle
+  always @ (posedge clk_cpu, posedge rst_cpu)
+  if (rst_cpu)  cdc_dot <= 2'b00;
+  else          cdc_dot <= {cds_dot [0], cdc_dot [1] ^ bus_wed};
+
+  // clock domain SPI, control register write toggle
+  always @ (posedge clk_spi, posedge rst_spi)
+  if (rst_spi)  cds_dot <= 2'b00;
+  else          cds_dot <= {cdc_dot [0], cds_dot [1] ^ cyc_beg};
+
+  // data registers write enable // TODO
+  assign bus_wen_dat = ~cyc_run & (cds_dot [1]);
+
+  // data registers write data
+  always @ (posedge clk_cpu)
+  if (bus_wed)  bus_wdt_dat <= bus_wdt;
+
+end else begin
+
   // bus read data
   assign bus_rdt = buf_dat;
 
+  // status of output data pipeline
+  assign sts_odt = cyc_odt;
+
+  // status of  input data pipeline
+  assign sts_idt = cyc_idt;
+
   // data registers write enable
-  assign bus_wen_dat = bus_wtr_dat;
+  assign bus_wen_dat = bus_wed;
 
   // data registers write data
   always @ (*)
@@ -347,58 +356,67 @@ else if (cyc_ren)  buf_dat <= cfg_dir ? {ser_dat[32-4-1:0], ser_dmi}   // MSB fi
                                       : {ser_dmi, ser_dat[32  -1:4]};  // LSB first
 
 ////////////////////////////////////////////////////////////////////////////////
-// control register clock domain crossing (optional)                          //
+// clock domain crossing pipeline (optional) for control register             //
 ////////////////////////////////////////////////////////////////////////////////
 
 generate
 if (CDC) begin
 
+  // control registers write data
+  always @ (posedge clk_cpu)
+  if (bus_wec)  pct_wdt <= bus_wdt;
+
   // status of control register pipeline
-  assign sts_ctl = cdc_cwt [1] ^ cdc_cwe;
-
-  // status of SPI cycle
-
-  // clock domain CPU, control register write register
   always @ (posedge clk_cpu, posedge rst_cpu)
-  if (rst_cpu)  cdc_cwe <= 1'b0;
-  else          cdc_cwe <= 1'b0;
+  if (rst_cpu)  pct_sts <= 1'b0;
+  else          pct_sts <= ^pct_cdl | bus_wec;
 
   // clock domain CPU, control register write toggle
   always @ (posedge clk_cpu, posedge rst_cpu)
-  if (rst_cpu)  cdc_cwt <= 2'b00;
-  else          cdc_cwt <= {cds_cwt [0], cdc_cwt [1] ^ bus_wtr_ctl};
+  if (rst_cpu)  pct_cdl <= 2'b00;
+  else          pct_cdl <= {pct_sdl[0], pct_cdl [0] ^  bus_wec};
 
-  // clock domain SPI, control register write toggle
+  // SPI clock domain
   always @ (posedge clk_spi, posedge rst_spi)
-  if (rst_spi)  cds_cwt <= 2'b00;
-  else          cds_cwt <= {cdc_cwt [0], cds_cwt [1] ^ cyc_beg};
+  if (rst_spi)  pct_sdl <= 2'b00;
+  else          pct_sdl <= {pct_cdl[0], cyc_odt ? pct_sdl[0] : pct_sdl[1]};
 
-  // clock domain SPI, control register write register
+  // request control register pipeline
   always @ (posedge clk_spi, posedge rst_spi)
-  if (rst_spi)  cds_cwe <= 1'b0;
-  else          cds_cwe <= 1'b0;
+  if (rst_spi)  pct_req <= 1'b0;
+  else          pct_req <= ^pct_sdl;
 
   // control registers write enable // TODO
-  assign bus_wen_ctl = ~cyc_run & (cds_cwt [1] ^ cds_cwe);
-
-  // control registers write data
-  always @ (posedge clk_cpu)
-  if (bus_wtr_ctl)  bus_wdt_ctl <= bus_wdt;
+  assign        pct_wen = pct_req & ~cyc_odt;
 
 end else begin
 
-  // status of control register pipeline
-  assign sts_ctl = cyc_odt;
+  // control registers write data
+  always @(*)  pct_wdt = bus_wdt;
 
-  // status of SPI cycle
-  assign sts_cyc = cyc_odt;
+  // status of control register pipeline
+  always @(*)  pct_sts = cyc_odt;
 
   // control registers write enable
-  assign bus_wen_ctl = bus_wtr_ctl;
+  assign       pct_wen = bus_wec;
 
-  // control registers write data
-  always @ (*)
-  bus_wdt_ctl = bus_wdt;
+end
+endgenerate
+
+////////////////////////////////////////////////////////////////////////////////
+// clock domain crossing pipeline (optional) for SPI cycle status             //
+////////////////////////////////////////////////////////////////////////////////
+
+generate
+if (CDC) begin
+
+  // status of SPI cycle
+  always @(*)  pcy_sts = cyc_odt;
+
+end else begin
+
+  // status of SPI cycle
+  always @(*)  pcy_sts = cyc_odt;
 
 end
 endgenerate
@@ -421,16 +439,16 @@ if (rst_cpu) begin
   ctl_cnt <= 12'd0;
 end else begin
   // write from the CPU bus has priority
-  if (bus_wen_ctl) begin
-    ctl_fio <= bus_wdt_ctl[22   ];
-    ctl_ssc <= bus_wdt_ctl[21   ];
-    ctl_sse <= bus_wdt_ctl[20   ];
-    ctl_ien <= bus_wdt_ctl[19   ];
-    ctl_oel <= bus_wdt_ctl[18   ];
-    ctl_oec <= bus_wdt_ctl[17   ];
-    ctl_oen <= bus_wdt_ctl[16   ];
-    ctl_iow <= bus_wdt_ctl[13:12];
-    ctl_cnt <= bus_wdt_ctl[11: 0];
+  if (pct_wen) begin
+    ctl_fio <= pct_wdt[22   ];
+    ctl_ssc <= pct_wdt[21   ];
+    ctl_sse <= pct_wdt[20   ];
+    ctl_ien <= pct_wdt[19   ];
+    ctl_oel <= pct_wdt[18   ];
+    ctl_oec <= pct_wdt[17   ];
+    ctl_oen <= pct_wdt[16   ];
+    ctl_iow <= pct_wdt[13:12];
+    ctl_cnt <= pct_wdt[11: 0];
   // decrement at the end of each transfer unit (nibble by default)
   end else if (cyc_nib) begin
     ctl_cnt <= ctl_cnt - 12'd1;
@@ -476,7 +494,7 @@ else          cyc_nib <= cyc_nin & (cyc_run | (ctl_iow == 2'd3) & cyc_beg) & ~cy
 // spi transfer beginning pulse
 always @ (posedge clk_spi, posedge rst_spi)
 if (rst_spi)  cyc_beg <= 1'b0;
-else          cyc_beg <= bus_wen_ctl;
+else          cyc_beg <= pct_wen;
 
 // spi transfer run status
 always @ (posedge clk_spi, posedge rst_spi)
@@ -499,9 +517,9 @@ if (rst_spi) begin
   cyc_odt <= 1'b0;
   cyc_idt <= 1'b0;
 end else begin
-  if (bus_wen_ctl) begin
-//    cyc_odt <= bus_wdt_ctl[16];
-//    cyc_idt <= bus_wdt_ctl[18];
+  if (pct_wen) begin
+//    cyc_odt <= pct_wdt[16];
+//    cyc_idt <= pct_wdt[18];
     cyc_odt <= 1'b1;
     cyc_idt <= 1'b1;
   end else begin

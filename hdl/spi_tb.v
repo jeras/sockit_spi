@@ -42,6 +42,8 @@ localparam ABW = ADW/8;
 // SPI parameters
 localparam SSW = 8;
 
+localparam CDC = 1'b1;
+
 // system signals
 reg clk_cpu    , rst_cpu    ;
 reg clk_spi, rst_spi;
@@ -321,7 +323,8 @@ endtask
 
 sockit_spi #(
   .XAW         (XAW),
-  .SSW         (SSW)
+  .SSW         (SSW),
+  .CDC         (CDC)
 ) sockit_spi (
   // system signals (used by the CPU bus interface)
   .clk_cpu     (clk_cpu),
