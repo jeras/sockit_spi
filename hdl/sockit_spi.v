@@ -148,8 +148,8 @@ reg            cyc_nib;  // transfer nibble pulse (registered version of cyc_nin
 reg            cyc_end;  // transfer end pulse
 reg            cyc_ren;  // transfer read pulse
 // TODO
-reg            cyc_wdt;  // write cycle status
-reg            cyc_rdt;  // read  cycle status
+reg            cyc_odt;  // output data status
+reg            cyc_idt;  // outpu input data status
 
 // status signals
 wire           sts_ctl;  // control register pipeline status
@@ -321,6 +321,12 @@ if (CDC) begin
 
 end else begin
 
+  // status of output data pipeline
+  assign sts_odt = cyc_odt;
+
+  // status of  input data pipeline
+  assign sts_idt = cyc_idt;
+
   // bus read data
   assign bus_rdt = buf_dat;
 
@@ -350,6 +356,8 @@ if (CDC) begin
   // status of control register pipeline
   assign sts_ctl = cdc_cwt [1] ^ cdc_cwe;
 
+  // status of SPI cycle
+
   // clock domain CPU, control register write register
   always @ (posedge clk_cpu, posedge rst_cpu)
   if (rst_cpu)  cdc_cwe <= 1'b0;
@@ -378,6 +386,12 @@ if (CDC) begin
   if (bus_wtr_ctl)  bus_wdt_ctl <= bus_wdt;
 
 end else begin
+
+  // status of control register pipeline
+  assign sts_ctl = cyc_odt;
+
+  // status of SPI cycle
+  assign sts_cyc = cyc_odt;
 
   // control registers write enable
   assign bus_wen_ctl = bus_wtr_ctl;
@@ -482,17 +496,17 @@ else          cyc_ren <= cyc_end;
 // status registers
 always @ (posedge clk_spi, posedge rst_spi)
 if (rst_spi) begin
-  cyc_wdt <= 1'b0;
-  cyc_rdt <= 1'b0;
+  cyc_odt <= 1'b0;
+  cyc_idt <= 1'b0;
 end else begin
   if (bus_wen_ctl) begin
-//    cyc_wdt <= bus_wdt_ctl[16];
-//    cyc_rdt <= bus_wdt_ctl[18];
-    cyc_wdt <= 1'b1;
-    cyc_rdt <= 1'b1;
+//    cyc_odt <= bus_wdt_ctl[16];
+//    cyc_idt <= bus_wdt_ctl[18];
+    cyc_odt <= 1'b1;
+    cyc_idt <= 1'b1;
   end else begin
-    if ((ctl_cnt == 12'd0) & cyc_nin) cyc_wdt <= 1'b0;
-    if (cyc_end)                      cyc_rdt <= 1'b0;
+    if ((ctl_cnt == 12'd0) & cyc_nin) cyc_odt <= 1'b0;
+    if (cyc_end)                      cyc_idt <= 1'b0;
   end
 end
 

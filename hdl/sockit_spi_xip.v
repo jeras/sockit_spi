@@ -99,7 +99,7 @@ casez (fsm_sts)
   end
   CMD_CTL : begin
     fsm_adr = 1'b1;
-    fsm_wdt = 32'h001f_100a;
+    fsm_wdt = 32'h001f_1009;
     fsm_nxt = ~fsm_wrq ? CMD_STS : fsm_sts;
   end
   CMD_STS : begin
@@ -109,7 +109,7 @@ casez (fsm_sts)
   end
   DAT_CTL : begin
     fsm_adr = 1'b1;
-    fsm_wdt = 32'h0038_1008;
+    fsm_wdt = 32'h0038_1007;
     fsm_nxt = ~fsm_wrq ? DAT_STS : fsm_sts;
   end
   DAT_STS : begin
