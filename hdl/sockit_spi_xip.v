@@ -53,25 +53,25 @@ module sockit_spi_xip #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-//                       x x f
-//                       i i s
-//                       p p m
-//                       | | |
-//                       e w w
-//                       r r e
-//                       r q n
-// state names
-localparam IDL_RST = 6'b 0_1_0_000;  // idle, reset
-localparam CMD_WDT = 6'b 0_1_1_000;  // command write (load buffer)
-localparam CMD_CTL = 6'b 0_1_1_001;  // command control (start cycle)
-localparam CMD_STS = 6'b 0_1_0_01?;  // command status (wait for cycle end)
-localparam DAT_CTL = 6'b 0_1_1_100;  // data control (start cycle)
-localparam DAT_STS = 6'b 0_1_1_101;  // data read (read buffer)
-localparam DAT_RDT = 6'b 0_0_0_11?;  // data read (read buffer)
+//                       x x f f
+//                       i i s s
+//                       p p m m
+//                       | | | |
+//                       e w r w
+//                       r r e e
+//                       r q n n
+// state names                
+localparam IDL_RST = 7'b 0_1_0_0_000;  // idle, reset
+localparam CMD_WDT = 7'b 0_1_1_1_000;  // command write (load buffer)
+localparam CMD_CTL = 7'b 0_1_1_1_001;  // command control (start cycle)
+localparam CMD_STS = 7'b 0_1_0_0_01?;  // command status (wait for cycle end)
+localparam DAT_CTL = 7'b 0_1_1_1_100;  // data control (start cycle)
+localparam DAT_STS = 7'b 0_1_1_1_101;  // data read (read buffer)
+localparam DAT_RDT = 7'b 0_0_0_0_11?;  // data read (read buffer)
 
 // XIP state machine status
-reg      [5:0] fsm_sts;  // current state
-reg      [5:0] fsm_nxt;  // next state
+reg      [6:0] fsm_sts;  // current state
+reg      [6:0] fsm_nxt;  // next state
 
 // address adder
 // reg  [XAW-1:0] adr_reg;  // input address register
@@ -129,12 +129,13 @@ casez (fsm_sts)
   end
 endcase
 
+// register access signals
+assign fsm_ren = fsm_sts[3];
+assign fsm_wen = fsm_sts[4];
+
 // XIP return signals
 assign xip_rdt = fsm_rdt;
-assign xip_wrq = fsm_sts[4];
-assign xip_err = fsm_sts[5];
-
-// register access signals
-assign fsm_wen = fsm_sts[3];
+assign xip_wrq = fsm_sts[5];
+assign xip_err = fsm_sts[6];
 
 endmodule
