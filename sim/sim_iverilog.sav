@@ -1,9 +1,14 @@
-[timestart] 0
+[timestart] 163400
 [size] 1920 1123
 [pos] -1 -1
-*-19.225300 4010000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.225300 234600 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
+@28
+spi_tb.sockit_spi.clk_cpu
+spi_tb.sockit_spi.rst_cpu
+spi_tb.sockit_spi.clk_spi
+spi_tb.sockit_spi.rst_spi
 @800200
 -XIP bus
 @28
@@ -28,21 +33,10 @@ spi_tb.sockit_spi.xip.fsm_adr
 spi_tb.sockit_spi.xip.fsm_wrq
 @22
 spi_tb.sockit_spi.xip.fsm_wdt[31:0]
-@c02028
-^1 /home/izi/Workplace/sockit_spi/sim/gtkwave_xip_sts.filter
-spi_tb.sockit_spi.xip.fsm_sts[5:0]
-@28
-(0)spi_tb.sockit_spi.xip.fsm_sts[5:0]
-(1)spi_tb.sockit_spi.xip.fsm_sts[5:0]
-(2)spi_tb.sockit_spi.xip.fsm_sts[5:0]
-(3)spi_tb.sockit_spi.xip.fsm_sts[5:0]
-(4)spi_tb.sockit_spi.xip.fsm_sts[5:0]
-(5)spi_tb.sockit_spi.xip.fsm_sts[5:0]
 @1401200
 -group_end
--XIP
 @800200
--register bus
+-reg bus
 @28
 spi_tb.sockit_spi.reg_wen
 spi_tb.sockit_spi.reg_ren
@@ -54,85 +48,39 @@ spi_tb.sockit_spi.reg_rdt[31:0]
 spi_tb.sockit_spi.reg_wrq
 spi_tb.sockit_spi.reg_irq
 @1000200
--register bus
-@800200
--bus
-@28
-spi_tb.sockit_spi.bus_wen
-spi_tb.sockit_spi.bus_adr
+-reg bus
 @22
-spi_tb.sockit_spi.bus_wdt[31:0]
+spi_tb.sockit_spi.reg_cfg[31:0]
+spi_tb.sockit_spi.reg_xip[31:0]
+spi_tb.sockit_spi.reg_sts[31:0]
 @28
-spi_tb.sockit_spi.bus_wrq
-@1000200
--bus
-@800200
--configuration
+spi_tb.sockit_spi.pct_sts
+spi_tb.sockit_spi.pct_wen
 @22
-spi_tb.sockit_spi.cfg_sso[7:0]
+spi_tb.sockit_spi.pct_wdt[31:0]
 @28
-spi_tb.sockit_spi.cfg_hle
-spi_tb.sockit_spi.cfg_hlo
-spi_tb.sockit_spi.cfg_wpe
-spi_tb.sockit_spi.cfg_wpo
-spi_tb.sockit_spi.cfg_coe
-spi_tb.sockit_spi.cfg_bit
-spi_tb.sockit_spi.cfg_dir
-spi_tb.sockit_spi.cfg_pol
-spi_tb.sockit_spi.cfg_pha
-@22
-spi_tb.sockit_spi.xip_reg[31:0]
-@1000200
--configuration
-@c00200
--control
-@28
-spi_tb.sockit_spi.ctl_fio
-spi_tb.sockit_spi.ctl_ssc
-spi_tb.sockit_spi.ctl_sse
-spi_tb.sockit_spi.ctl_ien
-spi_tb.sockit_spi.ctl_oel
-spi_tb.sockit_spi.ctl_oec
-spi_tb.sockit_spi.ctl_oen
-spi_tb.sockit_spi.ctl_iow[1:0]
 spi_tb.sockit_spi.ctl_btc[1:0]
 spi_tb.sockit_spi.ctl_btn[1:0]
 @22
-spi_tb.sockit_spi.ctl_cnt[11:0]
-@1401200
--control
-@800200
--FIFO
+spi_tb.sockit_spi.ctl_cnt[15:0]
 @28
-spi_tb.sockit_spi.pct_sts
-spi_tb.sockit_spi.pct_cdl[1:0]
-spi_tb.sockit_spi.pct_sdl[1:0]
-spi_tb.sockit_spi.pct_req
-@1000200
--FIFO
-@22
-spi_tb.sockit_spi.buf_dat[31:0]
-@820
-spi_tb.sockit_spi.buf_dat[31:0]
-@800200
--serialization
-@c00028
-spi_tb.sockit_spi.ser_dmi[3:0]
+spi_tb.sockit_spi.ctl_ien
+@29
+spi_tb.sockit_spi.ctl_iow[1:0]
 @28
-(0)spi_tb.sockit_spi.ser_dmi[3:0]
-(1)spi_tb.sockit_spi.ser_dmi[3:0]
-(2)spi_tb.sockit_spi.ser_dmi[3:0]
-(3)spi_tb.sockit_spi.ser_dmi[3:0]
-@1401200
--group_end
--group_end
+spi_tb.sockit_spi.ctl_oec
+spi_tb.sockit_spi.ctl_oel
+spi_tb.sockit_spi.ctl_oen
+spi_tb.sockit_spi.ctl_orl
+spi_tb.sockit_spi.ctl_ssc
+spi_tb.sockit_spi.ctl_sse
 @22
-spi_tb.sockit_spi.ser_dmi[3:0]
-spi_tb.sockit_spi.ser_dpi[3:0]
-spi_tb.sockit_spi.ser_dti[3:0]
 spi_tb.sockit_spi.ser_dat[31:0]
+spi_tb.sockit_spi.buf_dat[31:0]
 @28
-spi_tb.sockit_spi.ser_dmo[3:0]
-spi_tb.sockit_spi.ser_dme[3:0]
+spi_tb.sockit_spi.pod_sts
+spi_tb.sockit_spi.pod_wen
+@22
+spi_tb.sockit_spi.pod_wdt[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

@@ -139,11 +139,13 @@ reg     [15:0] ctl_cnt;  // counter of transfer units (nibbles by default)
 // clock domain crossing pipeline for output data
 reg            pod_sts;  // CPU clock domain - pipeline status
 wire           pod_wen;  // SPI clock domain - write enable
-reg     [31:0] pod_wdt;  // SPI clock domain - write data
 
 // clock domain crossing pipeline for input data
 reg            pid_sts;  // CPU clock domain - pipeline status
 wire           pid_ren;  // SPI clock domain - read enable
+
+// clock domain crossing data buffer
+reg     [31:0] pdt_dat;  // CPU clock domain - data register
 
 // reload buffer
 reg     [31:0] buf_dat;  // SPI clock domain - data register
@@ -208,7 +210,7 @@ sockit_spi_xip #(
   .fsm_ren  (fsm_ren),  // read  enable
   .fsm_adr  (fsm_adr),  // address
   .fsm_wdt  (fsm_wdt),  // write data
-  .fsm_rdt  (buf_dat),  // read data
+  .fsm_rdt  (),  // read data
   .fsm_wrq  (bus_wrq),  // wait request
   // SPI master status
   .sts_cyc  (pcy_sts),  // cycle status
@@ -289,19 +291,17 @@ end
 // clock domain crossing pipeline (optional) for data register                //
 ////////////////////////////////////////////////////////////////////////////////
 
-generate if (CDC) begin
-
-  // clock domain crossing data buffer
-  reg [31:0] pdt_dat;  // CPU clock domain - data register
+generate if (CDC) begin : pdt
 
   // clock domain crossing loop
   reg  [1:0] pod_cdl;  // CPU clock domain - loop
   reg  [1:0] pod_sdl;  // SPI clock domain - loop
   reg        pod_req;  // SPI clock domain - pipeline request
 
-  // control registers write data
-  always @ (posedge clk_cpu)
-  if (bus_wed)  pod_wdt <= bus_wdt;
+  // clock domain crossin loop
+  reg  [1:0] pid_cdl;  // CPU clock domain - loop
+  reg  [1:0] pid_sdl;  // SPI clock domain - loop
+  reg        pid_req;  // SPI clock domain - pipeline request
 
   // status of control register pipeline
   always @ (posedge clk_cpu, posedge rst_cpu)
@@ -323,14 +323,17 @@ generate if (CDC) begin
   if (rst_spi)  pod_req <= 1'b0;
   else          pod_req <= ^pod_sdl;
 
-  // control registers write enable // TODO
+  // data registers write enable // TODO
   assign        pod_wen = pod_req & ~cyc_odt;
 
+  // data register
+  always @ (posedge clk_cpu)
+  if (bus_wed)  pdt_dat <= bus_wdt;
+  else
+  if (pid_ren)  pdt_dat <= buf_dat;
 
-  // clock domain crossin loop
-  reg  [1:0] pid_cdl;  // CPU clock domain - loop
-  reg  [1:0] pid_sdl;  // SPI clock domain - loop
-  reg        pid_req;  // SPI clock domain - pipeline request
+  //  registers write data
+  assign        bus_rdt = pdt_dat;
 
   // status of control register pipeline
   always @ (posedge clk_cpu, posedge rst_cpu)
@@ -352,34 +355,37 @@ generate if (CDC) begin
   if (rst_spi)  pid_req <= 1'b0;
   else          pid_req <= ^pid_sdl;
 
-  // control registers write enable // TODO
+  // data registers read enable // TODO
   assign        pid_ren = pid_req & ~cyc_idt;
 
-end else begin
-
-  // data registers write data
-  always @ (*)  pod_wdt = bus_wdt;
-
-  // bus read data
-  assign        bus_rdt = buf_dat;
+end else begin : pdt
 
   // status of output data pipeline
   always @ (*)  pod_sts = cyc_odt;
 
+  // data registers write enable
+  assign        pod_wen = bus_wed;
+
+  // write data
+  always @ (*)  pdt_dat = bus_wdt;
+
+  // read data
+  assign        bus_rdt = buf_dat;
+
   // status of  input data pipeline
   always @ (*)  pid_sts = cyc_idt;
 
-  // data registers write enable
-  assign pod_wen = bus_wed;
+  // data registers read enable
+  assign        pid_ren = bus_red;
 
-  //
-  assign pid_ren = bus_red;
+  // bus read data
+  assign        bus_rdt = buf_dat;
 
 end endgenerate
 
 // buffer for swapping write/read data with shift register
 always @ (posedge clk_spi)
-if      (pod_wen)  buf_dat <= pod_wdt;                                 // CPU load
+if      (pod_wen)  buf_dat <= pdt_dat;                                 // CPU load
 else if (cyc_rdy)  buf_dat <= cfg_dir ? {ser_dat[32-4-1:0], ser_dmi}   // MSB first
                                       : {ser_dmi, ser_dat[32  -1:4]};  // LSB first
 
@@ -403,7 +409,7 @@ end
 // clock domain crossing pipeline (optional) for control register             //
 ////////////////////////////////////////////////////////////////////////////////
 
-generate if (CDC) begin
+generate if (CDC) begin : pct
 
   // clock domain crossin loop
   reg  [1:0] pct_cdl;  // CPU clock domain - loop
@@ -437,7 +443,7 @@ generate if (CDC) begin
   // control registers write enable // TODO
   assign        pct_wen = pct_req & ~cyc_odt;
 
-end else begin
+end else begin : pct
 
   // control registers write data
   always @ (*)  pct_wdt = bus_wdt;
@@ -454,8 +460,7 @@ end endgenerate
 // clock domain crossing pipeline (optional) for SPI cycle status             //
 ////////////////////////////////////////////////////////////////////////////////
 
-generate
-if (CDC) begin
+generate if (CDC) begin : pcy
 
   // clock domain crossin loop
   reg  [1:0] pcy_cdl;  // CPU clock domain - loop
@@ -465,13 +470,12 @@ if (CDC) begin
   // status of SPI cycle
   always @(*)  pcy_sts = cyc_odt;
 
-end else begin
+end else begin : pcy
 
   // status of SPI cycle
   always @(*)  pcy_sts = cyc_odt;
 
-end
-endgenerate
+end endgenerate
 
 ////////////////////////////////////////////////////////////////////////////////
 // control registers                                                          //
@@ -493,9 +497,9 @@ end else begin
   // write from the CPU bus has priority
   if (pct_wen) begin
     ctl_ien <= pct_wdt[24   ];
-    ctl_orl <= pct_wdt[23   ];
+    ctl_oec <= pct_wdt[23   ];
     ctl_oel <= pct_wdt[22   ];
-    ctl_oec <= pct_wdt[21   ];
+    ctl_orl <= pct_wdt[21   ];
     ctl_oen <= pct_wdt[20   ];
     ctl_ssc <= pct_wdt[19   ];
     ctl_sse <= pct_wdt[18   ];
