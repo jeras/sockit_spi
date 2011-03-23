@@ -14,7 +14,8 @@ verilator -Wall --cc --trace --exe --prefix Vspi --top-module spi_wrp \
 ../hdl/spi_wrp.v \
 ../hdl/sockit_spi.v \
 ../hdl/sockit_spi_xip.v \
-../hdl/sockit_spi_fifo.v \
+../hdl/sockit_spi_cdc.v \
+../hdl/sockit_spi_dma.v \
 ../hdl/spi_flash_model.v \
 ../src/spi_tb.cpp
 # build C++ project

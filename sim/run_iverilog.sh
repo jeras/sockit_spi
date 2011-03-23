@@ -14,7 +14,8 @@ iverilog -o spi.out \
 ../hdl/spi_tb.v \
 ../hdl/sockit_spi.v \
 ../hdl/sockit_spi_xip.v \
-../hdl/sockit_spi_fifo.v \
+../hdl/sockit_spi_cdc.v \
+../hdl/sockit_spi_dma.v \
 ../hdl/spi_slave_model.v \
 ../hdl/spi_flash_model.v
 #-I ../dev/NU_N25Q128A230B_VG14/ \

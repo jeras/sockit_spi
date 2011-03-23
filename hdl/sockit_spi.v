@@ -118,7 +118,7 @@ reg     [31:0] xip_reg;  // XIP configuration
 wire           xip_ena;  // XIP configuration
 
 // clock domain crossing pipeline for control register
-reg            pct_sts;  // CPU clock domain - pipeline status
+wire           pct_sts;  // CPU clock domain - pipeline status
 wire           pct_wen;  // SPI clock domain - write enable
 reg     [31:0] pct_wdt;  // SPI clock domain - write data
 
@@ -159,8 +159,9 @@ reg      [1:0] ctl_btn;  // counter of shifted bits next (+1)
 // cycle timing registers
 reg            cyc_beg;  // transfer begin pulse
 reg            cyc_run;  // transfer run status
-reg            cyc_nin;  // transfer nibble pulse next
-reg            cyc_nib;  // transfer nibble pulse (registered version of cyc_nin)
+reg            cyc_nen;  // transfer nibble enable next   pulse
+reg            cyc_neo;  // transfer nibble enable output pulse (registered version of cyc_nen)
+reg            cyc_nei;  // transfer nibble enable  input pulse (registered version of cyc_neo)
 reg            cyc_end;  // transfer end pulse
 reg            cyc_rdy;  // transfer input ready pulse
 // TODO
@@ -171,8 +172,8 @@ reg            cyc_idt;  //  input data status
 reg      [3:0] ser_dmi;  // data mixer input register
 reg      [2:0] ser_dsi;  // data shift input register
 reg      [3:0] ser_dpi;  // data shift phase synchronization
-reg      [3:0] ser_dti;  // data shift input
-reg     [31:0] ser_dat;  // data shift register
+reg     [31:0] ser_dri;  // data shift register input
+reg     [31:0] ser_dro;  // data shift register output
 reg      [3:0] ser_dmo;  // data mixer output
 reg      [3:0] ser_dme;  // data mixer output enable
 
@@ -232,7 +233,7 @@ assign reg_wrq = ~reg_adr[1] ?                   1'b0 : bus_wrq;   // wait reque
 // wait request timing
 assign bus_wrq = ~bus_adr ? (bus_wen & pct_sts)   // write to control register
                           : (bus_wen & pod_sts)   // write to  data register
-                          | (bus_wen & pid_sts);  // read from data register
+                          | (bus_ren & pid_sts);  // read from data register
 
 // control/status and data register write/read access transfers
 assign bus_wec = bus_wen & ~bus_adr & ~bus_wrq;  // write control register
@@ -311,7 +312,7 @@ generate if (CDC) begin : pdt
   // clock domain CPU, control register write toggle
   always @ (posedge clk_cpu, posedge rst_cpu)
   if (rst_cpu)  pod_cdl <= 2'b00;
-  else          pod_cdl <= {pod_sdl[0], pod_cdl [0] ^  bus_wed};
+  else          pod_cdl <= {pod_sdl[0], pod_cdl[0] ^  bus_wed};
 
   // SPI clock domain
   always @ (posedge clk_spi, posedge rst_spi)
@@ -335,15 +336,15 @@ generate if (CDC) begin : pdt
   //  registers write data
   assign        bus_rdt = pdt_dat;
 
-  // status of control register pipeline
+  // status of input data pipeline
   always @ (posedge clk_cpu, posedge rst_cpu)
-  if (rst_cpu)  pid_sts <= 1'b0;
-  else          pid_sts <= ^pid_cdl | bus_red;
+  if (rst_cpu)  pid_sts <= 1'b1;
+  else          pid_sts <= ^pid_cdl ? 1'b0 : (pid_sts | bus_red);
 
   // clock domain CPU, control register write toggle
   always @ (posedge clk_cpu, posedge rst_cpu)
   if (rst_cpu)  pid_cdl <= 2'b00;
-  else          pid_cdl <= {pid_sdl[0], pid_cdl [0] ^  bus_red};
+  else          pid_cdl <= {pid_sdl[0], pid_cdl[0] ^  bus_red};
 
   // SPI clock domain
   always @ (posedge clk_spi, posedge rst_spi)
@@ -352,8 +353,8 @@ generate if (CDC) begin : pdt
 
   // request control register pipeline
   always @ (posedge clk_spi, posedge rst_spi)
-  if (rst_spi)  pid_req <= 1'b0;
-  else          pid_req <= ^pid_sdl;
+  if (rst_spi)  pid_req <= 1'b1;
+  else          pid_req <= ^pid_sdl ? 1'b1 : pid_req;
 
   // data registers read enable // TODO
   assign        pid_ren = pid_req & ~cyc_idt;
@@ -386,14 +387,14 @@ end endgenerate
 // buffer for swapping write/read data with shift register
 always @ (posedge clk_spi)
 if      (pod_wen)  buf_dat <= pdt_dat;                                 // CPU load
-else if (cyc_rdy)  buf_dat <= cfg_dir ? {ser_dat[32-4-1:0], ser_dmi}   // MSB first
-                                      : {ser_dmi, ser_dat[32  -1:4]};  // LSB first
+else if (cyc_rdy)  buf_dat <= cfg_dir ? {ser_dri[32-4-1:0], ser_dmi}   // MSB first
+                                      : {ser_dmi, ser_dri[32  -1:4]};  // LSB first
 
 // output enable (new data for output has been written) 
 always @ (posedge clk_spi, posedge rst_spi)
 if (rst_spi)         buf_oen <= 1'b0;
 else begin
-  if      (pod_wen)  buf_oen <= 1'b0;
+  if      (pod_wen)  buf_oen <= 1'b1;
   else if (cyc_beg)  buf_oen <= ~ctl_orl;
 end
 
@@ -411,37 +412,31 @@ end
 
 generate if (CDC) begin : pct
 
-  // clock domain crossin loop
-  reg  [1:0] pct_cdl;  // CPU clock domain - loop
-  reg  [1:0] pct_sdl;  // SPI clock domain - loop
-  reg        pct_req;  // SPI clock domain - pipeline request
+  wire        pct_req;  // new cycle request
+  wire        pct_grt;  // new cycle grant
 
   // control registers write data
   always @ (posedge clk_cpu)
   if (bus_wec)  pct_wdt <= bus_wdt;
 
-  // status of control register pipeline
-  always @ (posedge clk_cpu, posedge rst_cpu)
-  if (rst_cpu)  pct_sts <= 1'b0;
-  else          pct_sts <= ^pct_cdl | bus_wec;
+  sockit_spi_cdc #(.DW (1)) cdc_pct (
+    // port A
+    .cda_clk  (clk_cpu),
+    .cda_rst  (rst_cpu),
+    .cda_pli  (bus_wec),
+    .cda_plo  (pct_sts),
+    // port B
+    .cdb_clk  (clk_spi),
+    .cdb_rst  (rst_spi),
+    .cdb_pli  (pct_grt),
+    .cdb_plo  (pct_req)
+  );
 
-  // clock domain CPU, control register write toggle
-  always @ (posedge clk_cpu, posedge rst_cpu)
-  if (rst_cpu)  pct_cdl <= 2'b00;
-  else          pct_cdl <= {pct_sdl[0], pct_cdl [0] ^  bus_wec};
-
-  // SPI clock domain
-  always @ (posedge clk_spi, posedge rst_spi)
-  if (rst_spi)  pct_sdl <= 2'b00;
-  else          pct_sdl <= {pct_cdl[0], cyc_odt ? pct_sdl[0] : pct_sdl[1]};
-
-  // request control register pipeline
-  always @ (posedge clk_spi, posedge rst_spi)
-  if (rst_spi)  pct_req <= 1'b0;
-  else          pct_req <= ^pct_sdl;
+  // new cycle grant
+  assign        pct_grt = cyc_lbe | ~cyc_run;
 
   // control registers write enable // TODO
-  assign        pct_wen = pct_req & ~cyc_odt;
+  assign        pct_wen = pct_req & (~cyc_run | cyc_lbe);
 
 end else begin : pct
 
@@ -506,7 +501,7 @@ end else begin
     ctl_iow <= pct_wdt[17:16];
     ctl_cnt <= pct_wdt[15: 0];
   // decrement at the end of each transfer unit (nibble by default)
-  end else if (cyc_nib) begin
+  end else if (cyc_nei) begin
     ctl_cnt <= ctl_cnt - 16'd1;
   end
 end
@@ -531,23 +526,26 @@ begin
   endcase
 end
 
-// nibble end next pulse
+// nibbleenable next pulse
 always @ (*)
 begin
   case (ctl_iow)
-    2'd0 :  cyc_nin = &ctl_btn[1:0];  // 3-wire
-    2'd1 :  cyc_nin = &ctl_btn[1:0];  // spi
-    2'd2 :  cyc_nin = &ctl_btn[1  ];  // dual
-    2'd3 :  cyc_nin =          1'b1;  // quad
+    2'd0 :  cyc_nen = &ctl_btn[1:0];  // 3-wire
+    2'd1 :  cyc_nen = &ctl_btn[1:0];  // spi
+    2'd2 :  cyc_nen = &ctl_btn[1  ];  // dual
+    2'd3 :  cyc_nen =          1'b1;  // quad
   endcase
 end
 
-// nibble end pulse
-always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)  cyc_nib <= 1'b0;
-else          cyc_nib <= cyc_nin & (cyc_run | (ctl_iow == 2'd3) & cyc_beg) & ~cyc_end;  // TODO pipelining
+// nibble enable output pulse
+always @ (*)  cyc_neo  = cyc_nen & (cyc_run | (ctl_iow == 2'd3) & cyc_beg) & ~cyc_end;
 
-// spi transfer beginning pulse
+// nibble enable input pulse
+always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi)  cyc_nei <= 1'b0;
+else          cyc_nei <= cyc_neo;
+
+// spi transfer beginning register
 always @ (posedge clk_spi, posedge rst_spi)
 if (rst_spi)  cyc_beg <= 1'b0;
 else          cyc_beg <= pct_wen;
@@ -555,12 +553,15 @@ else          cyc_beg <= pct_wen;
 // spi transfer run status
 always @ (posedge clk_spi, posedge rst_spi)
 if (rst_spi)  cyc_run <= 1'b0;
-else      cyc_run <= cyc_beg | cyc_run & ~cyc_end;
+else          cyc_run <= cyc_beg | cyc_run & ~cyc_end;
+
+// spi transfer last before end
+assign        cyc_lbe  = cyc_nen & (ctl_cnt == ((ctl_iow == 2'd3) ? 16'd1 : 16'd0));
 
 // spi transfer end pulse
 always @ (posedge clk_spi, posedge rst_spi)
 if (rst_spi)  cyc_end <= 1'b0;
-else          cyc_end <= cyc_nin & (ctl_cnt == ((ctl_iow == 2'd3) ? 16'd1 : 16'd0));
+else          cyc_end <= cyc_lbe;
 
 // input ready pulse
 always @ (posedge clk_spi, posedge rst_spi)
@@ -574,18 +575,16 @@ if (rst_spi) begin
   cyc_idt <= 1'b0;
 end else begin
   if (pct_wen) begin
-//    cyc_odt <= pct_wdt[16];
-//    cyc_idt <= pct_wdt[18];
     cyc_odt <= 1'b1;
     cyc_idt <= 1'b1;
   end else begin
-    if ((ctl_cnt == 16'd0) & cyc_nin) cyc_odt <= 1'b0;
-    if (cyc_end)                      cyc_idt <= 1'b0;
+    if (cyc_lbe)  cyc_odt <= 1'b0;
+    if (cyc_end)  cyc_idt <= 1'b0;
   end
 end
 
 ////////////////////////////////////////////////////////////////////////////////
-// serialization                                                              //
+// serialization input                                                        //
 ////////////////////////////////////////////////////////////////////////////////
 
 // input mixer
@@ -603,34 +602,23 @@ end
 always @ (posedge clk_spi)
 if (cyc_run & ctl_ien)  ser_dsi <= ser_dmi[2:0];
 
-// input phase register
+// shift data register  input (nibble sized shifts)
 always @ (posedge clk_spi)
-if (cyc_run & ctl_ien) begin
-  case (ctl_iow)
-    2'd0 :  if (ctl_btc[1:0] == 2'b00)  ser_dpi <= ser_dmi;
-    2'd1 :  if (ctl_btc[1:0] == 2'b00)  ser_dpi <= ser_dmi;
-    2'd2 :  if (ctl_btc[1  ] == 1'b0 )  ser_dpi <= ser_dmi;
-    2'd3 :                              ser_dpi <= ser_dmi;
-  endcase
+if (cyc_nei) begin
+  if (cfg_dir)  ser_dri <= {         ser_dri[32-4-1:0], ser_dmi};  // MSB first
+  else          ser_dri <= {ser_dmi, ser_dri[32  -1:4]         };  // LSB first
 end
 
-// input shifter retiming
-always @ (*)
-begin
-  case (ctl_iow)
-    2'd0 :  ser_dti = ser_dpi;
-    2'd1 :  ser_dti = ser_dpi;
-    2'd2 :  ser_dti = ser_dmi;
-    2'd3 :  ser_dti = ser_dmi;
-  endcase
-end
+////////////////////////////////////////////////////////////////////////////////
+// serialization output                                                       //
+////////////////////////////////////////////////////////////////////////////////
 
-// shift register (nibble sized shifts)
+// shift data register output (nibble sized shifts)
 always @ (posedge clk_spi)
-if   (cyc_beg)  ser_dat <=           buf_dat                     ;  // par. load
-else if (cyc_run & cyc_nin) begin
-  if (cfg_dir)  ser_dat <= {         ser_dat[32-4-1:0], ser_dti};  // MSB first
-  else          ser_dat <= {ser_dti, ser_dat[32  -1:4]         };  // LSB first
+if   (cyc_beg)  ser_dri <=           buf_dat                    ;  // par. load
+else if (cyc_neo) begin
+  if (cfg_dir)  ser_dro <= {         ser_dro[32-4-1:0], 4'bxxxx};  // MSB first
+  else          ser_dro <= {4'bxxxx, ser_dro[32  -1:4]         };  // LSB first
 end
 
 // output mixer
@@ -644,10 +632,10 @@ if (cyc_beg) begin
   endcase
 end else begin
   case (ctl_iow)                                      // MSB first                                 LSB first
-    2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[32-1-{30'b0, ctl_btn[1:0]}+:1] : ser_dat[{30'b0, ctl_btn[1:0]}+:1]};
-    2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dat[32-1-{30'b0, ctl_btn[1:0]}+:1] : ser_dat[{30'b0, ctl_btn[1:0]}+:1]};
-    2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dat[32-2-{30'b0, ctl_btn[1:0]}+:2] : ser_dat[{30'b0, ctl_btn[1:0]}+:2]};
-    2'd3 :  ser_dmo = {                        cfg_dir ? ser_dat[32-8                      +:4] : ser_dat[0                    +:4]};
+    2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dro[32-1-{30'b0, ctl_btn[1:0]}+:1] : ser_dro[{30'b0, ctl_btn[1:0]}+:1]};
+    2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dro[32-1-{30'b0, ctl_btn[1:0]}+:1] : ser_dro[{30'b0, ctl_btn[1:0]}+:1]};
+    2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dro[32-2-{30'b0, ctl_btn[1:0]}+:2] : ser_dro[{30'b0, ctl_btn[1:0]}+:2]};
+    2'd3 :  ser_dmo = {                        cfg_dir ? ser_dro[32-8                      +:4] : ser_dro[0                    +:4]};
   endcase
 end
 

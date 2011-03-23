@@ -30,13 +30,13 @@ module sockit_spi_cdc #(
   // port A
   input  wire  cda_clk,  // clock
   input  wire  cda_rst,  // reset
-  input  wire  cda_req,  // request pulse
-  output reg   cda_grt,  // grant   pulse
+  input  wire  cda_pli,  // pulse input
+  output reg   cda_plo,  // pulse output
   // port B
   input  wire  cdb_clk,  // clock
   input  wire  cdb_rst,  // reset
-  input  wire  cdb_req,  // request pulse
-  output reg   cdb_grt   // grant   pulse
+  input  wire  cdb_pli,  // pulse input
+  output reg   cdb_plo   // pulse output
 );
 
 // gray function
@@ -73,11 +73,11 @@ always @ (posedge cda_clk, posedge cda_rst)
 if (cda_rst) begin
                           cda_syn <= {CDW{1'b0}};
                           cda_cnt <= {CDW{1'b0}};
-                          cda_grt <=      1'b0  ;
+                          cda_plo <=      1'b0  ;
 end else begin
                           cda_syn <= cdb_cnt;
-  if (cda_req & cda_grt)  cda_cnt <= cda_inc;
-                          cda_grt <= cda_syn != cda_inc;
+  if (cda_pli & cda_plo)  cda_cnt <= cda_inc;
+                          cda_plo <= cda_syn != cda_inc;
 end
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -95,11 +95,11 @@ always @ (posedge cdb_clk, posedge cdb_rst)
 if (cdb_rst) begin
                           cdb_syn <= {CDW{1'b0}};
                           cdb_cnt <= {CDW{1'b0}};
-                          cdb_grt <=      1'b0  ;
+                          cdb_plo <=      1'b0  ;
 end else begin
                           cdb_syn <= cda_cnt;
-  if (cdb_req & cdb_grt)  cdb_cnt <= cdb_inc;
-                          cdb_grt <= cdb_syn != cdb_inc;
+  if (cdb_pli & cdb_plo)  cdb_cnt <= cdb_inc;
+                          cdb_plo <= cdb_syn != cdb_inc;
 end
 
 
