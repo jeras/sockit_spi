@@ -137,7 +137,7 @@ reg      [1:0] ctl_iow;  // IO width (0-3wire, 1-SPI, 2-duo, 3-quad)
 reg     [15:0] ctl_cnt;  // counter of transfer units (nibbles by default)
 
 // clock domain crossing pipeline for output data
-reg            pod_sts;  // CPU clock domain - pipeline status
+wire           pod_sts;  // CPU clock domain - pipeline status
 wire           pod_wen;  // SPI clock domain - write enable
 
 // clock domain crossing pipeline for input data
@@ -304,15 +304,18 @@ generate if (CDC) begin : pdt
   reg  [1:0] pid_sdl;  // SPI clock domain - loop
   reg        pid_req;  // SPI clock domain - pipeline request
 
-  // status of control register pipeline
-  always @ (posedge clk_cpu, posedge rst_cpu)
-  if (rst_cpu)  pod_sts <= 1'b0;
-  else          pod_sts <= ^pod_cdl | bus_wed;
-
-  // clock domain CPU, control register write toggle
-  always @ (posedge clk_cpu, posedge rst_cpu)
-  if (rst_cpu)  pod_cdl <= 2'b00;
-  else          pod_cdl <= {pod_sdl[0], pod_cdl[0] ^  bus_wed};
+  sockit_spi_cdc #(.DW (1)) cdc_pod (
+    // port A
+    .cda_clk  (clk_cpu),
+    .cda_rst  (rst_cpu),
+    .cda_pli  (bus_wed),
+    .cda_plo  (pod_sts),
+    // port B
+    .cdb_clk  (clk_spi),
+    .cdb_rst  (rst_spi),
+    .cdb_pli  (pct_grt),
+    .cdb_plo  (pct_req)
+  );
 
   // SPI clock domain
   always @ (posedge clk_spi, posedge rst_spi)

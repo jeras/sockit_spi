@@ -24,8 +24,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_cdc #(
-  parameter CDW = 1,
-  parameter MEM = 0
+  parameter CDW = 1
 )(
   // port A
   input  wire  cda_clk,  // clock
@@ -40,7 +39,7 @@ module sockit_spi_cdc #(
 );
 
 // gray function
-function [CDW-1:0] gry_inc (input [CDW-1:0] gry_cnt); 
+function automatic [CDW-1:0] gry_inc (input [CDW-1:0] gry_cnt); 
 begin
   gry_inc = gry_cnt + 'd1;
 end
@@ -63,11 +62,7 @@ wire [CDW-1:0] cdb_inc;  // gray increment
 // port A
 ////////////////////////////////////////////////////////////////////////////////
 
-generate if (MEM) begin
-  assign cda_inc = gry_inc (cda_cnt);
-end else begin
-  assign cda_inc = gry_tab [cda_cnt];
-end endgenerate
+assign cda_inc = gry_inc (cda_cnt);
 
 always @ (posedge cda_clk, posedge cda_rst)
 if (cda_rst) begin
@@ -84,12 +79,7 @@ end
 // port A
 ////////////////////////////////////////////////////////////////////////////////
 
-generate if (MEM) begin
-  assign cdb_inc = gry_inc (cdb_cnt);
-end else begin
-  assign cdb_inc = gry_tab [cdb_cnt];
-end endgenerate
-
+assign cdb_inc = gry_inc (cdb_cnt);
 
 always @ (posedge cdb_clk, posedge cdb_rst)
 if (cdb_rst) begin
