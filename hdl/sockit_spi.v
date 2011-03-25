@@ -317,10 +317,17 @@ generate if (CDC) begin : pdt
   always @ (posedge clk_cpu)
   if (bus_wed)  pdt_dat <= bus_wdt;
   else
-  if (pid_ren)  pdt_dat <= buf_dat;
+  if (bus_red)  pdt_dat <= buf_dat;
 
   //  registers write data
   assign        bus_rdt = pdt_dat;
+
+//  wire bid_req;
+//  wire bid_grt;
+//  // data register read status
+//  always @ (posedge clk_cpu, posedge rst_cpu)
+//  if (rst_cpu)  pid_sts <= 1'b0;
+//  else          pid_sts <= bid_req & ~();
 
   sockit_spi_cdc #(.CDW (1)) cdc_pid (
     // output port
