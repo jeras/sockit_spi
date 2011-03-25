@@ -26,16 +26,16 @@
 module sockit_spi_cdc #(
   parameter CDW = 1
 )(
-  // port A
-  input  wire  cda_clk,  // clock
-  input  wire  cda_rst,  // reset
-  input  wire  cda_pli,  // pulse input
-  output reg   cda_plo,  // pulse output
-  // port B
-  input  wire  cdb_clk,  // clock
-  input  wire  cdb_rst,  // reset
-  input  wire  cdb_pli,  // pulse input
-  output reg   cdb_plo   // pulse output
+  // input port
+  input  wire  cdi_clk,  // clock
+  input  wire  cdi_rst,  // reset
+  input  wire  cdi_req,  // request
+  output reg   cdi_grt,  // grant
+  // output port
+  input  wire  cdo_clk,  // clock
+  input  wire  cdo_rst,  // reset
+  input  wire  cdo_grt,  // grant
+  output reg   cdo_req   // request
 );
 
 // gray function
@@ -45,51 +45,48 @@ begin
 end
 endfunction
 
-// gray table
-reg  [CDW-1:0] gry_tab [0:2**CDW-1];
+// input port
+reg  [CDW-1:0] cdi_syn;  // synchronization
+reg  [CDW-1:0] cdi_cnt;  // gray counter
+wire [CDW-1:0] cdi_inc;  // gray increment
 
-// port A
-reg  [CDW-1:0] cda_syn;  // synchronization
-reg  [CDW-1:0] cda_cnt;  // gray counter
-wire [CDW-1:0] cda_inc;  // gray increment
-
-// port B
-reg  [CDW-1:0] cdb_syn;  // synchronization
-reg  [CDW-1:0] cdb_cnt;  // gray counter
-wire [CDW-1:0] cdb_inc;  // gray increment
+// output port
+reg  [CDW-1:0] cdo_syn;  // synchronization
+reg  [CDW-1:0] cdo_cnt;  // gray counter
+wire [CDW-1:0] cdo_inc;  // gray increment
 
 ////////////////////////////////////////////////////////////////////////////////
 // port A
 ////////////////////////////////////////////////////////////////////////////////
 
-assign cda_inc = gry_inc (cda_cnt);
+assign cdi_inc = (cdi_req & cdi_grt) ? gry_inc (cdi_cnt) : cdi_cnt;
 
-always @ (posedge cda_clk, posedge cda_rst)
-if (cda_rst) begin
-                          cda_syn <= {CDW{1'b0}};
-                          cda_cnt <= {CDW{1'b0}};
-                          cda_plo <=      1'b0  ;
+always @ (posedge cdi_clk, posedge cdi_rst)
+if (cdi_rst) begin
+  cdi_syn <= {CDW{1'b0}};
+  cdi_cnt <= {CDW{1'b0}};
+  cdi_grt <=      1'b0  ;
 end else begin
-                          cda_syn <= cdb_cnt;
-  if (cda_pli & cda_plo)  cda_cnt <= cda_inc;
-                          cda_plo <= cda_syn != cda_inc;
+  cdi_syn <= cdo_cnt;
+  cdi_cnt <= cdi_inc;
+  cdi_grt <= cdi_syn != gry_inc (cdi_inc);
 end
 
 ////////////////////////////////////////////////////////////////////////////////
 // port A
 ////////////////////////////////////////////////////////////////////////////////
 
-assign cdb_inc = gry_inc (cdb_cnt);
+assign cdo_inc = (cdo_grt & cdo_req) ? gry_inc (cdo_cnt) : cdo_cnt;
 
-always @ (posedge cdb_clk, posedge cdb_rst)
-if (cdb_rst) begin
-                          cdb_syn <= {CDW{1'b0}};
-                          cdb_cnt <= {CDW{1'b0}};
-                          cdb_plo <=      1'b0  ;
+always @ (posedge cdo_clk, posedge cdo_rst)
+if (cdo_rst) begin
+  cdo_syn <= {CDW{1'b0}};
+  cdo_cnt <= {CDW{1'b0}};
+  cdo_req <=      1'b0  ;
 end else begin
-                          cdb_syn <= cda_cnt;
-  if (cdb_pli & cdb_plo)  cdb_cnt <= cdb_inc;
-                          cdb_plo <= cdb_syn != cdb_inc;
+  cdo_syn <= cdi_cnt;
+  cdo_cnt <= cdo_inc;
+  cdo_req <= cdo_syn != cdo_inc;
 end
 
 
