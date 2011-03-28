@@ -119,10 +119,8 @@ wire           xip_ena;  // XIP configuration
 
 // clock domain crossing pipeline for control register
 wire           pct_sts;  // CPU clock domain - pipeline status
-reg     [31:0] pct_wdt;  // SPI clock domain - write data
-
-// clock domain crossing pipeline for SPI cycle
-reg            pcy_sts;  // CPU clock domain - pipeline status
+wire   [31: 0] ctl_dat;  // SPI clock domain - write data
+reg    [24:16] ctl_reg;  // SPI clock domain - register
 
 // control registers
 reg            ctl_ssc;  // slave select clear
@@ -134,6 +132,9 @@ reg            ctl_oec;  // data output enable clear
 reg            ctl_oen;  // data output enable
 reg      [1:0] ctl_iow;  // IO width (0-3wire, 1-SPI, 2-duo, 3-quad)
 reg     [15:0] ctl_cnt;  // counter of transfer units (nibbles by default)
+
+// clock domain crossing pipeline for SPI cycle
+reg            pcy_sts;  // CPU clock domain - pipeline status
 
 // clock domain crossing pipeline for output data
 wire           pod_sts;  // CPU clock domain - pipeline status
@@ -294,7 +295,10 @@ generate if (CDC) begin : pdt
   wire pid_req;  // input data request
   wire pid_grt;  // input data grant
 
-  sockit_spi_cdc #(.CDW (1)) cdc_pod (
+  sockit_spi_cdc #(
+    .CW       ( 1),
+    .DW       (32)
+  ) cdc_pod (
     // input port
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
@@ -329,7 +333,10 @@ generate if (CDC) begin : pdt
 //  if (rst_cpu)  pid_sts <= 1'b0;
 //  else          pid_sts <= bid_req & ~();
 
-  sockit_spi_cdc #(.CDW (1)) cdc_pid (
+  sockit_spi_cdc #(
+    .CW       ( 1),
+    .DW       (32)
+  ) cdc_pid (
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
@@ -385,31 +392,30 @@ else if (cyc_rdy)  buf_dat <= cfg_dir ? {ser_dri[32-4-1:0], ser_dmi}   // MSB fi
 
 generate if (CDC) begin : pct
 
-  wire pct_req;  // new cycle request
-  wire pct_grt;  // new cycle grant
+  wire cdo_req;
+  wire cdo_grt;
 
-  // control registers write data
-  always @ (posedge clk_cpu)
-  if (bus_wec)  pct_wdt <= bus_wdt;
-
-  sockit_spi_cdc #(.CDW (1)) cdc_pct (
+  sockit_spi_cdc #(
+    .CW       ( 1),
+    .DW       (32)
+  ) cdc_ctl (
     // input port
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
+    .cdi_dat  (bus_wdt),
     .cdi_req  (bus_wec),
     .cdi_grt  (pct_sts),
     // output port B
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
-    .cdo_grt  (pct_grt),
-    .cdo_req  (pct_req)
+    .cdo_grt  (cdo_grt),
+    .cdo_req  (cdo_req),
+    .cdo_dat  (ctl_dat)
   );
 
-  // new cycle grant
-  assign        pct_grt = cyc_end | ~cyc_run;
+  assign        cdo_grt = cyc_end | ~cyc_run;
 
-  // control registers write enable // TODO
-  assign        cyc_beg = pct_req & pct_grt;
+  assign        cyc_beg = cdo_req & cdo_grt;
 
 end else begin : pct
 
@@ -454,27 +460,27 @@ reg [24:16] pct_reg;
 // transfer length counter
 always @(posedge clk_cpu, posedge rst_cpu)
 if (rst_cpu) begin
-  pct_reg <= 12'd0;
-  ctl_cnt <= 16'd0;
+  ctl_reg <= 12'h000;
+  ctl_cnt <= 16'h0000;
 end else begin
   // write from the CPU bus has priority
   if (cyc_beg) begin
-    pct_reg <= pct_wdt[24:16];
-    ctl_cnt <= pct_wdt[15: 0];
+    ctl_reg <= ctl_dat[24:16];
+    ctl_cnt <= ctl_dat[15: 0];
   // decrement at the end of each transfer unit (nibble by default)
   end else if (cyc_nei) begin
     ctl_cnt <= ctl_cnt - 16'd1;
   end
 end
 
-always @ (*) ctl_ien =                            pct_reg[24   ];
-always @ (*) ctl_oec = cyc_beg ? pct_wdt[23   ] : pct_reg[23   ];
-always @ (*) ctl_oel = cyc_beg ? pct_wdt[22   ] : pct_reg[22   ];
-always @ (*) ctl_orl = cyc_beg ? pct_wdt[21   ] : pct_reg[21   ];
-always @ (*) ctl_oen = cyc_beg ? pct_wdt[20   ] : pct_reg[20   ];
-always @ (*) ctl_ssc = cyc_beg ? pct_wdt[19   ] : pct_reg[19   ];
-always @ (*) ctl_sse = cyc_beg ? pct_wdt[18   ] : pct_reg[18   ];
-always @ (*) ctl_iow = cyc_beg ? pct_wdt[17:16] : pct_reg[17:16];
+always @ (*) ctl_ien =                            ctl_reg[24   ];
+always @ (*) ctl_oec = cyc_beg ? ctl_dat[23   ] : ctl_reg[23   ];
+always @ (*) ctl_oel = cyc_beg ? ctl_dat[22   ] : ctl_reg[22   ];
+always @ (*) ctl_orl = cyc_beg ? ctl_dat[21   ] : ctl_reg[21   ];
+always @ (*) ctl_oen = cyc_beg ? ctl_dat[20   ] : ctl_reg[20   ];
+always @ (*) ctl_ssc = cyc_beg ? ctl_dat[19   ] : ctl_reg[19   ];
+always @ (*) ctl_sse = cyc_beg ? ctl_dat[18   ] : ctl_reg[18   ];
+always @ (*) ctl_iow = cyc_beg ? ctl_dat[17:16] : ctl_reg[17:16];
 
 ////////////////////////////////////////////////////////////////////////////////
 // status registers                                                           //
