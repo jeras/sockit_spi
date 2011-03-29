@@ -148,7 +148,8 @@ wire           pid_ren;  // SPI clock domain - read enable
 reg     [31:0] pdt_dat;  // CPU clock domain - data register
 
 // reload buffer
-reg     [31:0] buf_dat;  // SPI clock domain - data register
+wire    [31:0] buf_wdt;  // SPI clock domain - write data
+wire    [31:0] buf_rdt;  // SPI clock domain - read  data
 
 // fine grained counters
 reg      [1:0] ctl_btc;  // counter of shifted bits
@@ -292,8 +293,8 @@ generate if (CDC) begin : pdt
   wire pod_req;  // output data request
   wire pod_grt;  // output data grant
 
-  wire pid_req;  // input data request
-  wire pid_grt;  // input data grant
+  wire pid_req;  //  input data request
+  wire pid_grt;  //  input data grant
 
   sockit_spi_cdc #(
     .CW       ( 1),
@@ -302,58 +303,37 @@ generate if (CDC) begin : pdt
     // input port
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
+    .cdi_dat  (bus_wdt),
     .cdi_req  (bus_wed),
     .cdi_grt  (pod_sts),
     // output port
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
     .cdo_grt  (pod_grt),
-    .cdo_req  (pod_req)
+    .cdo_req  (pod_req),
+    .cdo_dat  (buf_wdt)
   );
 
-  // data register write grant
-  assign        pod_grt = cyc_end | ~cyc_run;
-
-  // data register write enable
-  assign        pod_wen = pod_req & pod_grt;
-
-  // data register
-  always @ (posedge clk_cpu)
-  if (bus_wed)  pdt_dat <= bus_wdt;
-  else
-  if (bus_red)  pdt_dat <= buf_dat;
-
-  //  registers write data
-  assign        bus_rdt = pdt_dat;
-
-//  wire bid_req;
-//  wire bid_grt;
-//  // data register read status
-//  always @ (posedge clk_cpu, posedge rst_cpu)
-//  if (rst_cpu)  pid_sts <= 1'b0;
-//  else          pid_sts <= bid_req & ~();
+  assign        pod_grt = cyc_beg;
+  assign        buf_wen = pod_req & pod_grt;
 
   sockit_spi_cdc #(
     .CW       ( 1),
     .DW       (32)
   ) cdc_pid (
+    // input port
+    .cdi_clk  (clk_spi),
+    .cdi_rst  (rst_spi),
+    .cdi_dat  (buf_rdt),
+    .cdi_req  (cyc_rdy),
+    .cdi_grt  (),
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
     .cdo_grt  (bus_red),
     .cdo_req  (pid_sts),
-    // input port
-    .cdi_clk  (clk_spi),
-    .cdi_rst  (rst_spi),
-    .cdi_req  (pid_req),
-    .cdi_grt  (pid_grt)
+    .cdo_dat  (bus_rdt)
   );
-
-  // data register read request
-  assign        pid_req = cyc_rdy;
-
-  // data registers read enable
-  assign        pid_ren = pid_req & pid_grt;
 
 end else begin : pdt
 
@@ -378,13 +358,12 @@ end else begin : pdt
   // bus read data
   assign        bus_rdt = buf_dat;
 
-end endgenerate
+// // buffer for swapping write/read data with shift register
+// always @ (posedge clk_spi)
+// if      (buf_wen)  buf_dat <= buf_dat;                                 // CPU load
+// else if (cyc_rdy)
 
-// buffer for swapping write/read data with shift register
-always @ (posedge clk_spi)
-if      (pod_wen)  buf_dat <= pdt_dat;                                 // CPU load
-else if (cyc_rdy)  buf_dat <= cfg_dir ? {ser_dri[32-4-1:0], ser_dmi}   // MSB first
-                                      : {ser_dmi, ser_dri[32  -1:4]};  // LSB first
+end endgenerate
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock domain crossing pipeline (optional) for control register             //
@@ -392,8 +371,8 @@ else if (cyc_rdy)  buf_dat <= cfg_dir ? {ser_dri[32-4-1:0], ser_dmi}   // MSB fi
 
 generate if (CDC) begin : pct
 
-  wire cdo_req;
-  wire cdo_grt;
+  wire cdo_req;  // control data request
+  wire cdo_grt;  // control data grant
 
   sockit_spi_cdc #(
     .CW       ( 1),
@@ -468,7 +447,7 @@ end else begin
     ctl_reg <= ctl_dat[24:16];
     ctl_cnt <= ctl_dat[15: 0];
   // decrement at the end of each transfer unit (nibble by default)
-  end else if (cyc_nei) begin
+  end else if (~|ctl_btn & cyc_run) begin
     ctl_cnt <= ctl_cnt - 16'd1;
   end
 end
@@ -519,7 +498,7 @@ always @ (*)  cyc_neo  = cyc_nen & (cyc_run | (ctl_iow == 2'd3) & cyc_beg) & ~cy
 // nibble enable input pulse
 always @ (posedge clk_spi, posedge rst_spi)
 if (rst_spi)  cyc_nei <= 1'b0;
-else          cyc_nei <= cyc_neo;
+else          cyc_nei <= ~|ctl_btn & cyc_run & ctl_ien;
 
 // spi transfer run status
 always @ (posedge clk_spi, posedge rst_spi)
@@ -557,10 +536,10 @@ if (cyc_run & ctl_ien)  ser_dsi <= ser_dmi[2:0];
 
 // shift data register  input (nibble sized shifts)
 always @ (posedge clk_spi)
-if (cyc_nei) begin
-  if (cfg_dir)  ser_dri <= {         ser_dri[32-4-1:0], ser_dmi};  // MSB first
-  else          ser_dri <= {ser_dmi, ser_dri[32  -1:4]         };  // LSB first
-end
+if (cyc_nei) ser_dri <= buf_rdt;
+
+assign buf_rdt = cfg_dir ? {         ser_dri[32-4-1:0], ser_dmi}   // MSB first
+                         : {ser_dmi, ser_dri[32  -1:4]         };  // LSB first
 
 ////////////////////////////////////////////////////////////////////////////////
 // serialization output                                                       //
@@ -568,7 +547,7 @@ end
 
 // shift data register output (nibble sized shifts)
 always @ (posedge clk_spi)
-if   (cyc_beg)  ser_dro <=           buf_dat                    ;  // par. load
+if   (cyc_beg)  ser_dro <=           buf_wdt                    ;  // par. load
 else if (cyc_neo) begin
   if (cfg_dir)  ser_dro <= {         ser_dro[32-4-1:0], 4'bxxxx};  // MSB first
   else          ser_dro <= {4'bxxxx, ser_dro[32  -1:4]         };  // LSB first
@@ -578,10 +557,10 @@ end
 always @ (*)
 if (cyc_beg) begin
   case (ctl_iow)                                      // MSB first          LSB first
-    2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[32-1+:1] : buf_dat[0+:1]};
-    2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_dat[32-1+:1] : buf_dat[0+:1]};
-    2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? buf_dat[32-2+:2] : buf_dat[0+:2]};
-    2'd3 :  ser_dmo = {                        cfg_dir ? buf_dat[32-4+:4] : buf_dat[0+:4]};
+    2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_wdt[32-1+:1] : buf_wdt[0+:1]};
+    2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_wdt[32-1+:1] : buf_wdt[0+:1]};
+    2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? buf_wdt[32-2+:2] : buf_wdt[0+:2]};
+    2'd3 :  ser_dmo = {                        cfg_dir ? buf_wdt[32-4+:4] : buf_wdt[0+:4]};
   endcase
 end else begin
   case (ctl_iow)                                      // MSB first                                 LSB first

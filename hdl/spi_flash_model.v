@@ -248,9 +248,9 @@ assign e_sig = CPHA ? e_reg : m_oen;
 // output drivers
 always @ (*)
 case (m_iow)
-  2'd0 :  sio_o = {    1'b?,     1'b?,     1'b?, o_sig[0]};  // 3-wire
-  2'd1 :  sio_o = {    1'b?,     1'b?, o_sig[1],     1'b?};  // spi
-  2'd2 :  sio_o = {    1'b?,     1'b?, o_sig[1], o_sig[0]};  // dual
+  2'd0 :  sio_o = {    1'bx,     1'bx,     1'bx, o_sig[0]};  // 3-wire
+  2'd1 :  sio_o = {    1'bx,     1'bx, o_sig[1],     1'bx};  // spi
+  2'd2 :  sio_o = {    1'bx,     1'bx, o_sig[1], o_sig[0]};  // dual
   2'd3 :  sio_o = {o_sig[3], o_sig[2], o_sig[1], o_sig[0]};  // quad
 endcase
 
