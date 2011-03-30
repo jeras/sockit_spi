@@ -78,11 +78,12 @@ always @ (posedge cdi_clk, posedge cdi_rst)
 if (cdi_rst) begin
   cdi_syn <= {CW{1'b0}};
   cdi_cnt <= {CW{1'b0}};
-  cdi_grt <=     1'b0  ;
+  cdi_grt <=     1'b1  ;
 end else begin
   cdi_syn <= cdo_cnt;
   cdi_cnt <= cdi_inc;
-  cdi_grt <= cdi_syn != gry_inc (cdi_inc);
+  cdi_grt <= cdi_grt ? (cdi_trn ? cdi_syn != gry_inc (cdi_cnt) : 1'b1)
+                     : (cdi_syn !=          cdi_cnt );
 end
 
 // data memory
@@ -108,7 +109,8 @@ if (cdo_rst) begin
 end else begin
   cdo_syn <= cdi_cnt;
   cdo_cnt <= cdo_inc;
-  cdo_req <= cdo_syn != cdo_inc;
+  cdo_req <= cdo_req ? (cdo_trn ? cdo_syn != gry_inc (cdo_cnt) : 1'b1)
+                     : (cdo_syn !=          cdo_cnt );
 end
 
 // asynchronous output data
