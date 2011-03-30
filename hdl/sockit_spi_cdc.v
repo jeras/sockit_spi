@@ -71,19 +71,19 @@ wire [CW-1:0] cdo_inc;  // gray increment
 assign cdi_trn = cdi_req & cdi_grt;
 
 // counter increment
-assign cdi_inc = cdi_trn ? gry_inc (cdi_cnt) : cdi_cnt;
+assign cdi_inc = gry_inc (cdi_cnt);
 
 // synchronization and counter registers
 always @ (posedge cdi_clk, posedge cdi_rst)
 if (cdi_rst) begin
-  cdi_syn <= {CW{1'b0}};
-  cdi_cnt <= {CW{1'b0}};
-  cdi_grt <=     1'b1  ;
+                cdi_syn <= {CW{1'b0}};
+                cdi_cnt <= {CW{1'b0}};
+                cdi_grt <=     1'b1  ;
 end else begin
-  cdi_syn <= cdo_cnt;
-  cdi_cnt <= cdi_inc;
-  cdi_grt <= cdi_grt ? (cdi_trn ? cdi_syn != gry_inc (cdi_cnt) : 1'b1)
-                     : (cdi_syn !=          cdi_cnt );
+                cdi_syn <= cdo_cnt;
+  if (cdi_trn)  cdi_cnt <= cdi_inc;
+                cdi_grt <= cdi_grt & ~cdi_trn | (cdi_syn != cdi_grt ? cdi_inc
+                                                                    : cdi_cnt);
 end
 
 // data memory
@@ -98,19 +98,19 @@ if (cdi_trn) cdc_mem [cdi_cnt] <= cdi_dat;
 assign cdo_trn = cdo_req & cdo_grt;
 
 // counter increment
-assign cdo_inc = cdo_trn ? gry_inc (cdo_cnt) : cdo_cnt;
+assign cdo_inc = gry_inc (cdo_cnt);
 
 // synchronization and counter registers
 always @ (posedge cdo_clk, posedge cdo_rst)
 if (cdo_rst) begin
-  cdo_syn <= {CW{1'b0}};
-  cdo_cnt <= {CW{1'b0}};
-  cdo_req <=     1'b0  ;
+                cdo_syn <= {CW{1'b0}};
+                cdo_cnt <= {CW{1'b0}};
+                cdo_req <=     1'b0  ;
 end else begin
-  cdo_syn <= cdi_cnt;
-  cdo_cnt <= cdo_inc;
-  cdo_req <= cdo_req ? (cdo_trn ? cdo_syn != gry_inc (cdo_cnt) : 1'b1)
-                     : (cdo_syn !=          cdo_cnt );
+                cdo_syn <= cdi_cnt;
+  if (cdo_trn)  cdo_cnt <= cdo_inc;
+                cdo_req <= cdo_req & ~cdo_trn | (cdo_syn != cdo_req ? cdo_inc
+                                                                    : cdo_cnt);
 end
 
 // asynchronous output data
