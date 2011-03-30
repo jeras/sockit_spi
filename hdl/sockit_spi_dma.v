@@ -2,7 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
-//  FIFO (sychronous or asynchronous)                                         //
+//  DMA (direct memory access)                                                //
 //                                                                            //
 //  Copyright (C) 2011  Iztok Jeras                                           //
 //                                                                            //
@@ -23,10 +23,8 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-module sockit_spi_fifo #(
-  parameter FDW = 32,    // FIFO data width  
-  parameter FSZ = 1024,  // FIFO deepth
-  parameter ASY = 1'b1   // asynchronous mode
+module sockit_spi_dma #(
+  parameter DW = 1'b1   // 
 )(
   // system signals
   input  wire           clk,      // clock

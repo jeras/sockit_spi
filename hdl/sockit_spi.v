@@ -138,14 +138,9 @@ reg            pcy_sts;  // CPU clock domain - pipeline status
 
 // clock domain crossing pipeline for output data
 wire           pod_sts;  // CPU clock domain - pipeline status
-wire           pod_wen;  // SPI clock domain - write enable
 
 // clock domain crossing pipeline for input data
 wire           pid_sts;  // CPU clock domain - pipeline status
-wire           pid_ren;  // SPI clock domain - read enable
-
-// clock domain crossing data buffer
-reg     [31:0] pdt_dat;  // CPU clock domain - data register
 
 // reload buffer
 wire    [31:0] buf_wdt;  // SPI clock domain - write data
@@ -290,12 +285,7 @@ end
 
 generate if (CDC) begin : pdt
 
-  wire pod_req;  // output data
-  wire pod_grt;  // output data
-
-  wire pid_req;  //  input data
-  wire pid_grt;  //  input data
-
+  // write data
   sockit_spi_cdc #(
     .CW       ( 1),
     .DW       (32)
@@ -309,14 +299,12 @@ generate if (CDC) begin : pdt
     // output port
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
-    .cdo_pli  (pod_grt),
-    .cdo_plo  (pod_req),
+    .cdo_pli  (cyc_beg),
+    .cdo_plo  (),  // TODO
     .cdo_dat  (buf_wdt)
   );
 
-  assign        pod_grt = cyc_beg;
-  assign        buf_wen = pod_req & pod_grt;
-
+  // read data
   sockit_spi_cdc #(
     .CW       ( 1),
     .DW       (32)
@@ -326,7 +314,7 @@ generate if (CDC) begin : pdt
     .cdi_rst  (rst_spi),
     .cdi_dat  (buf_rdt),
     .cdi_pli  (cyc_rdy),
-    .cdi_plo  (),
+    .cdi_plo  (),  // TODO
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
@@ -337,31 +325,15 @@ generate if (CDC) begin : pdt
 
 end else begin : pdt
 
-  // status of output data pipeline
-  always @ (*)  pod_sts = 1'bx;
-
-  // data registers write enable
-  assign        pod_wen = bus_wed;
+  reg [31:0] buf_dat;
 
   // write data
-  always @ (*)  pdt_dat = bus_wdt;
+  assign pod_sts = cyc_run;
+  assign buf_wdt = bus_wdt;
 
   // read data
-  assign        bus_rdt = buf_dat;
-
-  // status of  input data pipeline
-  always @ (*)  pid_sts = 1'bx;
-
-  // data registers read enable
-  assign        pid_ren = bus_red;
-
-  // bus read data
-  assign        bus_rdt = buf_dat;
-
-// // buffer for swapping write/read data with shift register
-// always @ (posedge clk_spi)
-// if      (buf_wen)  buf_dat <= buf_dat;                                 // CPU load
-// else if (cyc_rdy)
+  assign pid_sts = 1'bx;     // TODO
+  assign bus_rdt = buf_dat;
 
 end endgenerate
 
@@ -392,20 +364,14 @@ generate if (CDC) begin : pct
     .cdo_dat  (ctl_dat)
   );
 
-  assign        cdo_pli = cyc_end | ~cyc_run;
-
-  assign        cyc_beg = cdo_plo & cdo_pli;
+  assign cdo_pli = cyc_end | ~cyc_run;
+  assign cyc_beg = cdo_plo & cdo_pli;
 
 end else begin : pct
 
-  // control registers write data
-  always @ (*)  pct_wdt = bus_wdt;
-
-  // status of control register pipeline
-  always @ (*)  pct_sts = 1'bx;
-
-  // control registers write enable
-  assign        cyc_beg = bus_wec;
+  assign pct_sts = 1'bx;
+  assign ctl_dat = bus_wdt;
+  assign cyc_beg = bus_wec;
 
 end endgenerate
 

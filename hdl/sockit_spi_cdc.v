@@ -2,7 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
-//  CDC (clock domain crossing) general purpose gray counter                  //
+//  CDC (clock domain crossing) general purpose FIFO with gray counter        //
 //                                                                            //
 //  Copyright (C) 2011  Iztok Jeras                                           //
 //                                                                            //

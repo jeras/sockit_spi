@@ -28,7 +28,9 @@ iverilog -o spi.out \
 covered score -o spi.cdd -g 2 -t sockit_spi -i spi_tb.sockit_spi \
 -v ../hdl/spi_tb.v \
 -v ../hdl/sockit_spi.v \
+-v ../hdl/sockit_spi_cdc.v \
 -v ../hdl/sockit_spi_xip.v \
+-v ../hdl/sockit_spi_dma.v \
 -v ../hdl/spi_slave_model.v \
 -v ../hdl/spi_flash_model.v
 
