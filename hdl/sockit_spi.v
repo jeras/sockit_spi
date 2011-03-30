@@ -290,11 +290,11 @@ end
 
 generate if (CDC) begin : pdt
 
-  wire pod_req;  // output data request
-  wire pod_grt;  // output data grant
+  wire pod_req;  // output data
+  wire pod_grt;  // output data
 
-  wire pid_req;  //  input data request
-  wire pid_grt;  //  input data grant
+  wire pid_req;  //  input data
+  wire pid_grt;  //  input data
 
   sockit_spi_cdc #(
     .CW       ( 1),
@@ -304,13 +304,13 @@ generate if (CDC) begin : pdt
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
     .cdi_dat  (bus_wdt),
-    .cdi_req  (bus_wed),
-    .cdi_grt  (pod_sts),
+    .cdi_pli  (bus_wed),
+    .cdi_plo  (pod_sts),
     // output port
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
-    .cdo_grt  (pod_grt),
-    .cdo_req  (pod_req),
+    .cdo_pli  (pod_grt),
+    .cdo_plo  (pod_req),
     .cdo_dat  (buf_wdt)
   );
 
@@ -325,13 +325,13 @@ generate if (CDC) begin : pdt
     .cdi_clk  (clk_spi),
     .cdi_rst  (rst_spi),
     .cdi_dat  (buf_rdt),
-    .cdi_req  (cyc_rdy),
-    .cdi_grt  (),
+    .cdi_pli  (cyc_rdy),
+    .cdi_plo  (),
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
-    .cdo_grt  (bus_red),
-    .cdo_req  (pid_sts),
+    .cdo_pli  (bus_red),
+    .cdo_plo  (pid_sts),
     .cdo_dat  (bus_rdt)
   );
 
@@ -371,8 +371,8 @@ end endgenerate
 
 generate if (CDC) begin : pct
 
-  wire cdo_req;  // control data request
-  wire cdo_grt;  // control data grant
+  wire cdo_plo;
+  wire cdo_pli;
 
   sockit_spi_cdc #(
     .CW       ( 1),
@@ -382,19 +382,19 @@ generate if (CDC) begin : pct
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
     .cdi_dat  (bus_wdt),
-    .cdi_req  (bus_wec),
-    .cdi_grt  (pct_sts),
+    .cdi_pli  (bus_wec),
+    .cdi_plo  (pct_sts),
     // output port B
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
-    .cdo_grt  (cdo_grt),
-    .cdo_req  (cdo_req),
+    .cdo_pli  (cdo_pli),
+    .cdo_plo  (cdo_plo),
     .cdo_dat  (ctl_dat)
   );
 
-  assign        cdo_grt = cyc_end | ~cyc_run;
+  assign        cdo_pli = cyc_end | ~cyc_run;
 
-  assign        cyc_beg = cdo_req & cdo_grt;
+  assign        cyc_beg = cdo_plo & cdo_pli;
 
 end else begin : pct
 
