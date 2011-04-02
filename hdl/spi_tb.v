@@ -136,9 +136,9 @@ initial begin
   IOWR (3, 32'h0b5a0000);  // write data    register
   IOWR (2, 32'h00f50007);  // write control register (4 byte write)
 //  POLL (2, 32'h00000005);
-  IOWR (2, 32'h00f50001);  // write control register (1 byte idle)
+  IOWR (2, 32'h00050001);  // write control register (1 byte idle)
 //  POLL (2, 32'h00000006);
-  IOWR (2, 32'h01fd0017);  // write control register (12 byte read)
+  IOWR (2, 32'h010d0017);  // write control register (12 byte read)
 //  POLL (2, 32'h00000009);
   IORD (3, data);          // read flash data
   IORD (3, data);          // read flash data

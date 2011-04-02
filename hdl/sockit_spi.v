@@ -161,15 +161,14 @@ wire           cyc_req;  // cycle request (control flow pipeline)
 wire           cyc_grt;  // cycle grant   (control flow pipeline)
 wire           cyc_beg;  // cycle begin pulse
 reg            cyc_cyc;  // cycle processing status
-wire           cyc_wrl;  // cycle write data reload
-wire           cyc_rrl;  // cycle read  data reload
+reg            cyc_wrl;  // cycle write data reload
+reg            cyc_rrl;  // cycle read  data reload
 wire           cyc_con;  // cycle continue (depends on status of data pipelines)
 reg            cyc_run;  // cycle run status
 wire           cyc_end;  // cycle end pulse
-reg            cyc_rdy;  // input ready pulse
 reg            cyc_nen;  // nibble enable next   pulse
-wire           cyc_neo;  // nibble enable output pulse (registered version of cyc_nen)
-reg            cyc_nei;  // nibble enable  input pulse (registered version of cyc_neo)
+wire           cyc_neo;  // nibble enable output pulse
+reg            cyc_nei;  // nibble enable  input pulse
 
 // serialization
 reg      [3:0] ser_dmi;  // data mixer input register
@@ -177,6 +176,7 @@ reg      [2:0] ser_dsi;  // data shift input register
 reg      [3:0] ser_dpi;  // data shift phase synchronization
 reg     [31:0] ser_dri;  // data shift register input
 reg     [31:0] ser_dro;  // data shift register output
+wire     [3:0] ser_dno;  // data nibble output
 reg      [3:0] ser_dmo;  // data mixer output
 reg      [3:0] ser_dme;  // data mixer output enable
 
@@ -325,7 +325,7 @@ generate if (CDC) begin : pdt
     .cdi_clk  (clk_spi),
     .cdi_rst  (rst_spi),
     .cdi_dat  (buf_rdt),
-    .cdi_pli  (cyc_rdy),
+    .cdi_pli  (cyc_rrl),
     .cdi_plo  (buf_rdg),  // TODO
     // output port
     .cdo_clk  (clk_cpu),
@@ -421,7 +421,7 @@ reg [24:16] pct_reg;
 // transfer length counter
 always @(posedge clk_cpu, posedge rst_cpu)
 if (rst_cpu) begin
-  ctl_reg <= 12'h000;
+  ctl_reg <=  9'h000;
   ctl_cnt <= 16'h0000;
 end else begin
   // write from the CPU bus has priority
@@ -435,8 +435,8 @@ end else begin
 end
 
 always @ (*) ctl_ien =                            ctl_reg[24   ];
-always @ (*) ctl_oec = cyc_beg ? ctl_dat[23   ] : ctl_reg[23   ];
-always @ (*) ctl_oel = cyc_beg ? ctl_dat[22   ] : ctl_reg[22   ];
+always @ (*) ctl_oec =                            ctl_reg[23   ];
+always @ (*) ctl_oel =                            ctl_reg[22   ];
 always @ (*) ctl_orl = cyc_beg ? ctl_dat[21   ] : ctl_reg[21   ];
 always @ (*) ctl_oen = cyc_beg ? ctl_dat[20   ] : ctl_reg[20   ];
 always @ (*) ctl_ssc = cyc_beg ? ctl_dat[19   ] : ctl_reg[19   ];
@@ -454,28 +454,24 @@ else if (cyc_run)  ctl_btc <= ctl_btn;
 
 // bit counter next
 always @ (*)
-begin
-  case (ctl_iow)
-    2'd0 :  ctl_btn = ctl_btc + 2'd1;  // 3-wire
-    2'd1 :  ctl_btn = ctl_btc + 2'd1;  // spi
-    2'd2 :  ctl_btn = ctl_btc + 2'd2;  // dual
-    2'd3 :  ctl_btn = ctl_btc + 2'd0;  // quad (increment by 4)
-  endcase
-end
+case (ctl_iow)
+  2'd0 :  ctl_btn = ctl_btc + 2'd1;  // 3-wire
+  2'd1 :  ctl_btn = ctl_btc + 2'd1;  // spi
+  2'd2 :  ctl_btn = ctl_btc + 2'd2;  // dual
+  2'd3 :  ctl_btn = ctl_btc + 2'd0;  // quad (increment by 4)
+endcase
 
-// nibbleenable next pulse
+// nibble enable next pulse
 always @ (*)
-begin
-  case (ctl_iow)
-    2'd0 :  cyc_nen = &ctl_btn[1:0];  // 3-wire
-    2'd1 :  cyc_nen = &ctl_btn[1:0];  // spi
-    2'd2 :  cyc_nen = &ctl_btn[1  ];  // dual
-    2'd3 :  cyc_nen =          1'b1;  // quad
-  endcase
-end
+case (ctl_iow)
+  2'd0 :  cyc_nen = &ctl_btn[1:0];  // 3-wire
+  2'd1 :  cyc_nen = &ctl_btn[1:0];  // spi
+  2'd2 :  cyc_nen = &ctl_btn[1  ];  // dual
+  2'd3 :  cyc_nen =          1'b1;  // quad
+endcase
 
 // nibble enable output pulse
-assign        cyc_neo  = cyc_nen & (cyc_run | (ctl_iow == 2'd3) & cyc_beg) & ~cyc_end;
+assign        cyc_neo  = cyc_nen & cyc_run & ctl_oen;
 
 // nibble enable input pulse
 always @ (posedge clk_spi, posedge rst_spi)
@@ -493,15 +489,17 @@ if (rst_spi)  cyc_run <= 1'b0;
 else          cyc_run <= cyc_beg | cyc_run & ~cyc_end;
 
 // spi transfer reload pulse
-assign        cyc_wrl  = cyc_nen & ~|ctl_cnt[2:0];
+always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi)  cyc_wrl <= 1'b0;
+else          cyc_wrl <= cyc_nen & ~|ctl_cnt[2:0];
 
 // spi transfer end pulse
 assign        cyc_end  = cyc_wrl & ~|ctl_cnt[15:3];
 
 // input ready pulse
 always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)  cyc_rdy <= 1'b0;
-else          cyc_rdy <= cyc_end & ctl_ien;
+if (rst_spi)  cyc_rrl <= 1'b0;
+else          cyc_rrl <= cyc_wrl & ctl_ien;
 
 ////////////////////////////////////////////////////////////////////////////////
 // serialization input                                                        //
@@ -509,14 +507,12 @@ else          cyc_rdy <= cyc_end & ctl_ien;
 
 // input mixer
 always @ (*)
-begin
-  case (ctl_iow)
-    2'd0 :  ser_dmi = {ser_dsi[2:0], ioe_dri[  0]};  // 3-wire
-    2'd1 :  ser_dmi = {ser_dsi[2:0], ioe_dri[  1]};  // spi
-    2'd2 :  ser_dmi = {ser_dsi[1:0], ioe_dri[1:0]};  // dual
-    2'd3 :  ser_dmi = {              ioe_dri[3:0]};  // quad
-  endcase
-end
+case (ctl_iow)
+  2'd0 :  ser_dmi = {ser_dsi[2:0], ioe_dri[  0]};  // 3-wire
+  2'd1 :  ser_dmi = {ser_dsi[2:0], ioe_dri[  1]};  // spi
+  2'd2 :  ser_dmi = {ser_dsi[1:0], ioe_dri[1:0]};  // dual
+  2'd3 :  ser_dmi = {              ioe_dri[3:0]};  // quad
+endcase
 
 // input shift register
 always @ (posedge clk_spi)
@@ -541,34 +537,31 @@ else if (cyc_neo) begin
   else          ser_dro <= {4'bxxxx, ser_dro[32  -1:4]         };  // LSB first
 end
 
+// output nibble
+assign ser_dno = buf_wen ? (cfg_dir ?                    buf_wdt[31:28]    // MSB first
+                                    :                    buf_wdt[ 3: 0])   // LSB first
+                         : (cfg_dir ? (ctl_iow != 2'd3 ? ser_dro[31:28]    // MSB first
+                                                       : ser_dro[27:24])
+                                    : (ctl_iow != 2'd3 ? ser_dro[ 3: 0]    // LSB first
+                                                       : ser_dro[ 7: 4]));
+
 // output mixer
 always @ (*)
-if (cyc_beg) begin
-  case (ctl_iow)                                      // MSB first          LSB first
-    2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_wdt[32-1+:1] : buf_wdt[0+:1]};
-    2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? buf_wdt[32-1+:1] : buf_wdt[0+:1]};
-    2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? buf_wdt[32-2+:2] : buf_wdt[0+:2]};
-    2'd3 :  ser_dmo = {                        cfg_dir ? buf_wdt[32-4+:4] : buf_wdt[0+:4]};
-  endcase
-end else begin
-  case (ctl_iow)                                      // MSB first                                 LSB first
-    2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dro[32-1-{30'b0, ctl_btn[1:0]}+:1] : ser_dro[{30'b0, ctl_btn[1:0]}+:1]};
-    2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dro[32-1-{30'b0, ctl_btn[1:0]}+:1] : ser_dro[{30'b0, ctl_btn[1:0]}+:1]};
-    2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dro[32-2-{30'b0, ctl_btn[1:0]}+:2] : ser_dro[{30'b0, ctl_btn[1:0]}+:2]};
-    2'd3 :  ser_dmo = {                        cfg_dir ? ser_dro[32-8                      +:4] : ser_dro[0                    +:4]};
-  endcase
-end
+case (ctl_iow)                                      // MSB first      LSB first
+  2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dno[2'd3-ctl_btn[1:0]+:1] : ser_dno[ctl_btn[1:0]+:1]};
+  2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dno[2'd3-ctl_btn[1:0]+:1] : ser_dno[ctl_btn[1:0]+:1]};
+  2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dno[2'd3-ctl_btn[1:0]+:2] : ser_dno[ctl_btn[1:0]+:2]};
+  2'd3 :  ser_dmo = {                        cfg_dir ? ser_dno[2'd0             +:4] : ser_dno[2'd0        +:4]};
+endcase
 
 // output enable mixer
 always @ (*)
-begin
-  case (ctl_iow)
-    2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec  };
-    2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec  };
-    2'd2 :  ser_dme = {cfg_hle, cfg_wpe,    {2{cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec}}};
-    2'd3 :  ser_dme = {                     {4{cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec}}};
-  endcase
-end
+case (ctl_iow)
+  2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec  };
+  2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec  };
+  2'd2 :  ser_dme = {cfg_hle, cfg_wpe,    {2{cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec}}};
+  2'd3 :  ser_dme = {                     {4{cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec}}};
+endcase
 
 ////////////////////////////////////////////////////////////////////////////////
 // slave select, clock, data (input, output, enable)                          //

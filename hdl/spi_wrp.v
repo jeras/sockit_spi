@@ -32,7 +32,8 @@ module spi_wrp #(
   parameter XIP_MSK = 32'h00000001,  // XIP configuration register implentation mask
   parameter NOP     = 32'h00000000,  // no operation instuction for the given CPU
   parameter XAW     =           24,  // XIP address width
-  parameter SSW     =            8   // slave select width
+  parameter SSW     =            8,  // slave select width
+  parameter CDC     =         1'b1   // implement clock domain crossing
 )(
   // system signals (used by the CPU interface)
   input  wire           clk_cpu,     // clock
@@ -84,7 +85,8 @@ wire     [3:0] spi_sio_i,
 
 sockit_spi #(
   .XAW         (XAW),
-  .SSW         (SSW)
+  .SSW         (SSW),
+  .CDC         (CDC)
 ) sockit_spi (
   // system signals (used by the CPU bus interface)
   .clk_cpu     (clk_cpu),
