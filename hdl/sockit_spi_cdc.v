@@ -31,20 +31,20 @@ module sockit_spi_cdc #(
   input  wire          cdi_clk,  // clock
   input  wire          cdi_rst,  // reset
   input  wire [DW-1:0] cdi_dat,  // data
-  input  wire          cdi_pli,  // request
-  output reg           cdi_plo,  // grant
+  input  wire          cdi_pli,  // pulse input
+  output reg           cdi_plo,  // pulse output
   // output port
   input  wire          cdo_clk,  // clock
   input  wire          cdo_rst,  // reset
-  input  wire          cdo_pli,  // grant
-  output reg           cdo_plo,  // request
+  input  wire          cdo_pli,  // pulse input
+  output reg           cdo_plo,  // pulse output
   output wire [DW-1:0] cdo_dat   // data
 );
 
 // gray function
 function automatic [CW-1:0] gry_inc (input [CW-1:0] gry_cnt); 
 begin
-  gry_inc = gry_cnt + 'd1;
+  gry_inc = gry_cnt + 'd1;  // TODO, this is only a placeholder
 end
 endfunction
 
