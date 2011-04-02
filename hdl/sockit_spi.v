@@ -134,7 +134,7 @@ reg      [1:0] ctl_iow;  // IO width (0-3wire, 1-SPI, 2-duo, 3-quad)
 reg     [15:0] ctl_cnt;  // counter of transfer units (nibbles by default)
 
 // clock domain crossing pipeline for SPI cycle
-reg            pcy_sts;  // CPU clock domain - pipeline status
+wire           pcy_sts;  // CPU clock domain - pipeline status
 
 // clock domain crossing pipeline for output data
 wire           pod_sts;  // CPU clock domain - pipeline status
@@ -143,21 +143,33 @@ wire           pod_sts;  // CPU clock domain - pipeline status
 wire           pid_sts;  // CPU clock domain - pipeline status
 
 // reload buffer
-wire    [31:0] buf_wdt;  // SPI clock domain - write data
-wire    [31:0] buf_rdt;  // SPI clock domain - read  data
+wire           buf_wdr;  // write data request
+wire           buf_wdg;  // write data grant
+wire           buf_wen;  // write data enable
+wire    [31:0] buf_wdt;  // write data
+wire           buf_rdr;  // read  data request
+wire           buf_rdg;  // read  data grant
+wire           buf_ren;  // read  data enable
+wire    [31:0] buf_rdt;  // read  data
 
 // fine grained counters
 reg      [1:0] ctl_btc;  // counter of shifted bits
 reg      [1:0] ctl_btn;  // counter of shifted bits next (+1)
 
-// cycle timing registers
-wire           cyc_beg;  // transfer begin pulse
-reg            cyc_run;  // transfer run status
-reg            cyc_nen;  // transfer nibble enable next   pulse
-reg            cyc_neo;  // transfer nibble enable output pulse (registered version of cyc_nen)
-reg            cyc_nei;  // transfer nibble enable  input pulse (registered version of cyc_neo)
-reg            cyc_end;  // transfer end pulse
-reg            cyc_rdy;  // transfer input ready pulse
+// cycle timing
+wire           cyc_req;  // cycle request (control flow pipeline)
+wire           cyc_grt;  // cycle grant   (control flow pipeline)
+wire           cyc_beg;  // cycle begin pulse
+reg            cyc_cyc;  // cycle processing status
+wire           cyc_wrl;  // cycle write data reload
+wire           cyc_rrl;  // cycle read  data reload
+wire           cyc_con;  // cycle continue (depends on status of data pipelines)
+reg            cyc_run;  // cycle run status
+wire           cyc_end;  // cycle end pulse
+reg            cyc_rdy;  // input ready pulse
+reg            cyc_nen;  // nibble enable next   pulse
+wire           cyc_neo;  // nibble enable output pulse (registered version of cyc_nen)
+reg            cyc_nei;  // nibble enable  input pulse (registered version of cyc_neo)
 
 // serialization
 reg      [3:0] ser_dmi;  // data mixer input register
@@ -299,8 +311,8 @@ generate if (CDC) begin : pdt
     // output port
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
-    .cdo_pli  (cyc_beg),
-    .cdo_plo  (),  // TODO
+    .cdo_pli  (buf_wdg),
+    .cdo_plo  (buf_wdr),
     .cdo_dat  (buf_wdt)
   );
 
@@ -314,7 +326,7 @@ generate if (CDC) begin : pdt
     .cdi_rst  (rst_spi),
     .cdi_dat  (buf_rdt),
     .cdi_pli  (cyc_rdy),
-    .cdi_plo  (),  // TODO
+    .cdi_plo  (buf_rdg),  // TODO
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
@@ -337,14 +349,17 @@ end else begin : pdt
 
 end endgenerate
 
+// buffer write data grant
+assign buf_wdg = cyc_beg | cyc_wrl;
+
+// buffer write data enable
+assign buf_wen = buf_wdr & buf_wdg;
+
 ////////////////////////////////////////////////////////////////////////////////
 // clock domain crossing pipeline (optional) for control register             //
 ////////////////////////////////////////////////////////////////////////////////
 
 generate if (CDC) begin : pct
-
-  wire cdo_plo;
-  wire cdo_pli;
 
   sockit_spi_cdc #(
     .CW       ( 1),
@@ -359,13 +374,10 @@ generate if (CDC) begin : pct
     // output port B
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
-    .cdo_pli  (cdo_pli),
-    .cdo_plo  (cdo_plo),
+    .cdo_pli  (cyc_grt),
+    .cdo_plo  (cyc_req),
     .cdo_dat  (ctl_dat)
   );
-
-  assign cdo_pli = cyc_end | ~cyc_run;
-  assign cyc_beg = cdo_plo & cdo_pli;
 
 end else begin : pct
 
@@ -375,24 +387,28 @@ end else begin : pct
 
 end endgenerate
 
+// new cycle grant
+assign cyc_grt = cyc_end | ~cyc_cyc;
+
+// current cycle continue (data pipeline status check)
+assign cyc_con = (~ctl_orl | buf_wdg) & (~ctl_ien | cyc_end);
+
+// new cycle begin
+assign cyc_beg = cyc_req & cyc_grt;
+
 ////////////////////////////////////////////////////////////////////////////////
 // clock domain crossing pipeline (optional) for SPI cycle status             //
 ////////////////////////////////////////////////////////////////////////////////
 
 generate if (CDC) begin : pcy
 
-  // clock domain crossin loop
-  reg  [1:0] pcy_cdl;  // CPU clock domain - loop
-  reg  [1:0] pcy_sdl;  // SPI clock domain - loop
-  reg        pcy_req;  // SPI clock domain - pipeline request
-
   // status of SPI cycle
-  always @(*)  pcy_sts = cyc_run;
+  assign pcy_sts = cyc_cyc;
 
 end else begin : pcy
 
   // status of SPI cycle
-  always @(*)  pcy_sts = cyc_run;
+  assign pcy_sts = cyc_cyc;
 
 end endgenerate
 
@@ -459,7 +475,7 @@ begin
 end
 
 // nibble enable output pulse
-always @ (*)  cyc_neo  = cyc_nen & (cyc_run | (ctl_iow == 2'd3) & cyc_beg) & ~cyc_end;
+assign        cyc_neo  = cyc_nen & (cyc_run | (ctl_iow == 2'd3) & cyc_beg) & ~cyc_end;
 
 // nibble enable input pulse
 always @ (posedge clk_spi, posedge rst_spi)
@@ -468,13 +484,19 @@ else          cyc_nei <= ~|ctl_btn & cyc_run & ctl_ien;
 
 // spi transfer run status
 always @ (posedge clk_spi, posedge rst_spi)
+if (rst_spi)  cyc_cyc <= 1'b0;
+else          cyc_cyc <= cyc_beg | cyc_cyc & ~cyc_end;
+
+// spi transfer run status
+always @ (posedge clk_spi, posedge rst_spi)
 if (rst_spi)  cyc_run <= 1'b0;
 else          cyc_run <= cyc_beg | cyc_run & ~cyc_end;
 
+// spi transfer reload pulse
+assign        cyc_wrl  = cyc_nen & ~|ctl_cnt[2:0];
+
 // spi transfer end pulse
-always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)  cyc_end <= 1'b0;
-else          cyc_end <= cyc_nen & (ctl_cnt == ((ctl_iow == 2'd3) ? 16'd1 : 16'd0));
+assign        cyc_end  = cyc_wrl & ~|ctl_cnt[15:3];
 
 // input ready pulse
 always @ (posedge clk_spi, posedge rst_spi)
@@ -513,7 +535,7 @@ assign buf_rdt = cfg_dir ? {         ser_dri[32-4-1:0], ser_dmi}   // MSB first
 
 // shift data register output (nibble sized shifts)
 always @ (posedge clk_spi)
-if   (cyc_beg)  ser_dro <=           buf_wdt                    ;  // par. load
+if   (buf_wen)  ser_dro <=           buf_wdt                    ;  // par. load
 else if (cyc_neo) begin
   if (cfg_dir)  ser_dro <= {         ser_dro[32-4-1:0], 4'bxxxx};  // MSB first
   else          ser_dro <= {4'bxxxx, ser_dro[32  -1:4]         };  // LSB first
