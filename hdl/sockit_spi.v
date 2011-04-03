@@ -22,7 +22,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// this file contains the system bus interface and static registers           //
+// this file contains:                                                        //
+// - the system bus interface                                                 //
+// - static configuration registers                                           //
+// - SPI state machine and serialization logic                                //
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi #(
@@ -50,9 +53,7 @@ module sockit_spi #(
   output wire           xip_err,     // error interrupt
   // registers interface bus
   input  wire           reg_wen,     // write enable
-/* verilator lint_off UNUSED */
   input  wire           reg_ren,     // read enable
-/* verilator lint_on  UNUSED */
   input  wire     [1:0] reg_adr,     // address
   input  wire    [31:0] reg_wdt,     // write data
   output wire    [31:0] reg_rdt,     // read data
@@ -326,7 +327,7 @@ generate if (CDC) begin : pdt
     .cdi_rst  (rst_spi),
     .cdi_dat  (buf_rdt),
     .cdi_pli  (cyc_rrl),
-    .cdi_plo  (buf_rdg),  // TODO
+    .cdi_plo  (buf_rdg),
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
@@ -354,6 +355,9 @@ assign buf_wdg = cyc_beg | cyc_wrl;
 
 // buffer write data enable
 assign buf_wen = buf_wdr & buf_wdg;
+
+// buffer read data enable
+assign buf_ren = cyc_rrl & buf_rdg;
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock domain crossing pipeline (optional) for control register             //
@@ -388,10 +392,10 @@ end else begin : pct
 end endgenerate
 
 // new cycle grant
-assign cyc_grt = cyc_end | ~cyc_cyc;
+assign cyc_grt = (cyc_end | ~cyc_cyc) & cyc_con;
 
 // current cycle continue (data pipeline status check)
-assign cyc_con = (~ctl_orl | buf_wdg) & (~ctl_ien | cyc_end);
+assign cyc_con = (~ctl_orl | buf_wdg) & (~ctl_ien | buf_rdg);
 
 // new cycle begin
 assign cyc_beg = cyc_req & cyc_grt;
@@ -485,21 +489,30 @@ else          cyc_cyc <= cyc_beg | cyc_cyc & ~cyc_end;
 
 // spi transfer run status
 always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)  cyc_run <= 1'b0;
-else          cyc_run <= cyc_beg | cyc_run & ~cyc_end;
+if (rst_spi)         cyc_run <= 1'b0;
+else begin
+  if      (cyc_beg)  cyc_run <= 1'b1;
+  else if (cyc_end)  cyc_run <= 1'b0;
+  else if (cyc_wrl)  cyc_run <= cyc_con;
+end
 
 // spi transfer reload pulse
 always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)  cyc_wrl <= 1'b0;
-else          cyc_wrl <= cyc_nen & ~|ctl_cnt[2:0];
+if (rst_spi)         cyc_wrl <= 1'b0;
+else begin
+  if      (cyc_run)  cyc_wrl <= cyc_nen & ~|ctl_cnt[2:0];
+end
 
 // spi transfer end pulse
 assign        cyc_end  = cyc_wrl & ~|ctl_cnt[15:3];
 
 // input ready pulse
 always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)  cyc_rrl <= 1'b0;
-else          cyc_rrl <= cyc_wrl & ctl_ien;
+if (rst_spi)         cyc_rrl <= 1'b0;
+else begin
+  if      (cyc_wrl)  cyc_rrl <= cyc_wrl & ctl_ien;
+  else if (buf_ren)  cyc_rrl <= 1'b0;
+end
 
 ////////////////////////////////////////////////////////////////////////////////
 // serialization input                                                        //
@@ -520,7 +533,7 @@ if (cyc_run & ctl_ien)  ser_dsi <= ser_dmi[2:0];
 
 // shift data register  input (nibble sized shifts)
 always @ (posedge clk_spi)
-if (cyc_nei) ser_dri <= buf_rdt;
+if (cyc_nei & cyc_run) ser_dri <= buf_rdt;
 
 assign buf_rdt = cfg_dir ? {         ser_dri[32-4-1:0], ser_dmi}   // MSB first
                          : {ser_dmi, ser_dri[32  -1:4]         };  // LSB first
@@ -591,7 +604,7 @@ if (~cfg_pha)  ioe_pri <= spi_sio_i;
 // phase multiplexer input
 // direct register input
 always @ (posedge clk_spi)
-ioe_dri <= cfg_pha ? ioe_pri : spi_sio_i;
+if  (cyc_run)  ioe_dri <= cfg_pha ? ioe_pri : spi_sio_i;
 
 
 // direct register output
