@@ -119,9 +119,10 @@ reg     [31:0] xip_reg;  // XIP configuration
 wire           xip_ena;  // XIP configuration
 
 // clock domain crossing pipeline for control register
-wire           pct_sts;  // CPU clock domain - pipeline status
-wire   [31: 0] ctl_dat;  // SPI clock domain - write data
-reg    [24:16] ctl_reg;  // SPI clock domain - register
+wire           pct_sts;  // pipeline status
+wire           ctl_new;  // new control values
+wire   [31: 0] ctl_dat;  // write data
+reg    [24:16] ctl_reg;  // register
 
 // control registers
 reg            ctl_ssc;  // slave select clear
@@ -395,7 +396,7 @@ end endgenerate
 assign cyc_grt = (cyc_end | ~cyc_cyc) & cyc_con;
 
 // current cycle continue (data pipeline status check)
-assign cyc_con = (~ctl_orl | buf_wdg) & (~ctl_ien | buf_rdg);
+assign cyc_con = (~ctl_orl | buf_wdr) & (~ctl_ien | buf_rdg);
 
 // new cycle begin
 assign cyc_beg = cyc_req & cyc_grt;
@@ -438,14 +439,16 @@ end else begin
   end
 end
 
+assign ctl_new = cyc_beg | cyc_end;
+
 always @ (*) ctl_ien =                            ctl_reg[24   ];
 always @ (*) ctl_oec =                            ctl_reg[23   ];
 always @ (*) ctl_oel =                            ctl_reg[22   ];
-always @ (*) ctl_orl = cyc_beg ? ctl_dat[21   ] : ctl_reg[21   ];
-always @ (*) ctl_oen = cyc_beg ? ctl_dat[20   ] : ctl_reg[20   ];
-always @ (*) ctl_ssc = cyc_beg ? ctl_dat[19   ] : ctl_reg[19   ];
-always @ (*) ctl_sse = cyc_beg ? ctl_dat[18   ] : ctl_reg[18   ];
-always @ (*) ctl_iow = cyc_beg ? ctl_dat[17:16] : ctl_reg[17:16];
+always @ (*) ctl_orl = ctl_new ? ctl_dat[21   ] : ctl_reg[21   ];
+always @ (*) ctl_oen = ctl_new ? ctl_dat[20   ] : ctl_reg[20   ];
+always @ (*) ctl_ssc =                            ctl_reg[19   ];
+always @ (*) ctl_sse = ctl_new ? ctl_dat[18   ] : ctl_reg[18   ];
+always @ (*) ctl_iow = ctl_new ? ctl_dat[17:16] : ctl_reg[17:16];
 
 ////////////////////////////////////////////////////////////////////////////////
 // status registers                                                           //
