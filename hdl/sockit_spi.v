@@ -361,280 +361,117 @@ assign buf_wen = buf_wdr & buf_wdg;
 assign buf_ren = cyc_rrl & buf_rdg;
 
 ////////////////////////////////////////////////////////////////////////////////
-// clock domain crossing pipeline (optional) for control register             //
+// spi cycle timing                                                           //
 ////////////////////////////////////////////////////////////////////////////////
-
-generate if (CDC) begin : pct
-
-  sockit_spi_cdc #(
-    .CW       ( 1),
-    .DW       (32)
-  ) cdc_ctl (
-    // input port
-    .cdi_clk  (clk_cpu),
-    .cdi_rst  (rst_cpu),
-    .cdi_dat  (bus_wdt),
-    .cdi_pli  (bus_wec),
-    .cdi_plo  (pct_sts),
-    // output port B
-    .cdo_clk  (clk_spi),
-    .cdo_rst  (rst_spi),
-    .cdo_pli  (cyc_grt),
-    .cdo_plo  (cyc_req),
-    .cdo_dat  (ctl_dat)
-  );
-
-end else begin : pct
-
-  assign pct_sts = 1'bx;
-  assign ctl_dat = bus_wdt;
-  assign cyc_beg = bus_wec;
-
-end endgenerate
-
-// new cycle grant
-assign cyc_grt = (cyc_end | ~cyc_cyc) & cyc_con;
-
-// current cycle continue (data pipeline status check)
-assign cyc_con = (~ctl_orl | buf_wdr) & (~ctl_ien | buf_rdg);
-
-// new cycle begin
-assign cyc_beg = cyc_req & cyc_grt;
-
-////////////////////////////////////////////////////////////////////////////////
-// clock domain crossing pipeline (optional) for SPI cycle status             //
-////////////////////////////////////////////////////////////////////////////////
-
-generate if (CDC) begin : pcy
-
-  // status of SPI cycle
-  assign pcy_sts = cyc_cyc;
-
-end else begin : pcy
-
-  // status of SPI cycle
-  assign pcy_sts = cyc_cyc;
-
-end endgenerate
-
-////////////////////////////////////////////////////////////////////////////////
-// control registers                                                          //
-////////////////////////////////////////////////////////////////////////////////
-
-reg [24:16] pct_reg;
 
 // transfer length counter
-always @(posedge clk_cpu, posedge rst_cpu)
-if (rst_cpu) begin
-  ctl_reg <=  9'h000;
-  ctl_cnt <= 16'h0000;
-end else begin
-  // write from the CPU bus has priority
-  if (cyc_beg) begin
-    ctl_reg <= ctl_dat[24:16];
-    ctl_cnt <= ctl_dat[15: 0];
-  // decrement at the end of each transfer unit (nibble by default)
-  end else if (~|ctl_btn & cyc_run) begin
-    ctl_cnt <= ctl_cnt - 16'd1;
-  end
-end
-
-assign ctl_new = cyc_beg | cyc_end;
-
-always @ (*) ctl_ien =                            ctl_reg[24   ];
-always @ (*) ctl_oec =                            ctl_reg[23   ];
-always @ (*) ctl_oel =                            ctl_reg[22   ];
-always @ (*) ctl_orl = ctl_new ? ctl_dat[21   ] : ctl_reg[21   ];
-always @ (*) ctl_oen = ctl_new ? ctl_dat[20   ] : ctl_reg[20   ];
-always @ (*) ctl_ssc =                            ctl_reg[19   ];
-always @ (*) ctl_sse = ctl_new ? ctl_dat[18   ] : ctl_reg[18   ];
-always @ (*) ctl_iow = ctl_new ? ctl_dat[17:16] : ctl_reg[17:16];
-
-////////////////////////////////////////////////////////////////////////////////
-// status registers                                                           //
-////////////////////////////////////////////////////////////////////////////////
-
-// bit counter
 always @(posedge clk_spi, posedge rst_spi)
-if (rst_spi)       ctl_btc <= 2'd0;
-else if (cyc_run)  ctl_btc <= ctl_btn;
+if (rst_spi)         ctl_cnt <= 3'd0;
+end else begin
+  if      (cyc_beg)  cyc_cnt <= ctl_dat [15: 0];
+  else if (cyc_run)  cyc_cnt <= cyc_cnt - 3'd1;
+end
 
-// bit counter next
-always @ (*)
-case (ctl_iow)
-  2'd0 :  ctl_btn = ctl_btc + 2'd1;  // 3-wire
-  2'd1 :  ctl_btn = ctl_btc + 2'd1;  // spi
-  2'd2 :  ctl_btn = ctl_btc + 2'd2;  // dual
-  2'd3 :  ctl_btn = ctl_btc + 2'd0;  // quad (increment by 4)
-endcase
+always @(posedge clk_spi, posedge rst_spi)
+if (rst_spi)      cyc_ien <=  1'b0;
+else if (cyc_beg) cyc_ien <= bfo_dat [24:16];
 
-// nibble enable next pulse
-always @ (*)
-case (ctl_iow)
-  2'd0 :  cyc_nen = &ctl_btn[1:0];  // 3-wire
-  2'd1 :  cyc_nen = &ctl_btn[1:0];  // spi
-  2'd2 :  cyc_nen = &ctl_btn[1  ];  // dual
-  2'd3 :  cyc_nen =          1'b1;  // quad
-endcase
+assign ctl_oen     = bfo_dat [20   ];
+assign ctl_sse     = bfo_dat [18   ];
 
-// nibble enable output pulse
-assign        cyc_neo  = cyc_nen & cyc_run & ctl_oen;
+assign spi_dto [3] = bfo_dat [PDO*3+:PDO];
+assign spi_dto [2] = bfo_dat [PDO*2+:PDO];
+assign spi_dto [1] = bfo_dat [PDO*1+:PDO];
+assign spi_dto [0] = bfo_dat [PDO*0+:PDO];
 
-// nibble enable input pulse
-always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)  cyc_nei <= 1'b0;
-else          cyc_nei <= ~|ctl_btn & cyc_run & ctl_ien;
+assign bfi_dat = {spi_new,
+                  spi_dti [3],
+                  spi_dti [2],
+                  spi_dti [1],
+                  spi_dti [0]}
 
 // spi transfer run status
 always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)  cyc_cyc <= 1'b0;
-else          cyc_cyc <= cyc_beg | cyc_cyc & ~cyc_end;
+if (rst_spi)  cyc_run <= 1'b0;
+else          cyc_run <= cyc_beg | cyc_run & ~cyc_end;
 
-// spi transfer run status
-always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)         cyc_run <= 1'b0;
-else begin
-  if      (cyc_beg)  cyc_run <= 1'b1;
-  else if (cyc_end)  cyc_run <= 1'b0;
-  else if (cyc_wrl)  cyc_run <= cyc_con;
-end
+assign cyc_end = ~|cyc_cnt;
 
-// spi transfer reload pulse
-always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)         cyc_wrl <= 1'b0;
-else begin
-  if      (cyc_run)  cyc_wrl <= cyc_nen & ~|ctl_cnt[2:0];
-end
-
-// spi transfer end pulse
-assign        cyc_end  = cyc_wrl & ~|ctl_cnt[15:3];
-
-// input ready pulse
-always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)         cyc_rrl <= 1'b0;
-else begin
-  if      (cyc_wrl)  cyc_rrl <= cyc_wrl & ctl_ien;
-  else if (buf_ren)  cyc_rrl <= 1'b0;
-end
-
-////////////////////////////////////////////////////////////////////////////////
-// serialization input                                                        //
-////////////////////////////////////////////////////////////////////////////////
-
-// input mixer
-always @ (*)
-case (ctl_iow)
-  2'd0 :  ser_dmi = {ser_dsi[2:0], ioe_dri[  0]};  // 3-wire
-  2'd1 :  ser_dmi = {ser_dsi[2:0], ioe_dri[  1]};  // spi
-  2'd2 :  ser_dmi = {ser_dsi[1:0], ioe_dri[1:0]};  // dual
-  2'd3 :  ser_dmi = {              ioe_dri[3:0]};  // quad
-endcase
-
-// input shift register
-always @ (posedge clk_spi)
-if (cyc_run & ctl_ien)  ser_dsi <= ser_dmi[2:0];
-
-// shift data register  input (nibble sized shifts)
-always @ (posedge clk_spi)
-if (cyc_nei & cyc_run) ser_dri <= buf_rdt;
-
-assign buf_rdt = cfg_dir ? {         ser_dri[32-4-1:0], ser_dmi}   // MSB first
-                         : {ser_dmi, ser_dri[32  -1:4]         };  // LSB first
-
-////////////////////////////////////////////////////////////////////////////////
-// serialization output                                                       //
-////////////////////////////////////////////////////////////////////////////////
-
-// shift data register output (nibble sized shifts)
-always @ (posedge clk_spi)
-if   (buf_wen)  ser_dro <=           buf_wdt                    ;  // par. load
-else if (cyc_neo) begin
-  if (cfg_dir)  ser_dro <= {         ser_dro[32-4-1:0], 4'bxxxx};  // MSB first
-  else          ser_dro <= {4'bxxxx, ser_dro[32  -1:4]         };  // LSB first
-end
-
-// output nibble
-assign ser_dno = buf_wen ? (cfg_dir ?                    buf_wdt[31:28]    // MSB first
-                                    :                    buf_wdt[ 3: 0])   // LSB first
-                         : (cfg_dir ? (ctl_iow != 2'd3 ? ser_dro[31:28]    // MSB first
-                                                       : ser_dro[27:24])
-                                    : (ctl_iow != 2'd3 ? ser_dro[ 3: 0]    // LSB first
-                                                       : ser_dro[ 7: 4]));
-
-// output mixer
-always @ (*)
-case (ctl_iow)                                      // MSB first      LSB first
-  2'd0 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dno[2'd3-ctl_btn[1:0]+:1] : ser_dno[ctl_btn[1:0]+:1]};
-  2'd1 :  ser_dmo = {cfg_hlo, cfg_wpo, 1'bx, cfg_dir ? ser_dno[2'd3-ctl_btn[1:0]+:1] : ser_dno[ctl_btn[1:0]+:1]};
-  2'd2 :  ser_dmo = {cfg_hlo, cfg_wpo,       cfg_dir ? ser_dno[2'd3-ctl_btn[1:0]+:2] : ser_dno[ctl_btn[1:0]+:2]};
-  2'd3 :  ser_dmo = {                        cfg_dir ? ser_dno[2'd0             +:4] : ser_dno[2'd0        +:4]};
-endcase
-
-// output enable mixer
-always @ (*)
-case (ctl_iow)
-  2'd0 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec  };
-  2'd1 :  ser_dme = {cfg_hle, cfg_wpe, 1'b0, cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec  };
-  2'd2 :  ser_dme = {cfg_hle, cfg_wpe,    {2{cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec}}};
-  2'd3 :  ser_dme = {                     {4{cyc_beg ? ctl_oen : ctl_oen & ~ctl_oec}}};
-endcase
+assign cyc_new = ;
 
 ////////////////////////////////////////////////////////////////////////////////
 // slave select, clock, data (input, output, enable)                          //
 ////////////////////////////////////////////////////////////////////////////////
 
-// spi slave select
-always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)         ioe_sso <= {SSW{1'b0}};
-else begin
-  if      (cyc_beg)  ioe_sso <= {SSW{ ctl_sse}} & cfg_sso [SSW-1:0];
-  else if (cyc_end)  ioe_sso <= {SSW{~ctl_ssc}} & ioe_sso;
-end
+// serial clock input
+assign spi_cli =  spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for input registers
+assign spi_clo = ~spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for output registers
 
-assign spi_ss_o = ioe_sso;
-assign spi_ss_e = cfg_sse;
-
-
-// spi clock output pin
+// serial clock output
 assign spi_sclk_o = cfg_pol ^ ~(~cyc_run | clk_spi);
 assign spi_sclk_e = cfg_coe;
 
 
-// phase register input
-always @ (negedge clk_spi)
-if (~cfg_pha)  ioe_pri <= spi_sio_i;
+// slave select input
+assign spi_rsi =  spi_ss_i;  // reset for output registers
 
-// phase multiplexer input
-// direct register input
-always @ (posedge clk_spi)
-if  (cyc_run)  ioe_dri <= cfg_pha ? ioe_pri : spi_sio_i;
-
-
-// direct register output
-always @ (posedge clk_spi)
-ioe_dro <= ser_dmo;
-
-// phase register output
-always @ (negedge clk_spi)
-if  (cfg_pha)  ioe_pro <= ioe_dro;
-
-// phase multiplexer output
-assign spi_sio_o = cfg_pha ? ioe_pro : ioe_dro;
-
-
-// direct register output enable
+// slave select output
 always @ (posedge clk_spi, posedge rst_spi)
-if  (rst_spi)            ioe_dre <= 4'b0000;
-else
-if  (cyc_beg | cyc_end)  ioe_dre <= ser_dme;
+if (rst_spi)       spi_sso <= {SSW{1'b0}};
+else if (cyc_beg)  spi_sso <=  ctl_sse;
 
-// phase register output enable
-always @ (negedge clk_spi, posedge rst_spi)
-if  (rst_spi)  ioe_pre <= 4'b0000;
-else
-if  (cfg_pha)  ioe_pre <= ioe_dre;
+assign spi_ss_o [3] = ioe_sso[3][PDO-1];
+assign spi_ss_o [2] = ioe_sso[2][PDO-1];
+assign spi_ss_o [1] = ioe_sso[1][PDO-1];
+assign spi_ss_o [0] = ioe_sso[0][PDO-1];
 
-// phase multiplexer output enable
-assign spi_sio_e = cfg_pha ? ioe_pre : ioe_dre;
+// slave select output enable
+assign spi_ss_e     = ioe_sse;
+
+
+// data input
+always @ (posedge spi_cli)
+begin
+  spi_sdi [3] <= spi_dti [3];
+  spi_sdi [2] <= spi_dti [2];
+  spi_sdi [1] <= spi_dti [1];
+  spi_sdi [0] <= spi_dti [0];
+end
+
+assign spi_dti [3] <= {spi_dti [3], spi_ss_i [3]};
+assign spi_dti [2] <= {spi_dti [2], spi_ss_i [2]};
+assign spi_dti [1] <= {spi_dti [1], spi_ss_i [1]};
+assign spi_dti [0] <= {spi_dti [0], spi_ss_i [0]};
+
+
+// data output
+always @ (posedge spi_clo)
+if (cyc_beg) begin
+  spi_sdo [3] <=  spi_dto [3];
+  spi_sdo [2] <=  spi_dto [2];
+  spi_sdo [1] <=  spi_dto [1];
+  spi_sdo [0] <=  spi_dto [0];
+end else (cyc_run) begin
+  spi_sdo [3] <= {spi_sdo [3] [PDO-1:0], 1'bx};
+  spi_sdo [2] <= {spi_sdo [2] [PDO-1:0], 1'bx};
+  spi_sdo [1] <= {spi_sdo [1] [PDO-1:0], 1'bx};
+  spi_sdo [0] <= {spi_sdo [0] [PDO-1:0], 1'bx};
+end
+
+assign spi_sio_o [3] = spi_sdo[3] [PDO-1];
+assign spi_sio_o [2] = spi_sdo[2] [PDO-1];
+assign spi_sio_o [1] = spi_sdo[1] [PDO-1];
+assign spi_sio_o [0] = spi_sdo[0] [PDO-1];
+
+// data output enable
+always @ (posedge spi_clo, posedge spi_rso)
+if (rst_spi)  spi_sde <= {SSW{1'b0}};
+else begin
+if (cyc_beg)  spi_sde <=  ctl_sde;
+
+assign spi_sio_e [3] = spi_sde [3];
+assign spi_sio_e [2] = spi_sde [2];
+assign spi_sio_e [1] = spi_sde [1];
+assign spi_sio_e [0] = spi_sde [0];
 
 endmodule
