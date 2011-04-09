@@ -38,6 +38,7 @@ module sockit_spi #(
   parameter NOP     = 32'h00000000,  // no operation instuction for the given CPU
   parameter XAW     =           24,  // XIP address width
   parameter SSW     =            8,  // slave select width
+  parameter SDW     =            8,  // serial data register width
   parameter CDC     =         1'b0   // implement clock domain crossing
 )(
   // system signals (used by the CPU interface)
@@ -120,23 +121,6 @@ wire           xip_ena;  // XIP configuration
 
 // clock domain crossing pipeline for control register
 wire           pct_sts;  // pipeline status
-wire           ctl_new;  // new control values
-wire   [31: 0] ctl_dat;  // write data
-reg    [24:16] ctl_reg;  // register
-
-// control registers
-reg            ctl_ssc;  // slave select clear
-reg            ctl_sse;  // slave select enable
-reg            ctl_ien;  // data input  enable
-reg            ctl_orl;  // data output reload
-reg            ctl_oel;  // data output enable last
-reg            ctl_oec;  // data output enable clear
-reg            ctl_oen;  // data output enable
-reg      [1:0] ctl_iow;  // IO width (0-3wire, 1-SPI, 2-duo, 3-quad)
-reg     [15:0] ctl_cnt;  // counter of transfer units (nibbles by default)
-
-// clock domain crossing pipeline for SPI cycle
-wire           pcy_sts;  // CPU clock domain - pipeline status
 
 // clock domain crossing pipeline for output data
 wire           pod_sts;  // CPU clock domain - pipeline status
@@ -144,52 +128,22 @@ wire           pod_sts;  // CPU clock domain - pipeline status
 // clock domain crossing pipeline for input data
 wire           pid_sts;  // CPU clock domain - pipeline status
 
-// reload buffer
-wire           buf_wdr;  // write data request
-wire           buf_wdg;  // write data grant
-wire           buf_wen;  // write data enable
-wire    [31:0] buf_wdt;  // write data
-wire           buf_rdr;  // read  data request
-wire           buf_rdg;  // read  data grant
-wire           buf_ren;  // read  data enable
-wire    [31:0] buf_rdt;  // read  data
+localparam BOW = 4*SDW + SSW + 11;
+localparam BIW = 4*SDW + 1;
 
-// fine grained counters
-reg      [1:0] ctl_btc;  // counter of shifted bits
-reg      [1:0] ctl_btn;  // counter of shifted bits next (+1)
+wire           bfo_wer;
+wire           bfo_weg;
+wire [BOW-1:0] bfo_wdt;
+wire [BOW-1:0] bfo_rdt;
+wire           bfo_rer;
+wire           bfo_reg;
 
-// cycle timing
-wire           cyc_req;  // cycle request (control flow pipeline)
-wire           cyc_grt;  // cycle grant   (control flow pipeline)
-wire           cyc_beg;  // cycle begin pulse
-reg            cyc_cyc;  // cycle processing status
-reg            cyc_wrl;  // cycle write data reload
-reg            cyc_rrl;  // cycle read  data reload
-wire           cyc_con;  // cycle continue (depends on status of data pipelines)
-reg            cyc_run;  // cycle run status
-wire           cyc_end;  // cycle end pulse
-reg            cyc_nen;  // nibble enable next   pulse
-wire           cyc_neo;  // nibble enable output pulse
-reg            cyc_nei;  // nibble enable  input pulse
-
-// serialization
-reg      [3:0] ser_dmi;  // data mixer input register
-reg      [2:0] ser_dsi;  // data shift input register
-reg      [3:0] ser_dpi;  // data shift phase synchronization
-reg     [31:0] ser_dri;  // data shift register input
-reg     [31:0] ser_dro;  // data shift register output
-wire     [3:0] ser_dno;  // data nibble output
-reg      [3:0] ser_dmo;  // data mixer output
-reg      [3:0] ser_dme;  // data mixer output enable
-
-// input, output, enable
-reg  [SSW-1:0] ioe_sso;  // slave select output register
-reg      [3:0] ioe_dri;  // direct register input
-reg      [3:0] ioe_pri;  // phase  register input
-reg      [3:0] ioe_dro;  // direct register output
-reg      [3:0] ioe_pro;  // phase  register output
-reg      [3:0] ioe_dre;  // direct register output enable
-reg      [3:0] ioe_pre;  // phase  register output enable
+wire           bfi_rer;
+wire           bfi_reg;
+wire [BIW-1:0] bfi_rdt;
+wire [BIW-1:0] bfi_wdt;
+wire           bfi_wer;
+wire           bfi_weg;
 
 ////////////////////////////////////////////////////////////////////////////////
 // XIP, registers interface multiplexer                                       //
@@ -294,16 +248,48 @@ end else if (reg_wen & (reg_adr == 2'd1) & ~reg_wrq) begin
 end
 
 ////////////////////////////////////////////////////////////////////////////////
+// data repackaging                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// spi clock domain signals                                                   //
+////////////////////////////////////////////////////////////////////////////////
+
+reg      [2:0] spi_cnt;  // clock counter
+reg            spi_cke;  // clock enable
+
+reg            spi_sie;
+reg      [3:0] spi_soe;
+reg            spi_sce;
+reg            spi_sco;
+reg  [SSW-1:0] spi_sse;
+reg  [SSW-1:0] spi_sso;
+
+reg  [SDW-1:0] spi_sdo [0:3];
+wire [SDW-1:0] spi_dto_3;
+wire [SDW-1:0] spi_dto_2;
+wire [SDW-1:0] spi_dto_1;
+wire [SDW-1:0] spi_dto_0;
+
+reg  [SDW-1:0] spi_sdi [0:3];
+wire [SDW-1:0] spi_dti_3;
+wire [SDW-1:0] spi_dti_2;
+wire [SDW-1:0] spi_dti_1;
+wire [SDW-1:0] spi_dti_0;
+
+wire           spi_new;
+
+////////////////////////////////////////////////////////////////////////////////
 // clock domain crossing pipeline (optional) for data register                //
 ////////////////////////////////////////////////////////////////////////////////
 
-generate if (CDC) begin : pdt
+generate if (CDC) begin : cdc
 
-  // write data
+  // data output
   sockit_spi_cdc #(
     .CW       ( 1),
-    .DW       (32)
-  ) cdc_pod (
+    .DW       (BOW)
+  ) cdc_bfo (
     // input port
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
@@ -313,22 +299,22 @@ generate if (CDC) begin : pdt
     // output port
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
-    .cdo_pli  (buf_wdg),
-    .cdo_plo  (buf_wdr),
-    .cdo_dat  (buf_wdt)
+    .cdo_pli  (bfo_reg),
+    .cdo_plo  (bfo_rer),
+    .cdo_dat  (bfo_rdt)
   );
 
-  // read data
+  // data input
   sockit_spi_cdc #(
     .CW       ( 1),
-    .DW       (32)
-  ) cdc_pid (
+    .DW       (BIW)
+  ) cdc_bfi (
     // input port
     .cdi_clk  (clk_spi),
     .cdi_rst  (rst_spi),
-    .cdi_dat  (buf_rdt),
-    .cdi_pli  (cyc_rrl),
-    .cdi_plo  (buf_rdg),
+    .cdi_dat  (bfi_wdt),
+    .cdi_pli  (bfi_wer),
+    .cdi_plo  (bfi_weg),
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
@@ -337,7 +323,7 @@ generate if (CDC) begin : pdt
     .cdo_dat  (bus_rdt)
   );
 
-end else begin : pdt
+end else begin : syn
 
   reg [31:0] buf_dat;
 
@@ -351,14 +337,13 @@ end else begin : pdt
 
 end endgenerate
 
-// buffer write data grant
-assign buf_wdg = cyc_beg | cyc_wrl;
+// flow control for data output
+assign bfo_reg = ~|spi_cnt;
+assign bfo_ren = bfo_rer & bfo_reg;
 
-// buffer write data enable
-assign buf_wen = buf_wdr & buf_wdg;
-
-// buffer read data enable
-assign buf_ren = cyc_rrl & buf_rdg;
+// flow control for data input
+assign bfi_weg = spi_sie & spi_cke & ~|spi_cnt;
+assign bfi_wen = bfi_wer & bfi_weg;
 
 ////////////////////////////////////////////////////////////////////////////////
 // spi cycle timing                                                           //
@@ -366,38 +351,47 @@ assign buf_ren = cyc_rrl & buf_rdg;
 
 // transfer length counter
 always @(posedge clk_spi, posedge rst_spi)
-if (rst_spi)         ctl_cnt <= 3'd0;
+if (rst_spi) begin
+  spi_cke <= 1'b0;
+  spi_cnt <= 3'd0;
 end else begin
-  if      (cyc_beg)  cyc_cnt <= ctl_dat [15: 0];
-  else if (cyc_run)  cyc_cnt <= cyc_cnt - 3'd1;
+  if (bfo_ren) begin
+    spi_cke <= bfo_rdt [4*SDW-1+0+:1];
+    spi_cnt <= bfo_rdt [4*SDW-1+1+:3];
+  end else begin
+    if (bfo_reg)  spi_cke <= 1'b0;
+    if (spi_cke)  spi_cnt <= spi_cnt - 3'd1;
+  end
 end
 
+// IO control registers
 always @(posedge clk_spi, posedge rst_spi)
-if (rst_spi)      cyc_ien <=  1'b0;
-else if (cyc_beg) cyc_ien <= bfo_dat [24:16];
+if (rst_spi) begin
+  spi_sie <=      1'b0;
+  spi_soe <=      4'h0;
+  spi_sce <=      1'b0;
+  spi_sco <=      1'b0;
+  spi_sse <= {SSW{1'b0}};
+  spi_sso <= {SSW{1'b0}};
+end else if (bfo_ren) begin
+  spi_sie <=      bfo_rdt [4*SDW-1+  4 +:1];
+  spi_soe <=      bfo_rdt [4*SDW-1+  5 +:4];
+  spi_sce <=      bfo_rdt [4*SDW-1+  9 +:1];
+  spi_sco <=      bfo_rdt [4*SDW-1+ 10 +:1];
+  spi_sse <= {SSW{bfo_rdt [4*SDW-1+ 11 +:1]}};
+  spi_sso <=      bfo_rdt [4*SDW-1+ 12 +:SSW];
+end
 
-assign ctl_oen     = bfo_dat [20   ];
-assign ctl_sse     = bfo_dat [18   ];
-
-assign spi_dto [3] = bfo_dat [PDO*3+:PDO];
-assign spi_dto [2] = bfo_dat [PDO*2+:PDO];
-assign spi_dto [1] = bfo_dat [PDO*1+:PDO];
-assign spi_dto [0] = bfo_dat [PDO*0+:PDO];
+assign spi_dto_3 = bfo_rdt [SDW*3+:SDW];
+assign spi_dto_2 = bfo_rdt [SDW*2+:SDW];
+assign spi_dto_1 = bfo_rdt [SDW*1+:SDW];
+assign spi_dto_0 = bfo_rdt [SDW*0+:SDW];
 
 assign bfi_dat = {spi_new,
-                  spi_dti [3],
-                  spi_dti [2],
-                  spi_dti [1],
-                  spi_dti [0]}
-
-// spi transfer run status
-always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)  cyc_run <= 1'b0;
-else          cyc_run <= cyc_beg | cyc_run & ~cyc_end;
-
-assign cyc_end = ~|cyc_cnt;
-
-assign cyc_new = ;
+                  spi_dti_3,
+                  spi_dti_2,
+                  spi_dti_1,
+                  spi_dti_0};
 
 ////////////////////////////////////////////////////////////////////////////////
 // slave select, clock, data (input, output, enable)                          //
@@ -408,70 +402,52 @@ assign spi_cli =  spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for input register
 assign spi_clo = ~spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for output registers
 
 // serial clock output
-assign spi_sclk_o = cfg_pol ^ ~(~cyc_run | clk_spi);
+assign spi_sclk_o = cfg_pol ^ ~(~spi_cke | clk_spi);
 assign spi_sclk_e = cfg_coe;
 
 
 // slave select input
-assign spi_rsi =  spi_ss_i;  // reset for output registers
+assign spi_rsi = spi_ss_i;  // reset for output registers
 
-// slave select output
-always @ (posedge clk_spi, posedge rst_spi)
-if (rst_spi)       spi_sso <= {SSW{1'b0}};
-else if (cyc_beg)  spi_sso <=  ctl_sse;
-
-assign spi_ss_o [3] = ioe_sso[3][PDO-1];
-assign spi_ss_o [2] = ioe_sso[2][PDO-1];
-assign spi_ss_o [1] = ioe_sso[1][PDO-1];
-assign spi_ss_o [0] = ioe_sso[0][PDO-1];
-
-// slave select output enable
-assign spi_ss_e     = ioe_sse;
+// slave select output, output enable
+assign spi_ss_o = spi_sso;
+assign spi_ss_e = spi_sse;
 
 
 // data input
 always @ (posedge spi_cli)
 begin
-  spi_sdi [3] <= spi_dti [3];
-  spi_sdi [2] <= spi_dti [2];
-  spi_sdi [1] <= spi_dti [1];
-  spi_sdi [0] <= spi_dti [0];
+  spi_sdi [3] <= spi_dti_3;
+  spi_sdi [2] <= spi_dti_2;
+  spi_sdi [1] <= spi_dti_1;
+  spi_sdi [0] <= spi_dti_0;
 end
 
-assign spi_dti [3] <= {spi_dti [3], spi_ss_i [3]};
-assign spi_dti [2] <= {spi_dti [2], spi_ss_i [2]};
-assign spi_dti [1] <= {spi_dti [1], spi_ss_i [1]};
-assign spi_dti [0] <= {spi_dti [0], spi_ss_i [0]};
-
+assign spi_dti_3 = {spi_sdi [3], spi_ss_i [3]};
+assign spi_dti_2 = {spi_sdi [2], spi_ss_i [2]};
+assign spi_dti_1 = {spi_sdi [1], spi_ss_i [1]};
+assign spi_dti_0 = {spi_sdi [0], spi_ss_i [0]};
 
 // data output
 always @ (posedge spi_clo)
-if (cyc_beg) begin
-  spi_sdo [3] <=  spi_dto [3];
-  spi_sdo [2] <=  spi_dto [2];
-  spi_sdo [1] <=  spi_dto [1];
-  spi_sdo [0] <=  spi_dto [0];
-end else (cyc_run) begin
-  spi_sdo [3] <= {spi_sdo [3] [PDO-1:0], 1'bx};
-  spi_sdo [2] <= {spi_sdo [2] [PDO-1:0], 1'bx};
-  spi_sdo [1] <= {spi_sdo [1] [PDO-1:0], 1'bx};
-  spi_sdo [0] <= {spi_sdo [0] [PDO-1:0], 1'bx};
+if (bfo_ren) begin
+  spi_sdo [3] <=  spi_dto_3;
+  spi_sdo [2] <=  spi_dto_2;
+  spi_sdo [1] <=  spi_dto_1;
+  spi_sdo [0] <=  spi_dto_0;
+end else begin
+  spi_sdo [3] <= {spi_sdo [3] [SDW-1:0], 1'bx};
+  spi_sdo [2] <= {spi_sdo [2] [SDW-1:0], 1'bx};
+  spi_sdo [1] <= {spi_sdo [1] [SDW-1:0], 1'bx};
+  spi_sdo [0] <= {spi_sdo [0] [SDW-1:0], 1'bx};
 end
 
-assign spi_sio_o [3] = spi_sdo[3] [PDO-1];
-assign spi_sio_o [2] = spi_sdo[2] [PDO-1];
-assign spi_sio_o [1] = spi_sdo[1] [PDO-1];
-assign spi_sio_o [0] = spi_sdo[0] [PDO-1];
+assign spi_sio_o [3] = spi_sdo [3] [SDW-1];
+assign spi_sio_o [2] = spi_sdo [2] [SDW-1];
+assign spi_sio_o [1] = spi_sdo [1] [SDW-1];
+assign spi_sio_o [0] = spi_sdo [0] [SDW-1];
 
 // data output enable
-always @ (posedge spi_clo, posedge spi_rso)
-if (rst_spi)  spi_sde <= {SSW{1'b0}};
-else begin
-if (cyc_beg)  spi_sde <=  ctl_sde;
-
-assign spi_sio_e [3] = spi_sde [3];
-assign spi_sio_e [2] = spi_sde [2];
-assign spi_sio_e [1] = spi_sde [1];
-assign spi_sio_e [0] = spi_sde [0];
+assign spi_sio_e = spi_soe;
 
 endmodule
