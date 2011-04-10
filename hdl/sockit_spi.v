@@ -166,20 +166,19 @@ sockit_spi_xip #(
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_dma #(
-  .XAW      (XAW),      // bus address width
-  .NOP      (NOP)       // no operation instruction (returned on error)
+  .DAW      (XAW)    // TODO
 ) dma (
   // system signals
-  .clk      (clk_cpu),  // clock
-  .rst      (rst_cpu),  // reset
+  .clk      (clk_cpu),
+  .rst      (rst_cpu),
   // input bus (XIP requests)
-  .dma_wen  (dma_wen),  // write enable
-  .dma_ren  (dma_ren),  // read enable
-  .dma_adr  (dma_adr),  // address
-  .dma_wdt  (dma_wdt),  // write data
-  .dma_rdt  (dma_rdt),  // read data
-  .dma_wrq  (dma_wrq),  // wait request
-  .dma_err  (dma_err),  // error interrupt
+  .dma_wen  (dma_wen),
+  .dma_ren  (dma_ren),
+  .dma_adr  (dma_adr),
+  .dma_wdt  (dma_wdt),
+  .dma_rdt  (dma_rdt),
+  .dma_wrq  (dma_wrq),
+  .dma_err  (dma_err),
   // configuration
   // command output
   .cmo_req  (dma_cmo_req),
@@ -327,10 +326,10 @@ end endgenerate
 // serializer/deserializer instance                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-module sockit_spi #(
-  parameter SSW = 8,  // slave select width
-  parameter SDW = 8   // serial data register width
-)(
+sockit_spi_ser #(
+  .SSW      (SSW),
+  .SDW      (SDW)
+) ser (
   // system signals
   .clk      (clk_spi),
   .rst      (rst_spi),

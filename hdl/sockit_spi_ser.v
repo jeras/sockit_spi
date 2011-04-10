@@ -194,4 +194,4 @@ assign spi_sio_o [0] = spi_sdo [0] [SDW-1];
 // data output enable
 assign spi_sio_e = spi_soe;
 
-
+endmodule

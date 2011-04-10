@@ -24,7 +24,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_dma #(
-  parameter DW = 1'b1   // 
+  parameter DAW = 32   // DMA address width
 )(
   // system signals
   input  wire           clk,      // clock
