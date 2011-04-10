@@ -60,11 +60,10 @@ module sockit_spi #(
   output wire    [31:0] reg_rdt,     // read data
   output wire           reg_wrq,     // wait request
   output wire           reg_irq,     // interrupt request
+
   // SPI signals (at a higher level should be connected to tristate IO pads)
   // serial clock
-/* verilator lint_off UNUSED */
   input  wire           spi_sclk_i,  // input (clock loopback)
-/* verilator lint_on  UNUSED */
   output wire           spi_sclk_o,  // output
   output wire           spi_sclk_e,  // output enable
   // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
@@ -81,55 +80,139 @@ module sockit_spi #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-// register interface read data signals
-wire    [31:0] reg_sts;  // read status
-wire    [31:0] reg_cfg;  // read SPI configuration
-wire    [31:0] reg_xip;  // read XIP configuration
-
-// internal bus, finite state machine master
-wire           bus_wen, fsm_wen;  // write enable
-wire           bus_ren, fsm_ren;  // read  enable
-wire           bus_adr, fsm_adr;  // address
-wire    [31:0] bus_wdt, fsm_wdt;  // write data
-wire    [31:0] bus_rdt         ;  // read data
-wire           bus_wrq         ;  // wait request
-
-// data and control/status register write/read access transfers
-wire           bus_wed;  // write data register
-wire           bus_red;  // read  data register
-wire           bus_wec;  // write control register
-wire           bus_rec;  // read  status register
-
-// configuration registers
-reg    [8-1:0] cfg_sso;  // slave select output
-reg    [8-1:0] cfg_sse;  // slave select output enable
-reg            cfg_hle;  // hold output enable
-reg            cfg_hlo;  // hold output
-reg            cfg_wpe;  // write protect output enable
-reg            cfg_wpo;  // write protect output
-reg            cfg_coe;  // clock output enable
-reg            cfg_bit;  // bit mode
-reg            cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
-reg            cfg_pol;  // clock polarity
-reg            cfg_pha;  // clock phase
-
-// TODO missing configuration registers
-
-// XIP configuration TODO
-reg     [31:0] xip_reg;  // XIP configuration
-wire           xip_ena;  // XIP configuration
-
-// clock domain crossing pipeline for control register
-wire           pct_sts;  // pipeline status
-
-// clock domain crossing pipeline for output data
-wire           pod_sts;  // CPU clock domain - pipeline status
-
-// clock domain crossing pipeline for input data
-wire           pid_sts;  // CPU clock domain - pipeline status
-
 localparam BOW = 4*SDW + SSW + 11;
 localparam BIW = 4*SDW + 1;
+
+// command output
+wire           reg_cmo_req, xip_cmo_req, dma_cmo_req;
+wire    [31:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat;
+wire    [16:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl;
+wire           reg_cmo_grt, xip_cmo_grt, dma_cmo_grt;
+// command input
+wire           reg_cmi_req, xip_cmi_req, dma_cmi_req;
+wire    [31:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat;
+wire     [0:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl;
+wire           reg_cmi_grt, xip_cmi_grt, dma_cmi_grt;
+
+////////////////////////////////////////////////////////////////////////////////
+// REG instance                                                               //
+////////////////////////////////////////////////////////////////////////////////
+
+sockit_spi_reg #(
+  .CFG_RST  (CFG_RST),
+  .CFG_MSK  (CFG_MSK),
+  .XIP_RST  (XIP_RST),
+  .XIP_MSK  (XIP_MSK),
+  .XAW      (XAW    )
+) rgs (
+  // system signals
+  .clk      (clk_cpu),  // clock
+  .rst      (rst_cpu),  // reset
+  // register interface
+  .reg_wen  (reg_wen),
+  .reg_ren  (reg_ren),
+  .reg_adr  (reg_adr),
+  .reg_wdt  (reg_wdt),
+  .reg_rdt  (reg_rdt),
+  .reg_wrq  (reg_wrq),
+  .reg_irq  (reg_irq),
+  // configuration
+  // command output
+  .cmo_req  (reg_cmo_req),
+  .cmo_dat  (reg_cmo_dat),
+  .cmo_ctl  (reg_cmo_ctl),
+  .cmo_grt  (reg_cmo_grt),
+  // command input
+  .cmi_req  (reg_cmi_req),
+  .cmi_dat  (reg_cmi_dat),
+  .cmi_ctl  (reg_cmi_ctl),
+  .cmi_grt  (reg_cmi_grt)
+);
+
+////////////////////////////////////////////////////////////////////////////////
+// XIP instance                                                               //
+////////////////////////////////////////////////////////////////////////////////
+
+sockit_spi_xip #(
+  .XAW      (XAW),      // bus address width
+  .NOP      (NOP)       // no operation instruction (returned on error)
+) xip (
+  // system signals
+  .clk      (clk_cpu),  // clock
+  .rst      (rst_cpu),  // reset
+  // input bus (XIP requests)
+  .xip_wen  (xip_wen),  // write enable
+  .xip_ren  (xip_ren),  // read enable
+  .xip_adr  (xip_adr),  // address
+  .xip_wdt  (xip_wdt),  // write data
+  .xip_rdt  (xip_rdt),  // read data
+  .xip_wrq  (xip_wrq),  // wait request
+  .xip_err  (xip_err),  // error interrupt
+  // configuration
+  // command output
+  .cmo_req  (xip_cmo_req),
+  .cmo_dat  (xip_cmo_dat),
+  .cmo_ctl  (xip_cmo_ctl),
+  .cmo_grt  (xip_cmo_grt),
+  // command input
+  .cmi_req  (xip_cmi_req),
+  .cmi_dat  (xip_cmi_dat),
+  .cmi_ctl  (xip_cmi_ctl),
+  .cmi_grt  (xip_cmi_grt)
+);
+
+////////////////////////////////////////////////////////////////////////////////
+// DMA instance                                                               //
+////////////////////////////////////////////////////////////////////////////////
+
+sockit_spi_dma #(
+  .XAW      (XAW),      // bus address width
+  .NOP      (NOP)       // no operation instruction (returned on error)
+) dma (
+  // system signals
+  .clk      (clk_cpu),  // clock
+  .rst      (rst_cpu),  // reset
+  // input bus (XIP requests)
+  .dma_wen  (dma_wen),  // write enable
+  .dma_ren  (dma_ren),  // read enable
+  .dma_adr  (dma_adr),  // address
+  .dma_wdt  (dma_wdt),  // write data
+  .dma_rdt  (dma_rdt),  // read data
+  .dma_wrq  (dma_wrq),  // wait request
+  .dma_err  (dma_err),  // error interrupt
+  // configuration
+  // command output
+  .cmo_req  (dma_cmo_req),
+  .cmo_dat  (dma_cmo_dat),
+  .cmo_ctl  (dma_cmo_ctl),
+  .cmo_grt  (dma_cmo_grt),
+  // command input
+  .cmi_req  (dma_cmi_req),
+  .cmi_dat  (dma_cmi_dat),
+  .cmi_ctl  (dma_cmi_ctl),
+  .cmi_grt  (dma_cmi_grt)
+);
+
+////////////////////////////////////////////////////////////////////////////////
+// arbiter                                                                    //
+////////////////////////////////////////////////////////////////////////////////
+
+//reg [1:0] master;
+
+
+// command output arbiter
+assign     cmo_req = reg_cmo_req;
+assign     cmo_dat = reg_cmo_dat;
+assign reg_cmo_grt =     cmo_grt & 1'b1;
+
+// command input arbiter
+assign     cmi_req = reg_cmo_req;
+assign     cmi_dat = reg_cmo_dat;
+assign reg_cmi_grt =     cmo_grt & 1'b1;
+
+////////////////////////////////////////////////////////////////////////////////
+// repack                                                                     //
+////////////////////////////////////////////////////////////////////////////////
 
 wire           bfo_wer;
 wire           bfo_weg;
@@ -145,139 +228,42 @@ wire [BIW-1:0] bfi_wdt;
 wire           bfi_wer;
 wire           bfi_weg;
 
-////////////////////////////////////////////////////////////////////////////////
-// XIP, registers interface multiplexer                                       //
-////////////////////////////////////////////////////////////////////////////////
-
-// TODO
-assign xip_ena = xip_reg[0];
-
-sockit_spi_xip #(
-  .XAW      (XAW),      // bus address width
-  .NOP      (NOP)       // no operation instruction (returned on error)
-) xip (
+sockit_spi_rpo #(
+  .SDW  (SDW)
+) rpo (
   // system signals
-  .clk      (clk_cpu),  // clock
-  .rst      (rst_cpu),  // reset
-  // input bus (XIP requests)
-  .xip_ren  (xip_ren),  // read enable
-  .xip_adr  (xip_adr),  // address
-  .xip_rdt  (xip_rdt),  // read data
-  .xip_wrq  (xip_wrq),  // wait request
-  .xip_err  (xip_err),  // error interrupt
-  // output bus (interface to SPI master registers)
-  .fsm_wen  (fsm_wen),  // write enable
-  .fsm_ren  (fsm_ren),  // read  enable
-  .fsm_adr  (fsm_adr),  // address
-  .fsm_wdt  (fsm_wdt),  // write data
-  .fsm_rdt  (),  // read data
-  .fsm_wrq  (bus_wrq),  // wait request
-  // SPI master status
-  .sts_cyc  (pcy_sts),  // cycle status
+  .clk      (clk_cpu),
+  .rst      (rst_cpu),
   // configuration
-  .adr_off  (xip_reg[XAW-1:8])  // address offset
+  // command output
+  .cmd_req  (cmo_req),
+  .cmd_dat  (cmo_dat),
+  .cmd_ctl  (cmo_ctl),
+  .cmd_grt  (cmo_grt),
+  // buffer output
+  .buf_req  (bfo_wer),
+  .buf_dat  (bfo_wdt[      4*SDW-1:0]),
+  .buf_ctl  (bfo_wdt[BOW-1:4*SDW    ]),
+  .buf_grt  (bfo_grt)
 );
 
-// data & controll register access multiplexer between two busses
-assign bus_wen = xip_ena ? fsm_wen : reg_wen & reg_adr[1];  // write enable
-assign bus_ren = xip_ena ? fsm_ren : reg_ren & reg_adr[1];  // read  enable
-assign bus_adr = xip_ena ? fsm_adr : reg_adr[0];            // address
-assign bus_wdt = xip_ena ? fsm_wdt : reg_wdt;               // write data
-
-// register interface return signals
-assign reg_rdt = ~reg_adr[1] ? (~reg_adr[0] ? reg_xip : reg_cfg)
-                             : (~reg_adr[0] ? reg_sts : bus_rdt);  // read data
-assign reg_wrq = ~reg_adr[1] ?                   1'b0 : bus_wrq;   // wait request
-
-// wait request timing
-assign bus_wrq = ~bus_adr ? (bus_wen & ~pct_sts)   // write to control register
-                          : (bus_wen & ~pod_sts)   // write to  data register
-                          | (bus_ren & ~pid_sts);  // read from data register
-
-// control/status and data register write/read access transfers
-assign bus_wec = bus_wen & ~bus_adr & ~bus_wrq;  // write control register
-assign bus_rec = bus_ren & ~bus_adr & ~bus_wrq;  // read  control register
-assign bus_wed = bus_wen &  bus_adr & ~bus_wrq;  // write data register
-assign bus_red = bus_ren &  bus_adr & ~bus_wrq;  // read  data register
-
-////////////////////////////////////////////////////////////////////////////////
-// SPI status, interrupt request                                              //
-////////////////////////////////////////////////////////////////////////////////
-
-assign reg_sts = {pid_sts, pod_sts, pcy_sts, pct_sts, 28'h0000000};
-
-assign reg_irq = 1'b0;
-
-////////////////////////////////////////////////////////////////////////////////
-// configuration registers                                                    //
-////////////////////////////////////////////////////////////////////////////////
-
-// SPI configuration (read access)
-assign reg_cfg = {                          spi_ss_i,
-                                             cfg_sse,
-                                                4'h0,
-                  cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
-                  cfg_coe,                      3'h0,
-                  cfg_bit, cfg_dir, cfg_pol, cfg_pha};
-
-// SPI configuration (write access)
-always @(posedge clk_cpu, posedge rst_cpu)
-if (rst_cpu) begin
-  {                           cfg_sso} <= CFG_RST [31:24];
-  {                           cfg_sse} <= CFG_RST [23:16];
-  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= CFG_RST [11: 8];
-  {cfg_coe}                            <= CFG_RST [ 7   ];
-  {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
-end else if (reg_wen & (reg_adr == 2'd0) & ~reg_wrq) begin
-  {                           cfg_sso} <= reg_wdt [31:24];
-  {                           cfg_sse} <= reg_wdt [23:16];
-  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= reg_wdt [11: 8];
-  {cfg_coe}                            <= reg_wdt [ 7   ];
-  {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= reg_wdt [ 3: 0];
-end
-
-// XIP configuration (read access)
-assign reg_xip = xip_reg;
-
-// XIP configuration
-always @(posedge clk_cpu, posedge rst_cpu)
-if (rst_cpu) begin
-  xip_reg <= XIP_RST [31: 0];
-end else if (reg_wen & (reg_adr == 2'd1) & ~reg_wrq) begin
-  xip_reg <= reg_wdt;
-end
-
-////////////////////////////////////////////////////////////////////////////////
-// data repackaging                                                           //
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-// spi clock domain signals                                                   //
-////////////////////////////////////////////////////////////////////////////////
-
-reg      [2:0] spi_cnt;  // clock counter
-reg            spi_cke;  // clock enable
-
-reg            spi_sie;
-reg      [3:0] spi_soe;
-reg            spi_sce;
-reg            spi_sco;
-reg  [SSW-1:0] spi_sse;
-reg  [SSW-1:0] spi_sso;
-
-reg  [SDW-1:0] spi_sdo [0:3];
-wire [SDW-1:0] spi_dto_3;
-wire [SDW-1:0] spi_dto_2;
-wire [SDW-1:0] spi_dto_1;
-wire [SDW-1:0] spi_dto_0;
-
-reg  [SDW-1:0] spi_sdi [0:3];
-wire [SDW-1:0] spi_dti_3;
-wire [SDW-1:0] spi_dti_2;
-wire [SDW-1:0] spi_dti_1;
-wire [SDW-1:0] spi_dti_0;
-
-wire           spi_new;
+sockit_spi_rpi #(
+  .SDW  (SDW)
+) rpi (
+  // system signals
+  .clk      (clk_cpu),
+  .rst      (rst_cpu),
+  // command input
+  .cmi_req  (dma_cmi_req),
+  .cmi_dat  (dma_cmi_dat),
+  .cmi_ctl  (dma_cmi_ctl),
+  .cmi_grt  (dma_cmi_grt),
+  // buffer output
+  .bfo_req  (bfo_wer),
+  .bfo_dat  (bfo_wdt[      4*SDW-1:0]),
+  .bfo_ctl  (bfo_wdt[BOW-1:4*SDW    ]),
+  .bfo_grt  (bfo_grt)
+);
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock domain crossing pipeline (optional) for data register                //
@@ -337,117 +323,40 @@ end else begin : syn
 
 end endgenerate
 
-// flow control for data output
-assign bfo_reg = ~|spi_cnt;
-assign bfo_ren = bfo_rer & bfo_reg;
-
-// flow control for data input
-assign bfi_weg = spi_sie & spi_cke & ~|spi_cnt;
-assign bfi_wen = bfi_wer & bfi_weg;
-
 ////////////////////////////////////////////////////////////////////////////////
-// spi cycle timing                                                           //
+// serializer/deserializer instance                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-// transfer length counter
-always @(posedge clk_spi, posedge rst_spi)
-if (rst_spi) begin
-  spi_cke <= 1'b0;
-  spi_cnt <= 3'd0;
-end else begin
-  if (bfo_ren) begin
-    spi_cke <= bfo_rdt [4*SDW-1+0+:1];
-    spi_cnt <= bfo_rdt [4*SDW-1+1+:3];
-  end else begin
-    if (bfo_reg)  spi_cke <= 1'b0;
-    if (spi_cke)  spi_cnt <= spi_cnt - 3'd1;
-  end
-end
+module sockit_spi #(
+  parameter SSW = 8,  // slave select width
+  parameter SDW = 8   // serial data register width
+)(
+  // system signals
+  .clk      (clk_spi),
+  .rst      (rst_spi),
+  // output buffer
+  .bfo_req  (bfo_req),
+  .bfo_dat  (bfo_dat),
+  .bfo_ctl  (bfo_ctl),
+  .bfo_grt  (bfo_grt),
+  // input buffer
+  .bfi_wdt  (bfi_wdt),
+  .bfi_ctl  (bfi_ctl),
+  .bfi_req  (bfi_req),
+  .bfi_grt  (bfi_grt),
 
-// IO control registers
-always @(posedge clk_spi, posedge rst_spi)
-if (rst_spi) begin
-  spi_sie <=      1'b0;
-  spi_soe <=      4'h0;
-  spi_sce <=      1'b0;
-  spi_sco <=      1'b0;
-  spi_sse <= {SSW{1'b0}};
-  spi_sso <= {SSW{1'b0}};
-end else if (bfo_ren) begin
-  spi_sie <=      bfo_rdt [4*SDW-1+  4 +:1];
-  spi_soe <=      bfo_rdt [4*SDW-1+  5 +:4];
-  spi_sce <=      bfo_rdt [4*SDW-1+  9 +:1];
-  spi_sco <=      bfo_rdt [4*SDW-1+ 10 +:1];
-  spi_sse <= {SSW{bfo_rdt [4*SDW-1+ 11 +:1]}};
-  spi_sso <=      bfo_rdt [4*SDW-1+ 12 +:SSW];
-end
-
-assign spi_dto_3 = bfo_rdt [SDW*3+:SDW];
-assign spi_dto_2 = bfo_rdt [SDW*2+:SDW];
-assign spi_dto_1 = bfo_rdt [SDW*1+:SDW];
-assign spi_dto_0 = bfo_rdt [SDW*0+:SDW];
-
-assign bfi_dat = {spi_new,
-                  spi_dti_3,
-                  spi_dti_2,
-                  spi_dti_1,
-                  spi_dti_0};
-
-////////////////////////////////////////////////////////////////////////////////
-// slave select, clock, data (input, output, enable)                          //
-////////////////////////////////////////////////////////////////////////////////
-
-// serial clock input
-assign spi_cli =  spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for input registers
-assign spi_clo = ~spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for output registers
-
-// serial clock output
-assign spi_sclk_o = cfg_pol ^ ~(~spi_cke | clk_spi);
-assign spi_sclk_e = cfg_coe;
-
-
-// slave select input
-assign spi_rsi = spi_ss_i;  // reset for output registers
-
-// slave select output, output enable
-assign spi_ss_o = spi_sso;
-assign spi_ss_e = spi_sse;
-
-
-// data input
-always @ (posedge spi_cli)
-begin
-  spi_sdi [3] <= spi_dti_3;
-  spi_sdi [2] <= spi_dti_2;
-  spi_sdi [1] <= spi_dti_1;
-  spi_sdi [0] <= spi_dti_0;
-end
-
-assign spi_dti_3 = {spi_sdi [3], spi_ss_i [3]};
-assign spi_dti_2 = {spi_sdi [2], spi_ss_i [2]};
-assign spi_dti_1 = {spi_sdi [1], spi_ss_i [1]};
-assign spi_dti_0 = {spi_sdi [0], spi_ss_i [0]};
-
-// data output
-always @ (posedge spi_clo)
-if (bfo_ren) begin
-  spi_sdo [3] <=  spi_dto_3;
-  spi_sdo [2] <=  spi_dto_2;
-  spi_sdo [1] <=  spi_dto_1;
-  spi_sdo [0] <=  spi_dto_0;
-end else begin
-  spi_sdo [3] <= {spi_sdo [3] [SDW-1:0], 1'bx};
-  spi_sdo [2] <= {spi_sdo [2] [SDW-1:0], 1'bx};
-  spi_sdo [1] <= {spi_sdo [1] [SDW-1:0], 1'bx};
-  spi_sdo [0] <= {spi_sdo [0] [SDW-1:0], 1'bx};
-end
-
-assign spi_sio_o [3] = spi_sdo [3] [SDW-1];
-assign spi_sio_o [2] = spi_sdo [2] [SDW-1];
-assign spi_sio_o [1] = spi_sdo [1] [SDW-1];
-assign spi_sio_o [0] = spi_sdo [0] [SDW-1];
-
-// data output enable
-assign spi_sio_e = spi_soe;
+  // serial clock
+  .spi_sclk_i  (spi_sclk_i),
+  .spi_sclk_o  (spi_sclk_o),
+  .spi_sclk_e  (spi_sclk_e),
+  // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
+  .spi_sio_i   (spi_sio_i),
+  .spi_sio_o   (spi_sio_o),
+  .spi_sio_e   (spi_sio_e),
+  // active low slave select signal
+  .spi_ss_i    (spi_ss_i),
+  .spi_ss_o    (spi_ss_o),
+  .spi_ss_e    (spi_ss_e)
+);
 
 endmodule

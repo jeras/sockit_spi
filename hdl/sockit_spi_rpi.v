@@ -2,9 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
-//  DMA (direct memory access)                                                //
-//                                                                            //
-//  Copyright (C) 2011  Iztok Jeras                                           //
+//  Copyright (C) 2008-2011  Iztok Jeras                                      //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -23,37 +21,72 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-module sockit_spi_dma #(
-  parameter DW = 1'b1   // 
+module sockit_spi_rpi #(
+  parameter SDW =     8,  // serial data register width
+  parameter BDW = 4*SDW   // buffer data register width
 )(
   // system signals
   input  wire           clk,      // clock
   input  wire           rst,      // reset
-  // bus interface
-  input  wire           reg_wen,     // write enable
-  input  wire           reg_ren,     // read enable
-  input  wire     [1:0] reg_adr,     // address
-  input  wire    [31:0] reg_wdt,     // write data
-  output wire    [31:0] reg_rdt,     // read data
-  output wire           reg_wrq,     // wait request
-  output wire           reg_irq,     // interrupt request
-  // configuration
-  // command output
-  output wire           cmo_req,     // request
-  output wire    [31:0] cmo_dat,     // data
-  output wire    [16:0] cmo_ctl,     // control
-  input  wire           cmo_grt,     // grant
-  // command input
-  output wire           cmi_req,     // request
-  input  wire    [31:0] cmi_dat,     // data
-  input  wire     [0:0] cmi_ctl,     // control
-  input  wire           cmi_grt      // grant
+  // command
+  output wire           cmd_req,  // request
+  input  wire    [31:0] cmd_dat,  // data
+  input  wire     [0:0] cmd_ctl,  // control
+  input  wire           cmd_grt,  // grant
+  // buffer
+  output wire           buf_req,  // request
+  input  wire    [31:0] buf_dat,  // data
+  input  wire     [0:0] buf_ctl,  // control
+  input  wire           buf_grt   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
+reg            cyi_new;
 
+reg     [31:0] cyi_run;
+reg     [31:0] cyi_len;
+reg     [31:0] cyi_dat;
+
+wire           cmi_trn;
+wire           bfi_trn;
+
+////////////////////////////////////////////////////////////////////////////////
+// repackaging function                                                       //
+////////////////////////////////////////////////////////////////////////////////
+
+function [4*SDW-1:0] rpk (
+  input  [4*SDW-1:0] dat,
+  input        [1:0] mod
+);
+  integer i;
+begin
+  for (i=0; i<SDW; i=i+1) begin
+    case (mod)
+      2'd0 : begin  // 3-wire
+        rpk [32-1-1*i] = dat [1*SDW-1-i];
+      end
+      2'd1 : begin  // spi
+        rpk [32-1-1*i] = dat [2*SDW-1-i];
+      end
+      2'd2 : begin  // dual
+        rpk [32-1-2*i] = dat [4*SDW-1-i];
+        rpk [32-2-2*i] = dat [3*SDW-1-i];
+      end
+      2'd3 : begin  // quad
+        rpk [32-1-4*i] = dat [4*SDW-1-i];
+        rpk [32-2-4*i] = dat [3*SDW-1-i];
+        rpk [32-3-4*i] = dat [2*SDW-1-i];
+        rpk [32-4-4*i] = dat [1*SDW-1-i];
+      end
+    endcase
+  end
+end
+endfunction
+
+assign cmd_trn = cmd_req & cmd_grt;
+assign buf_trn = buf_req & buf_grt;
 
 endmodule

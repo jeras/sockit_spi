@@ -31,22 +31,25 @@ module sockit_spi_xip #(
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // input bus (XIP requests)
+  input  wire           xip_wen,  // write enable
   input  wire           xip_ren,  // read enable
   input  wire [XAW-1:0] xip_adr,  // address
+  output wire    [31:0] xip_wdt,  // write data
   output wire    [31:0] xip_rdt,  // read data
   output wire           xip_wrq,  // wait request
   output wire           xip_err,  // error interrupt
-  // output bus (interface to SPI master registers)
-  output wire           fsm_wen,  // write enable
-  output wire           fsm_ren,  // read  enable
-  output reg            fsm_adr,  // address
-  output reg     [31:0] fsm_wdt,  // write data
-  input  wire    [31:0] fsm_rdt,  // read data
-  input  wire           fsm_wrq,  // wait request
-  // SPI master status
-  input  wire           sts_cyc,  // read control/status
   // configuration
-  input  wire [XAW-1:8] adr_off   // address offset
+//  input  wire [XAW-1:8] adr_off,   // address offset
+  // command output
+  output wire           cmo_req,     // request
+  output wire    [31:0] cmo_dat,     // data
+  output wire    [16:0] cmo_ctl,     // control
+  input  wire           cmo_grt,     // grant
+  // command input
+  output wire           cmi_req,     // request
+  input  wire    [31:0] cmi_dat,     // data
+  input  wire     [0:0] cmi_ctl,     // control
+  input  wire           cmi_grt      // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -69,10 +72,11 @@ localparam DAT_CTL = 7'b 0_1_1_1_100;  // data control (start cycle)
 localparam DAT_STS = 7'b 0_1_1_1_101;  // data read (read buffer)
 localparam DAT_RDT = 7'b 0_0_0_0_11?;  // data read (read buffer)
 
+/*
 // XIP state machine status
 reg      [6:0] fsm_sts;  // current state
 reg      [6:0] fsm_nxt;  // next state
-
+*/
 // address adder
 // reg  [XAW-1:0] adr_reg;  // input address register
 // wire [XAW-1:0] adr_sum;  // input address + offset address
@@ -80,7 +84,7 @@ reg      [6:0] fsm_nxt;  // next state
 ////////////////////////////////////////////////////////////////////////////////
 // state machine                                                              //
 ////////////////////////////////////////////////////////////////////////////////
-
+/*
 always @ (posedge clk, posedge rst)
 if (rst) fsm_sts <= IDL_RST;
 else     fsm_sts <= fsm_nxt;
@@ -137,5 +141,5 @@ assign fsm_wen = fsm_sts[4];
 assign xip_rdt = fsm_rdt;
 assign xip_wrq = fsm_sts[5];
 assign xip_err = fsm_sts[6];
-
+*/
 endmodule

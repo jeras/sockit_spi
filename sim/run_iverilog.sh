@@ -13,9 +13,13 @@ xxd -ps -c 1 flash.bin >> flash.hex
 iverilog -o spi.out \
 ../hdl/spi_tb.v \
 ../hdl/sockit_spi.v \
+../hdl/sockit_spi_reg.v \
 ../hdl/sockit_spi_xip.v \
-../hdl/sockit_spi_cdc.v \
 ../hdl/sockit_spi_dma.v \
+../hdl/sockit_spi_rpo.v \
+../hdl/sockit_spi_rpi.v \
+../hdl/sockit_spi_cdc.v \
+../hdl/sockit_spi_ser.v \
 ../hdl/spi_slave_model.v \
 ../hdl/spi_flash_model.v
 #-I ../dev/NU_N25Q128A230B_VG14/ \
