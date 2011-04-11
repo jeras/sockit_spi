@@ -24,8 +24,15 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_xip #(
-  parameter XAW = 24,             // bus address width
-  parameter NOP = 32'h00000000    // no operation instruction (returned on error)
+  // configuration
+  parameter NOP     = 32'h00000000,  // no operation instruction (returned on error)
+  // port widths
+  parameter XAW     =           24,  // bus address width
+  parameter SSW     =            8,  // slave select width
+  parameter SDW     =            8,  // serial data register width
+  parameter CDW     =        4*SDW,  // command data width
+  parameter CCO     =    7+SSW+1+5,  // command control output width
+  parameter CCI     =            1   // command control  input width
 )(
   // system signals
   input  wire           clk,      // clock
@@ -41,15 +48,15 @@ module sockit_spi_xip #(
   // configuration
 //  input  wire [XAW-1:8] adr_off,   // address offset
   // command output
-  output wire           cmo_req,     // request
-  output wire    [31:0] cmo_dat,     // data
-  output wire    [16:0] cmo_ctl,     // control
-  input  wire           cmo_grt,     // grant
+  output wire           cmo_req,  // request
+  output wire [CCO-1:0] cmo_ctl,  // control
+  output wire [CDW-1:0] cmo_dat,  // data
+  input  wire           cmo_grt,  // grant
   // command input
-  output wire           cmi_req,     // request
-  input  wire    [31:0] cmi_dat,     // data
-  input  wire     [0:0] cmi_ctl,     // control
-  input  wire           cmi_grt      // grant
+  output wire           cmi_req,  // request
+  input  wire [CCI-1:0] cmi_ctl,  // control
+  input  wire [CDW-1:0] cmi_dat,  // data
+  input  wire           cmi_grt   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////

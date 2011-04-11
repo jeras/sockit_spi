@@ -37,8 +37,10 @@ module sockit_spi #(
   parameter XIP_MSK = 32'h00000001,  // XIP configuration register implentation mask
   parameter NOP     = 32'h00000000,  // no operation instuction for the given CPU
   parameter XAW     =           24,  // XIP address width
+  parameter DAW     =           32,  // DMA address width
   parameter SSW     =            8,  // slave select width
   parameter SDW     =            8,  // serial data register width
+  parameter SDL     =  $clog2(SDW),  // serial data register width logarithm
   parameter CDC     =         1'b0   // implement clock domain crossing
 )(
   // system signals (used by the CPU interface)
@@ -46,13 +48,7 @@ module sockit_spi #(
   input  wire           rst_cpu,     // reset for CPU interface
   input  wire           clk_spi,     // clock for SPI IO
   input  wire           rst_spi,     // reset for SPI IO
-  // XIP interface bus
-  input  wire           xip_ren,     // read enable
-  input  wire [XAW-1:0] xip_adr,     // address
-  output wire    [31:0] xip_rdt,     // read data
-  output wire           xip_wrq,     // wait request
-  output wire           xip_err,     // error interrupt
-  // registers interface bus
+  // registers interface bus (slave)
   input  wire           reg_wen,     // write enable
   input  wire           reg_ren,     // read enable
   input  wire     [1:0] reg_adr,     // address
@@ -60,6 +56,21 @@ module sockit_spi #(
   output wire    [31:0] reg_rdt,     // read data
   output wire           reg_wrq,     // wait request
   output wire           reg_irq,     // interrupt request
+  // XIP interface bus (slave)
+  input  wire           xip_wen,     // write enable
+  input  wire           xip_ren,     // read enable
+  input  wire [XAW-1:0] xip_adr,     // address
+  input  wire    [31:0] xip_wdt,     // write data
+  output wire    [31:0] xip_rdt,     // read data
+  output wire           xip_wrq,     // wait request
+  output wire           xip_err,     // error interrupt
+  // DMA interface bus (master)
+  output wire           dma_wen,     // write enable
+  output wire           dma_ren,     // read enable
+  output wire [DAW-1:0] dma_adr,     // address
+  output wire    [31:0] dma_wdt,     // write data
+  input  wire    [31:0] dma_rdt,     // read data
+  input  wire           dma_wrq,     // wait request
 
   // SPI signals (at a higher level should be connected to tristate IO pads)
   // serial clock
@@ -77,33 +88,55 @@ module sockit_spi #(
 );
 
 ////////////////////////////////////////////////////////////////////////////////
-// local signals                                                              //
+// local parameters and signals                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-localparam BOW = 4*SDW + SSW + 11;
-localparam BIW = 4*SDW + 1;
+// command parameters
+localparam CCO = 7+SSW+1+5;    // control output width
+localparam CCI = 1;            // control  input width
+localparam CDW = 32;           // data width
+
+// buffer parameters
+localparam BCO = 7+SSW+1+SDL;  // control output width
+localparam BCI = 2;            // control  input width
+localparam BDW = 4*SDW;        // data width
 
 // command output
 wire           reg_cmo_req, xip_cmo_req, dma_cmo_req;
-wire    [31:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat;
-wire    [16:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl;
+wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl;
+wire [CDW-1:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat;
 wire           reg_cmo_grt, xip_cmo_grt, dma_cmo_grt;
 // command input
 wire           reg_cmi_req, xip_cmi_req, dma_cmi_req;
-wire    [31:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat;
-wire     [0:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl;
+wire [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl;
+wire [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat;
 wire           reg_cmi_grt, xip_cmi_grt, dma_cmi_grt;
+
+// buffer output
+wire           bow_req, bor_req;
+wire [BCO-1:0] bow_ctl, bor_ctl;
+wire [BDW-1:0] bow_dat, bor_dat;
+wire           bow_grt, bor_grt;
+// buffer input
+wire           bir_req, biw_req;
+wire [BCI-1:0] bir_ctl, biw_ctl;
+wire [BDW-1:0] bir_dat, biw_dat;
+wire           bir_grt, biw_grt;
 
 ////////////////////////////////////////////////////////////////////////////////
 // REG instance                                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_reg #(
+  // configuration
   .CFG_RST  (CFG_RST),
   .CFG_MSK  (CFG_MSK),
   .XIP_RST  (XIP_RST),
   .XIP_MSK  (XIP_MSK),
-  .XAW      (XAW    )
+  // port widths
+  .XAW      (XAW    ),
+  .SSW      (SSW    ),
+  .SDW      (SDW    )
 ) rgs (
   // system signals
   .clk      (clk_cpu),  // clock
@@ -119,13 +152,13 @@ sockit_spi_reg #(
   // configuration
   // command output
   .cmo_req  (reg_cmo_req),
-  .cmo_dat  (reg_cmo_dat),
   .cmo_ctl  (reg_cmo_ctl),
+  .cmo_dat  (reg_cmo_dat),
   .cmo_grt  (reg_cmo_grt),
   // command input
   .cmi_req  (reg_cmi_req),
-  .cmi_dat  (reg_cmi_dat),
   .cmi_ctl  (reg_cmi_ctl),
+  .cmi_dat  (reg_cmi_dat),
   .cmi_grt  (reg_cmi_grt)
 );
 
@@ -134,8 +167,12 @@ sockit_spi_reg #(
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_xip #(
-  .XAW      (XAW),      // bus address width
-  .NOP      (NOP)       // no operation instruction (returned on error)
+  // configuration
+  .NOP      (NOP    ),
+  // port widths
+  .XAW      (XAW    ),
+  .SSW      (SSW    ),
+  .SDW      (SDW    )
 ) xip (
   // system signals
   .clk      (clk_cpu),  // clock
@@ -151,13 +188,13 @@ sockit_spi_xip #(
   // configuration
   // command output
   .cmo_req  (xip_cmo_req),
-  .cmo_dat  (xip_cmo_dat),
   .cmo_ctl  (xip_cmo_ctl),
+  .cmo_dat  (xip_cmo_dat),
   .cmo_grt  (xip_cmo_grt),
   // command input
   .cmi_req  (xip_cmi_req),
-  .cmi_dat  (xip_cmi_dat),
   .cmi_ctl  (xip_cmi_ctl),
+  .cmi_dat  (xip_cmi_dat),
   .cmi_grt  (xip_cmi_grt)
 );
 
@@ -166,7 +203,11 @@ sockit_spi_xip #(
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_dma #(
-  .DAW      (XAW)    // TODO
+  // configuration
+  // port widths
+  .DAW      (DAW    ),
+  .SSW      (SSW    ),
+  .SDW      (SDW    )
 ) dma (
   // system signals
   .clk      (clk_cpu),
@@ -178,17 +219,16 @@ sockit_spi_dma #(
   .dma_wdt  (dma_wdt),
   .dma_rdt  (dma_rdt),
   .dma_wrq  (dma_wrq),
-  .dma_err  (dma_err),
   // configuration
   // command output
   .cmo_req  (dma_cmo_req),
-  .cmo_dat  (dma_cmo_dat),
   .cmo_ctl  (dma_cmo_ctl),
+  .cmo_dat  (dma_cmo_dat),
   .cmo_grt  (dma_cmo_grt),
   // command input
   .cmi_req  (dma_cmi_req),
-  .cmi_dat  (dma_cmi_dat),
   .cmi_ctl  (dma_cmi_ctl),
+  .cmi_dat  (dma_cmi_dat),
   .cmi_grt  (dma_cmi_grt)
 );
 
@@ -198,14 +238,15 @@ sockit_spi_dma #(
 
 //reg [1:0] master;
 
-
 // command output arbiter
 assign     cmo_req = reg_cmo_req;
+assign     cmo_ctl = reg_cmo_ctl;
 assign     cmo_dat = reg_cmo_dat;
 assign reg_cmo_grt =     cmo_grt & 1'b1;
 
 // command input arbiter
 assign     cmi_req = reg_cmo_req;
+assign     cmi_ctl = reg_cmo_ctl;
 assign     cmi_dat = reg_cmo_dat;
 assign reg_cmi_grt =     cmo_grt & 1'b1;
 
@@ -213,37 +254,24 @@ assign reg_cmi_grt =     cmo_grt & 1'b1;
 // repack                                                                     //
 ////////////////////////////////////////////////////////////////////////////////
 
-wire           bfo_wer;
-wire           bfo_weg;
-wire [BOW-1:0] bfo_wdt;
-wire [BOW-1:0] bfo_rdt;
-wire           bfo_rer;
-wire           bfo_reg;
-
-wire           bfi_rer;
-wire           bfi_reg;
-wire [BIW-1:0] bfi_rdt;
-wire [BIW-1:0] bfi_wdt;
-wire           bfi_wer;
-wire           bfi_weg;
-
 sockit_spi_rpo #(
-  .SDW  (SDW)
+  .SSW      (SSW),
+  .SDW      (SDW)
 ) rpo (
   // system signals
   .clk      (clk_cpu),
   .rst      (rst_cpu),
-  // configuration
+  // configuration  // TODO
   // command output
   .cmd_req  (cmo_req),
-  .cmd_dat  (cmo_dat),
   .cmd_ctl  (cmo_ctl),
+  .cmd_dat  (cmo_dat),
   .cmd_grt  (cmo_grt),
   // buffer output
-  .buf_req  (bfo_wer),
-  .buf_dat  (bfo_wdt[      4*SDW-1:0]),
-  .buf_ctl  (bfo_wdt[BOW-1:4*SDW    ]),
-  .buf_grt  (bfo_grt)
+  .buf_req  (bow_req),
+  .buf_ctl  (bow_ctl),
+  .buf_dat  (bow_dat),
+  .buf_grt  (bow_grt)
 );
 
 sockit_spi_rpi #(
@@ -252,16 +280,17 @@ sockit_spi_rpi #(
   // system signals
   .clk      (clk_cpu),
   .rst      (rst_cpu),
+  // configuration  // TODO
   // command input
-  .cmi_req  (dma_cmi_req),
-  .cmi_dat  (dma_cmi_dat),
-  .cmi_ctl  (dma_cmi_ctl),
-  .cmi_grt  (dma_cmi_grt),
+  .cmd_req  (cmi_req),
+  .cmd_ctl  (cmi_ctl),
+  .cmd_dat  (cmi_dat),
+  .cmd_grt  (cmi_grt),
   // buffer output
-  .bfo_req  (bfo_wer),
-  .bfo_dat  (bfo_wdt[      4*SDW-1:0]),
-  .bfo_ctl  (bfo_wdt[BOW-1:4*SDW    ]),
-  .bfo_grt  (bfo_grt)
+  .buf_req  (bir_req),
+  .buf_ctl  (bir_ctl),
+  .buf_dat  (bir_dat),
+  .buf_grt  (bir_grt)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -272,40 +301,44 @@ generate if (CDC) begin : cdc
 
   // data output
   sockit_spi_cdc #(
-    .CW       ( 1),
-    .DW       (BOW)
+    .CW       (      1),
+    .DW       (BDW+BCO)
   ) cdc_bfo (
     // input port
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
-    .cdi_dat  (bus_wdt),
-    .cdi_pli  (bus_wed),
-    .cdi_plo  (pod_sts),
+    .cdi_pli  (bow_req),
+    .cdi_dat ({bow_ctl,
+               bow_dat}),
+    .cdi_plo  (bow_grt),
     // output port
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
-    .cdo_pli  (bfo_reg),
-    .cdo_plo  (bfo_rer),
-    .cdo_dat  (bfo_rdt)
+    .cdo_pli  (bor_req),
+    .cdo_dat ({bor_ctl,
+               bor_dat}),
+    .cdo_plo  (bor_grt)
   );
 
   // data input
   sockit_spi_cdc #(
-    .CW       ( 1),
-    .DW       (BIW)
+    .CW       (      1),
+    .DW       (BDW+BCI)
   ) cdc_bfi (
     // input port
     .cdi_clk  (clk_spi),
     .cdi_rst  (rst_spi),
-    .cdi_dat  (bfi_wdt),
-    .cdi_pli  (bfi_wer),
-    .cdi_plo  (bfi_weg),
+    .cdi_pli  (biw_req),
+    .cdi_dat ({biw_ctl,
+               biw_dat}),
+    .cdi_plo  (biw_grt),
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
-    .cdo_pli  (bus_red),
-    .cdo_plo  (pid_sts),
-    .cdo_dat  (bus_rdt)
+    .cdo_pli  (bir_grt),
+    .cdo_dat ({bir_ctl,
+               bir_dat}),
+    .cdo_plo  (bir_req)
   );
 
 end else begin : syn

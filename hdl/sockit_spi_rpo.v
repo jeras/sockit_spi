@@ -22,6 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_rpo #(
+  parameter SSW =     8,  // serial data register width
   parameter SDW =     8,  // serial data register width
   parameter BDW = 4*SDW   // buffer data register width
 )(

@@ -26,30 +26,35 @@ module sockit_spi_reg #(
   parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
   parameter XIP_RST = 32'h00000000,  // XIP configuration register reset value
   parameter XIP_MSK = 32'h00000001,  // XIP configuration register implentation mask
-  parameter XAW     =           24   // XIP address width
+  parameter XAW     =           24,  // XIP address width
+  parameter SSW     =            8,  // slave select width
+  parameter SDW     =            8,  // serial data register width
+  parameter CDW     =        4*SDW,  // command data width
+  parameter CCO     =    7+SSW+1+5,  // command control output width
+  parameter CCI     =            1   // command control  input width
 )(
   // system signals (used by the CPU interface)
-  input  wire           clk,         // clock for CPU interface
-  input  wire           rst,         // reset for CPU interface
+  input  wire           clk,      // clock for CPU interface
+  input  wire           rst,      // reset for CPU interface
   // bus interface
-  input  wire           reg_wen,     // write enable
-  input  wire           reg_ren,     // read enable
-  input  wire     [1:0] reg_adr,     // address
-  input  wire    [31:0] reg_wdt,     // write data
-  output wire    [31:0] reg_rdt,     // read data
-  output wire           reg_wrq,     // wait request
-  output wire           reg_irq,     // interrupt request
+  input  wire           reg_wen,  // write enable
+  input  wire           reg_ren,  // read enable
+  input  wire     [1:0] reg_adr,  // address
+  input  wire    [31:0] reg_wdt,  // write data
+  output wire    [31:0] reg_rdt,  // read data
+  output wire           reg_wrq,  // wait request
+  output wire           reg_irq,  // interrupt request
   // configuration
   // command output
-  output wire           cmo_req,     // request
-  output wire    [31:0] cmo_dat,     // data
-  output wire    [16:0] cmo_ctl,     // control
-  input  wire           cmo_grt,     // grant
+  output wire           cmo_req,  // request
+  output wire [CCO-1:0] cmo_ctl,  // control
+  output wire [CDW-1:0] cmo_dat,  // data
+  input  wire           cmo_grt,  // grant
   // command input
-  output wire           cmi_req,     // request
-  input  wire    [31:0] cmi_dat,     // data
-  input  wire     [0:0] cmi_ctl,     // control
-  input  wire           cmi_grt      // grant
+  output wire           cmi_req,  // request
+  input  wire [CCI-1:0] cmi_ctl,  // control
+  input  wire [CDW-1:0] cmi_dat,  // data
+  input  wire           cmi_grt   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -97,8 +102,7 @@ end else if (reg_wen & (reg_adr == 2'd0) & ~reg_wrq) begin
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= reg_wdt [ 3: 0];
 end
 
-// XIP configuration (read access)
-assign reg_xip = xip_reg;
+reg [31:0] xip_reg;
 
 // XIP configuration
 always @(posedge clk, posedge rst)
@@ -107,5 +111,37 @@ if (rst) begin
 end else if (reg_wen & (reg_adr == 2'd1) & ~reg_wrq) begin
   xip_reg <= reg_wdt;
 end
+
+////////////////////////////////////////////////////////////////////////////////
+// data register                                                              //
+////////////////////////////////////////////////////////////////////////////////
+
+wire        cmo_trn;
+wire        cmi_trn;
+
+reg [31:0] cmd_wdt;
+reg [31:0] cmd_rdt;
+
+// output data
+always @(posedge clk)
+if (reg_wen & (reg_adr == 2'd1) & ~reg_wrq)  cmd_wdt <= reg_wdt;
+
+assign cmo_trn = cmo_req & cmo_grt;
+assign cmi_trn = cmi_req & cmi_grt;
+
+// input data
+always @(posedge clk)
+if (cmi_trn)  cmd_rdt <= cmi_dat;
+
+////////////////////////////////////////////////////////////////////////////////
+// control register                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+  // command output
+assign cmo_req = 1'b0;
+assign cmo_dat = 1'b0;
+assign cmo_ctl = 1'b0;
+// command input
+assign cmi_req = 1'b0;
 
 endmodule

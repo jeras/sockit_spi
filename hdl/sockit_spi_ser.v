@@ -22,32 +22,36 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_ser #(
-  parameter SSW = 8,  // slave select width
-  parameter SDW = 8   // serial data register width
+  parameter SSW =            8,  // slave select width
+  parameter SDW =            8,  // serial data register width
+  parameter SDL =            3,  // serial data register width logarithm
+  parameter BDW =        4*SDW,  // buffer data width
+  parameter BCO =  7+SSW+1+SDL,  // buffer control output width
+  parameter BCI =            2   // buffer control  input width
 )(
   // system signals
-  input  wire           clk,         // clock
-  input  wire           rst,         // reset
+  input  wire           clk,      // clock
+  input  wire           rst,      // reset
   // output buffer
-  input  wire           bfo_req,
-  input  wire [BOW-1:0] bfo_dat,
-  input  wire    [16:0] bfo_ctl,
-  output wire           bfo_grt,
+  input  wire           bfo_req,  // request
+  input  wire [BCO-1:0] bfo_ctl,  // control
+  input  wire [BDW-1:0] bfo_dat,  // data
+  output wire           bfo_grt,  // grant
   // input buffer
-  output wire [BIW-1:0] bfi_wdt,
-  output wire     [0:0] bfi_ctl,
-  output wire           bfi_req,
-  output wire           bfi_grt,
+  output wire           bfi_req,  // request
+  output wire [BCI-1:0] bfi_ctl,  // control
+  output wire [BDW-1:0] bfi_dat,  // data
+  input  wire           bfi_grt,  // grant
 
-  // serial clock
+  // SCLK (serial clock)
   input  wire           spi_sclk_i,  // input (clock loopback)
   output wire           spi_sclk_o,  // output
   output wire           spi_sclk_e,  // output enable
-  // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
+  // SIO  (serial input output) {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
   input  wire     [3:0] spi_sio_i,   // input
   output wire     [3:0] spi_sio_o,   // output
   output wire     [3:0] spi_sio_e,   // output enable
-  // active low slave select signal
+  // SS_N (slave select - active low signal)
   input  wire [SSW-1:0] spi_ss_i,    // input  (requires inverter at the pad)
   output wire [SSW-1:0] spi_ss_o,    // output (requires inverter at the pad)
   output wire [SSW-1:0] spi_ss_e     // output enable
@@ -57,85 +61,85 @@ module sockit_spi_ser #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-reg      [2:0] spi_cnt;  // clock counter
-reg            spi_cke;  // clock enable
+// buffer transfers
+wire           bfi_trn;
+wire           bfo_trn;
 
-reg            spi_sie;
-reg      [3:0] spi_soe;
-reg            spi_sce;
-reg            spi_sco;
-reg  [SSW-1:0] spi_sse;
-reg  [SSW-1:0] spi_sso;
+// cycle timing
+reg  [SDL-1:0] cyc_cnt;  // clock counter
+reg            cyc_cke;  // clock enable
 
+// output control signals
+reg  [SSW-1:0] cyc_sso;  // slave select outputs
+reg  [SSW-1:0] cyc_sse;  // slave select output enable
+reg      [3:0] cyc_oen;  // output enable
+
+// input control signals
+reg            cyc_ien;  // input enable
+reg            cyc_lst;  // input last (signal for synchronization purposes)
+reg            cyc_new;  // new (first) data on input (used in slave mode)
+
+// output data signals
 reg  [SDW-1:0] spi_sdo [0:3];
 wire [SDW-1:0] spi_dto_3;
 wire [SDW-1:0] spi_dto_2;
 wire [SDW-1:0] spi_dto_1;
 wire [SDW-1:0] spi_dto_0;
 
+// input data signals
 reg  [SDW-1:0] spi_sdi [0:3];
 wire [SDW-1:0] spi_dti_3;
 wire [SDW-1:0] spi_dti_2;
 wire [SDW-1:0] spi_dti_1;
 wire [SDW-1:0] spi_dti_0;
 
-wire           spi_new;
-
 ////////////////////////////////////////////////////////////////////////////////
 // spi cycle timing                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-// flow control for data output
-assign bfo_reg = ~|spi_cnt;
-assign bfo_ren = bfo_rer & bfo_reg;
+// flow control for buffer output
+assign bfo_grt = ~|cyc_cnt;
+assign bfo_trn = bfo_req & bfo_grt;
 
-// flow control for data input
-assign bfi_weg = spi_sie & spi_cke & ~|spi_cnt;
-assign bfi_wen = bfi_wer & bfi_weg;
+// flow control for buffer input
+assign bfi_req = spi_sie & cyc_cke & ~|cyc_cnt;
+assign bfi_trn = bfi_req & bfi_grt;
 
 // transfer length counter
 always @(posedge clk_spi, posedge rst_spi)
 if (rst_spi) begin
-  spi_cke <= 1'b0;
-  spi_cnt <= 3'd0;
+  cyc_cke <= 1'b0;
+  cyc_cnt <=  'd0;
 end else begin
-  if (bfo_ren) begin
-    spi_cke <= bfo_dat [4*SDW-1+0+:1];
-    spi_cnt <= bfo_dat [4*SDW-1+1+:3];
+  if (bfo_trn) begin
+    cyc_cke <= bfo_ctl [0+:1];
+    cyc_cnt <= bfo_ctl [1+:SDL];
   end else begin
-    if (bfo_reg)  spi_cke <= 1'b0;
-    if (spi_cke)  spi_cnt <= spi_cnt - 3'd1;
+    if (bfo_grt)  spi_cke <= 1'b0;
+    if (spi_cke)  spi_cnt <= spi_cnt - 'd1;
   end
 end
 
 // IO control registers
 always @(posedge clk_spi, posedge rst_spi)
 if (rst_spi) begin
-  spi_sie <=      1'b0;
-  spi_soe <=      4'h0;
-  spi_sce <=      1'b0;
-  spi_sco <=      1'b0;
-  spi_sse <= {SSW{1'b0}};
-  spi_sso <= {SSW{1'b0}};
-end else if (bfo_ren) begin
-  spi_sie <=      bfo_dat [4*SDW-1+  4 +:1];
-  spi_soe <=      bfo_dat [4*SDW-1+  5 +:4];
-  spi_sce <=      bfo_dat [4*SDW-1+  9 +:1];
-  spi_sco <=      bfo_dat [4*SDW-1+ 10 +:1];
-  spi_sse <= {SSW{bfo_dat [4*SDW-1+ 11 +:1]}};
-  spi_sso <=      bfo_dat [4*SDW-1+ 12 +:SSW];
+  cyc_sso <= {SSW{1'b0}};
+  cyc_sse <= {SSW{1'b0}};
+  cyc_oen <=      4'h0;
+  cyc_ien <=      1'b0;
+  cyc_lst <=      1'b0;
+end else if (bfo_trn) begin
+  cyc_sso <=      bfo_ctl [      1+SDL+:SSW];
+  cyc_sse <= {SSW{bfo_ctl [  SSW+1+SDL+:1]}};
+  cyc_oen <=      bfo_ctl [1+SSW+1+SDL+:4];
+  cyc_ien <=      bfo_ctl [2+SSW+1+SDL+:1];
+  cyc_lst <=      bfo_ctl [3+SSW+1+SDL+:1];
 end
 
-assign spi_dto_3 = bfo_dat [SDW*3+:SDW];
-assign spi_dto_2 = bfo_dat [SDW*2+:SDW];
-assign spi_dto_1 = bfo_dat [SDW*1+:SDW];
-assign spi_dto_0 = bfo_dat [SDW*0+:SDW];
+assign {spi_dto_3, spi_dto_2, spi_dto_1, spi_dto_0} = bfo_dat;
 
-assign bfi_dat = {spi_new,
-                  spi_dti_3,
-                  spi_dti_2,
-                  spi_dti_1,
-                  spi_dti_0};
+assign bfi_ctl = {cyc_lst, cyc_new};
+assign bfi_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
 
 ////////////////////////////////////////////////////////////////////////////////
 // slave select, clock, data (input, output, enable)                          //
