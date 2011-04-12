@@ -92,25 +92,25 @@ module sockit_spi #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // command parameters
-localparam CCO = 7+SSW+1+5;    // control output width
-localparam CCI = 1;            // control  input width
-localparam CDW = 32;           // data width
+localparam CCO =  4+SSW+1+5+2;  // control output width
+localparam CCI =            1;  // control  input width
+localparam CDW =           32;  // data width
 
 // buffer parameters
-localparam BCO = 7+SSW+1+SDL;  // control output width
-localparam BCI = 2;            // control  input width
-localparam BDW = 4*SDW;        // data width
+localparam BCO =  7+SSW+1+SDL;  // control output width
+localparam BCI =            2;  // control  input width
+localparam BDW =        4*SDW;  // data width
 
 // command output
-wire           reg_cmo_req, xip_cmo_req, dma_cmo_req;
-wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl;
-wire [CDW-1:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat;
-wire           reg_cmo_grt, xip_cmo_grt, dma_cmo_grt;
+wire           reg_cmo_req, xip_cmo_req, dma_cmo_req,  cmo_req;
+wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl,  cmo_ctl;
+wire [CDW-1:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat,  cmo_dat;
+wire           reg_cmo_grt, xip_cmo_grt, dma_cmo_grt,  cmo_grt;
 // command input
-wire           reg_cmi_req, xip_cmi_req, dma_cmi_req;
-wire [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl;
-wire [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat;
-wire           reg_cmi_grt, xip_cmi_grt, dma_cmi_grt;
+wire           reg_cmi_req, xip_cmi_req, dma_cmi_req,  cmi_req;
+wire [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl,  cmi_ctl;
+wire [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat,  cmi_dat;
+wire           reg_cmi_grt, xip_cmi_grt, dma_cmi_grt,  cmi_grt;
 
 // buffer output
 wire           bow_req, bor_req;
@@ -135,8 +135,7 @@ sockit_spi_reg #(
   .XIP_MSK  (XIP_MSK),
   // port widths
   .XAW      (XAW    ),
-  .SSW      (SSW    ),
-  .SDW      (SDW    )
+  .SSW      (SSW    )
 ) rgs (
   // system signals
   .clk      (clk_cpu),  // clock
@@ -171,8 +170,7 @@ sockit_spi_xip #(
   .NOP      (NOP    ),
   // port widths
   .XAW      (XAW    ),
-  .SSW      (SSW    ),
-  .SDW      (SDW    )
+  .SSW      (SSW    )
 ) xip (
   // system signals
   .clk      (clk_cpu),  // clock
@@ -203,11 +201,9 @@ sockit_spi_xip #(
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_dma #(
-  // configuration
   // port widths
   .DAW      (DAW    ),
-  .SSW      (SSW    ),
-  .SDW      (SDW    )
+  .SSW      (SSW    )
 ) dma (
   // system signals
   .clk      (clk_cpu),
@@ -367,15 +363,15 @@ sockit_spi_ser #(
   .clk      (clk_spi),
   .rst      (rst_spi),
   // output buffer
-  .bfo_req  (bfo_req),
-  .bfo_dat  (bfo_dat),
-  .bfo_ctl  (bfo_ctl),
-  .bfo_grt  (bfo_grt),
+  .bfo_req  (bor_req),
+  .bfo_ctl  (bor_ctl),
+  .bfo_dat  (bor_dat),
+  .bfo_grt  (bor_grt),
   // input buffer
-  .bfi_wdt  (bfi_wdt),
-  .bfi_ctl  (bfi_ctl),
-  .bfi_req  (bfi_req),
-  .bfi_grt  (bfi_grt),
+  .bfi_req  (biw_req),
+  .bfi_ctl  (biw_ctl),
+  .bfi_dat  (biw_dat),
+  .bfi_grt  (biw_grt),
 
   // serial clock
   .spi_sclk_i  (spi_sclk_i),

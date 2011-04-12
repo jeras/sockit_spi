@@ -22,12 +22,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_ser #(
-  parameter SSW =            8,  // slave select width
-  parameter SDW =            8,  // serial data register width
-  parameter SDL =            3,  // serial data register width logarithm
-  parameter BDW =        4*SDW,  // buffer data width
-  parameter BCO =  7+SSW+1+SDL,  // buffer control output width
-  parameter BCI =            2   // buffer control  input width
+  // port widths
+  parameter SSW     =            8,  // slave select width
+  parameter SDW     =            8,  // serial data register width
+  parameter SDL     =            3,  // serial data register width logarithm
+  parameter BCO     =  7+SSW+1+SDL,  // buffer control output width
+  parameter BCI     =            2,  // buffer control  input width
+  parameter BDW     =        4*SDW   // buffer data width
 )(
   // system signals
   input  wire           clk,      // clock
@@ -68,6 +69,7 @@ wire           bfo_trn;
 // cycle timing
 reg  [SDL-1:0] cyc_cnt;  // clock counter
 reg            cyc_cke;  // clock enable
+wire           cyc_end;  // cycle end
 
 // output control signals
 reg  [SSW-1:0] cyc_sso;  // slave select outputs
@@ -98,27 +100,29 @@ wire [SDW-1:0] spi_dti_0;
 ////////////////////////////////////////////////////////////////////////////////
 
 // flow control for buffer output
-assign bfo_grt = ~|cyc_cnt;
+assign bfo_grt = cyc_end;
 assign bfo_trn = bfo_req & bfo_grt;
 
 // flow control for buffer input
-assign bfi_req = spi_sie & cyc_cke & ~|cyc_cnt;
+assign bfi_req = spi_sie & cyc_cke & cyc_end;
 assign bfi_trn = bfi_req & bfi_grt;
 
 // transfer length counter
 always @(posedge clk_spi, posedge rst_spi)
 if (rst_spi) begin
-  cyc_cke <= 1'b0;
   cyc_cnt <=  'd0;
+  cyc_cke <= 1'b0;
 end else begin
   if (bfo_trn) begin
-    cyc_cke <= bfo_ctl [0+:1];
-    cyc_cnt <= bfo_ctl [1+:SDL];
+    cyc_cnt <= bfo_ctl [    0+:SDL];
+    cyc_cke <= bfo_ctl [1+SDL+:  1];
   end else begin
-    if (bfo_grt)  spi_cke <= 1'b0;
-    if (spi_cke)  spi_cnt <= spi_cnt - 'd1;
+    if (~spi_end)  cyc_cnt <= cyc_cnt - 'd1;
+    if ( bfo_grt)  cyc_cke <= 1'b0;
   end
 end
+
+assign cyc_end = ~|cyc_cnt;
 
 // IO control registers
 always @(posedge clk_spi, posedge rst_spi)
@@ -130,10 +134,10 @@ if (rst_spi) begin
   cyc_lst <=      1'b0;
 end else if (bfo_trn) begin
   cyc_sso <=      bfo_ctl [      1+SDL+:SSW];
-  cyc_sse <= {SSW{bfo_ctl [  SSW+1+SDL+:1]}};
-  cyc_oen <=      bfo_ctl [1+SSW+1+SDL+:4];
-  cyc_ien <=      bfo_ctl [2+SSW+1+SDL+:1];
-  cyc_lst <=      bfo_ctl [3+SSW+1+SDL+:1];
+  cyc_sse <= {SSW{bfo_ctl [  SSW+1+SDL+:  1]}};
+  cyc_oen <=      bfo_ctl [1+SSW+1+SDL+:  4];
+  cyc_ien <=      bfo_ctl [2+SSW+1+SDL+:  1];
+  cyc_lst <=      bfo_ctl [3+SSW+1+SDL+:  1];
 end
 
 assign {spi_dto_3, spi_dto_2, spi_dto_1, spi_dto_0} = bfo_dat;

@@ -22,16 +22,17 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_reg #(
+  // configuretion
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
   parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
   parameter XIP_RST = 32'h00000000,  // XIP configuration register reset value
   parameter XIP_MSK = 32'h00000001,  // XIP configuration register implentation mask
+  // port widths
   parameter XAW     =           24,  // XIP address width
   parameter SSW     =            8,  // slave select width
-  parameter SDW     =            8,  // serial data register width
-  parameter CDW     =        4*SDW,  // command data width
-  parameter CCO     =    7+SSW+1+5,  // command control output width
-  parameter CCI     =            1   // command control  input width
+  parameter CCO     =  4+SSW+1+5+2,  // command control output width
+  parameter CCI     =            1,  // command control  input width
+  parameter CDW     =           32   // command data width
 )(
   // system signals (used by the CPU interface)
   input  wire           clk,      // clock for CPU interface

@@ -30,9 +30,9 @@ module sockit_spi_xip #(
   parameter XAW     =           24,  // bus address width
   parameter SSW     =            8,  // slave select width
   parameter SDW     =            8,  // serial data register width
-  parameter CDW     =        4*SDW,  // command data width
-  parameter CCO     =    7+SSW+1+5,  // command control output width
-  parameter CCI     =            1   // command control  input width
+  parameter CCO     =  4+SSW+1+5+2,  // command control output width
+  parameter CCI     =            1,  // command control  input width
+  parameter CDW     =           32   // command data width
 )(
   // system signals
   input  wire           clk,      // clock

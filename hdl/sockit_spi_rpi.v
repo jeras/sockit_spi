@@ -22,21 +22,29 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_rpi #(
-  parameter SDW =     8,  // serial data register width
-  parameter BDW = 4*SDW   // buffer data register width
+  // port widths
+  parameter SSW     =            8,  // serial data register width
+  parameter SDW     =            8,  // serial data register width
+  parameter SDL     =            3,  // serial data register width logarithm
+  parameter CCO     =  4+SSW+1+5+2,  // command control output width
+  parameter CCI     =            1,  // command control  input width
+  parameter CDW     =           32,  // command data width
+  parameter BCO     =  7+SSW+1+SDL,  // buffer control output width
+  parameter BCI     =            2,  // buffer control  input width
+  parameter BDW     =        4*SDW   // buffer data width
 )(
   // system signals
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // command
   output wire           cmd_req,  // request
-  input  wire    [31:0] cmd_dat,  // data
-  input  wire     [0:0] cmd_ctl,  // control
+  input  wire [CCI-1:0] cmd_ctl,  // control
+  input  wire [CDW-1:0] cmd_dat,  // data
   input  wire           cmd_grt,  // grant
   // buffer
   output wire           buf_req,  // request
-  input  wire    [31:0] buf_dat,  // data
-  input  wire     [0:0] buf_ctl,  // control
+  input  wire [BCI-1:0] buf_ctl,  // control
+  input  wire [BDW-1:0] buf_dat,  // data
   input  wire           buf_grt   // grant
 );
 
@@ -44,14 +52,14 @@ module sockit_spi_rpi #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-reg            cyi_new;
+reg            cyc_new;
 
-reg     [31:0] cyi_run;
-reg     [31:0] cyi_len;
-reg     [31:0] cyi_dat;
+reg     [31:0] cyc_run;
+reg     [31:0] cyc_len;
+reg     [31:0] cyc_dat;
 
-wire           cmi_trn;
-wire           bfi_trn;
+wire           cmd_trn;
+wire           buf_trn;
 
 ////////////////////////////////////////////////////////////////////////////////
 // repackaging function                                                       //
