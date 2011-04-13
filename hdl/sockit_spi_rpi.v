@@ -26,10 +26,10 @@ module sockit_spi_rpi #(
   parameter SSW     =            8,  // serial data register width
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =            3,  // serial data register width logarithm
-  parameter CCO     =  4+SSW+1+5+2,  // command control output width
+  parameter CCO     =      5+SSW+7,  // command control output width
   parameter CCI     =            1,  // command control  input width
   parameter CDW     =           32,  // command data width
-  parameter BCO     =  7+SSW+1+SDL,  // buffer control output width
+  parameter BCO     =    SDL+SSW+7,  // buffer control output width
   parameter BCI     =            2,  // buffer control  input width
   parameter BDW     =        4*SDW   // buffer data width
 )(

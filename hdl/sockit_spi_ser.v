@@ -26,7 +26,7 @@ module sockit_spi_ser #(
   parameter SSW     =            8,  // slave select width
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =            3,  // serial data register width logarithm
-  parameter BCO     =  7+SSW+1+SDL,  // buffer control output width
+  parameter BCO     =    SDL+SSW+7,  // buffer control output width
   parameter BCI     =            2,  // buffer control  input width
   parameter BDW     =        4*SDW   // buffer data width
 )(

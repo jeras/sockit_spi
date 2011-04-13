@@ -92,12 +92,12 @@ module sockit_spi #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // command parameters
-localparam CCO =  4+SSW+1+5+2;  // control output width
+localparam CCO =      5+SSW+7;  // control output width
 localparam CCI =            1;  // control  input width
 localparam CDW =           32;  // data width
 
 // buffer parameters
-localparam BCO =  7+SSW+1+SDL;  // control output width
+localparam BCO =    SDL+SSW+7;  // control output width
 localparam BCI =            2;  // control  input width
 localparam BDW =        4*SDW;  // data width
 

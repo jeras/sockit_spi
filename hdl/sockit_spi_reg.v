@@ -30,7 +30,7 @@ module sockit_spi_reg #(
   // port widths
   parameter XAW     =           24,  // XIP address width
   parameter SSW     =            8,  // slave select width
-  parameter CCO     =  4+SSW+1+5+2,  // command control output width
+  parameter CCO     =      5+SSW+7,  // command control output width
   parameter CCI     =            1,  // command control  input width
   parameter CDW     =           32   // command data width
 )(
@@ -63,8 +63,6 @@ module sockit_spi_reg #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // configuration registers
-reg    [8-1:0] cfg_sso;  // slave select output
-reg    [8-1:0] cfg_sse;  // slave select output enable
 reg            cfg_hle;  // hold output enable
 reg            cfg_hlo;  // hold output
 reg            cfg_wpe;  // write protect output enable
@@ -80,9 +78,7 @@ reg            cfg_pha;  // clock phase
 ////////////////////////////////////////////////////////////////////////////////
 
 // SPI configuration (read access)
-assign reg_cfg = {                          spi_ss_i,
-                                             cfg_sse,
-                                                4'h0,
+assign reg_cfg = {16'h0000,                     4'h0,
                   cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
                   cfg_coe,                      3'h0,
                   cfg_bit, cfg_dir, cfg_pol, cfg_pha};
@@ -90,14 +86,10 @@ assign reg_cfg = {                          spi_ss_i,
 // SPI configuration (write access)
 always @(posedge clk, posedge rst)
 if (rst) begin
-  {                           cfg_sso} <= CFG_RST [31:24];
-  {                           cfg_sse} <= CFG_RST [23:16];
   {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= CFG_RST [11: 8];
   {cfg_coe}                            <= CFG_RST [ 7   ];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
 end else if (reg_wen & (reg_adr == 2'd0) & ~reg_wrq) begin
-  {                           cfg_sso} <= reg_wdt [31:24];
-  {                           cfg_sse} <= reg_wdt [23:16];
   {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= reg_wdt [11: 8];
   {cfg_coe}                            <= reg_wdt [ 7   ];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= reg_wdt [ 3: 0];
@@ -138,7 +130,7 @@ if (cmi_trn)  cmd_rdt <= cmi_dat;
 // control register                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-  // command output
+// command output
 assign cmo_req = 1'b0;
 assign cmo_dat = 1'b0;
 assign cmo_ctl = 1'b0;

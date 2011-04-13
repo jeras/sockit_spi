@@ -26,10 +26,10 @@ module sockit_spi_rpo #(
   parameter SSW     =            8,  // serial data register width
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =            3,  // serial data register width logarithm
-  parameter CCO     =  4+SSW+1+5+2,  // command control output width
+  parameter CCO     =      5+SSW+7,  // command control output width
   parameter CCI     =            1,  // command control  input width
   parameter CDW     =           32,  // command data width
-  parameter BCO     =  7+SSW+1+SDL,  // buffer control output width
+  parameter BCO     =    SDL+SSW+7,  // buffer control output width
   parameter BCI     =            2,  // buffer control  input width
   parameter BDW     =        4*SDW   // buffer data width
 )(
@@ -52,15 +52,18 @@ module sockit_spi_rpo #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-wire           cmd_trn;
+wire           cmd_trn;  // command transfer
 
-reg     [31:0] cyc_dat;
+reg            cyc_run;  // counter run state
+reg      [4:0] cyc_cnt;  // counter
 
-reg            cyc_run;
-reg      [4:0] cyc_cnt;
-reg            cyc_iom; // IO mode
+reg  [CCO-6:0] cyc_ctl;  // contol register
+reg  [CDW-1:0] cyc_dat;  // data   register
 
-wire           buf_trn;
+wire           cyc_len;  // SPI transfer length
+wire           cyc_iom;  // SPI IO mode
+
+wire           buf_trn;  // buffer transfer
 
 ////////////////////////////////////////////////////////////////////////////////
 // repackaging function                                                       //
@@ -104,36 +107,45 @@ begin
 end
 endfunction
 
+// command flow control
 assign cmd_grn = ~cyc_run;
 assign cmd_trn = cmd_req & cmd_grt;
 
+// counter
 always @(posedge clk, posedge rst)
 if (rst) begin
   cyc_run <= 1'b0;
   cyc_cnt <= 5'd0;
-  cyc_iom <= 1'b0;
 end else begin
   if (cmd_trn) begin
     cyc_run <= 1'b1;
     cyc_cnt <= cmd_ctl [ 4:0];
   end else if (buf_trn) begin
     cyc_run <= cyc_cnt > SDW;
-    cyc_cnt <= cyc_cnt - cyc_cnt - 1;
+    cyc_cnt <= cyc_cnt - cyc_len;
   end
 end
 
-always @(posedge clk)
-if (cmd_trn)
-  cyc_dat <= cmd_dat;
-else if (buf_trn) begin
-  cyc_dat <= cyc_dat << SDW;
-end      
+// SPI transfer length TODO
+assign cyc_len = 3'd7;
 
+// SPI IO mode
+assign cyc_iom = cyc_ctl [5:4];
+
+// control and data registers
+always @(posedge clk)
+if (cmd_trn) begin
+  cyc_ctl <= cmd_ctl [CCO-6:0];
+  cyc_dat <= cmd_dat;
+end else if (buf_trn) begin
+  cyc_dat <= cyc_dat << SDW;
+end
+
+// buffer control and data
+assign buf_ctl =     {cyc_len, cyc_ctl};
 assign buf_dat = rpk (cyc_dat, cyc_iom);
 
-assign buf_ctl [ 2: 0] = 3'd7;  // length // TODO
-assign buf_ctl [10]    = cyc_sso;
-
+// buffer flow control
 assign buf_req = cyc_run;
 assign buf_trn = buf_req & buf_grt;
 
