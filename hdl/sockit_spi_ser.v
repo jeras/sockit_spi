@@ -33,6 +33,9 @@ module sockit_spi_ser #(
   // system signals
   input  wire           clk,      // clock
   input  wire           rst,      // reset
+  // configuration
+  input  wire           cfp_pol,  // clock polarity
+  input  wire           cfp_pha,  // clock phase
   // output buffer
   input  wire           bfo_req,  // request
   input  wire [BCO-1:0] bfo_ctl,  // control
@@ -108,8 +111,8 @@ assign bfi_req = spi_sie & cyc_cke & cyc_end;
 assign bfi_trn = bfi_req & bfi_grt;
 
 // transfer length counter
-always @(posedge clk_spi, posedge rst_spi)
-if (rst_spi) begin
+always @(posedge clk, posedge rst)
+if (rst) begin
   cyc_cnt <=  'd0;
   cyc_cke <= 1'b0;
 end else begin
@@ -117,7 +120,7 @@ end else begin
     cyc_cnt <= bfo_ctl [    0+:SDL];
     cyc_cke <= bfo_ctl [1+SDL+:  1];
   end else begin
-    if (~spi_end)  cyc_cnt <= cyc_cnt - 'd1;
+    if (~cyc_end)  cyc_cnt <= cyc_cnt - 'd1;
     if ( bfo_grt)  cyc_cke <= 1'b0;
   end
 end
@@ -125,8 +128,8 @@ end
 assign cyc_end = ~|cyc_cnt;
 
 // IO control registers
-always @(posedge clk_spi, posedge rst_spi)
-if (rst_spi) begin
+always @(posedge clk, posedge rst)
+if (rst) begin
   cyc_sso <= {SSW{1'b0}};
   cyc_sse <= {SSW{1'b0}};
   cyc_oen <=      4'h0;
@@ -154,7 +157,7 @@ assign spi_cli =  spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for input register
 assign spi_clo = ~spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for output registers
 
 // serial clock output
-assign spi_sclk_o = cfg_pol ^ ~(~spi_cke | clk_spi);
+assign spi_sclk_o = cfg_pol ^ ~(~cyc_cke | clk);
 assign spi_sclk_e = cfg_coe;
 
 
@@ -182,7 +185,7 @@ assign spi_dti_0 = {spi_sdi [0], spi_ss_i [0]};
 
 // data output
 always @ (posedge spi_clo)
-if (bfo_ren) begin
+if (bfo_trn) begin
   spi_sdo [3] <=  spi_dto_3;
   spi_sdo [2] <=  spi_dto_2;
   spi_sdo [1] <=  spi_dto_1;
