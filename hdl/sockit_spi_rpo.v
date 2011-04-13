@@ -27,10 +27,10 @@ module sockit_spi_rpo #(
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =            3,  // serial data register width logarithm
   parameter CCO     =      5+SSW+7,  // command control output width
-  parameter CCI     =            1,  // command control  input width
+  parameter CCI     =            3,  // command control  input width
   parameter CDW     =           32,  // command data width
   parameter BCO     =    SDL+SSW+7,  // buffer control output width
-  parameter BCI     =            2,  // buffer control  input width
+  parameter BCI     =            4,  // buffer control  input width
   parameter BDW     =        4*SDW   // buffer data width
 )(
   // system signals
@@ -119,7 +119,7 @@ if (rst) begin
 end else begin
   if (cmd_trn) begin
     cyc_run <= 1'b1;
-    cyc_cnt <= cmd_ctl [ 4:0];
+    cyc_cnt <= cmd_ctl [CCO-6+:5];
   end else if (buf_trn) begin
     cyc_run <= cyc_cnt > SDW;
     cyc_cnt <= cyc_cnt - cyc_len;

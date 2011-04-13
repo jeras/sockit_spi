@@ -31,7 +31,7 @@ module sockit_spi_reg #(
   parameter XAW     =           24,  // XIP address width
   parameter SSW     =            8,  // slave select width
   parameter CCO     =      5+SSW+7,  // command control output width
-  parameter CCI     =            1,  // command control  input width
+  parameter CCI     =            3,  // command control  input width
   parameter CDW     =           32   // command data width
 )(
   // system signals (used by the CPU interface)
