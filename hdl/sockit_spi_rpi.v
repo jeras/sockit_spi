@@ -37,15 +37,15 @@ module sockit_spi_rpi #(
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // command
-  output wire           cmd_req,  // request
+  input  wire           cmd_req,  // request
   input  wire [CCI-1:0] cmd_ctl,  // control
   input  wire [CDW-1:0] cmd_dat,  // data
-  input  wire           cmd_grt,  // grant
+  output wire           cmd_grt,  // grant
   // buffer
-  output wire           buf_req,  // request
+  input  wire           buf_req,  // request
   input  wire [BCI-1:0] buf_ctl,  // control
   input  wire [BDW-1:0] buf_dat,  // data
-  input  wire           buf_grt   // grant
+  output wire           buf_grt   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////

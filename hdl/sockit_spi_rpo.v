@@ -37,10 +37,10 @@ module sockit_spi_rpo #(
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // command
-  output wire           cmd_req,  // request
-  output wire [CCO-1:0] cmd_ctl,  // control
-  output wire [CDW-1:0] cmd_dat,  // data
-  input  wire           cmd_grt,  // grant
+  input  wire           cmd_req,  // request
+  input  wire [CCO-1:0] cmd_ctl,  // control
+  input  wire [CDW-1:0] cmd_dat,  // data
+  output wire           cmd_grt,  // grant
   // buffer
   output wire           buf_req,  // request
   output wire [BCO-1:0] buf_ctl,  // control
@@ -108,7 +108,7 @@ end
 endfunction
 
 // command flow control
-assign cmd_grn = ~cyc_run;
+assign cmd_grt = ~cyc_run;
 assign cmd_trn = cmd_req & cmd_grt;
 
 // counter

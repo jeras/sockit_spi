@@ -42,8 +42,8 @@ module sockit_spi_reg #(
   input  wire           reg_ren,  // read enable
   input  wire     [1:0] reg_adr,  // address
   input  wire    [31:0] reg_wdt,  // write data
-  output wire    [31:0] reg_rdt,  // read data
-  output wire           reg_wrq,  // wait request
+  output reg     [31:0] reg_rdt,  // read data
+  output reg            reg_wrq,  // wait request
   output wire           reg_irq,  // interrupt request
   // configuration
   // command output
@@ -52,15 +52,21 @@ module sockit_spi_reg #(
   output wire [CDW-1:0] cmo_dat,  // data
   input  wire           cmo_grt,  // grant
   // command input
-  output wire           cmi_req,  // request
+  input  wire           cmi_req,  // request
   input  wire [CCI-1:0] cmi_ctl,  // control
   input  wire [CDW-1:0] cmi_dat,  // data
-  input  wire           cmi_grt   // grant
+  output wire           cmi_grt   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
+
+// decoded register access signals
+wire  wen_cfg, ren_cfg;  // configuration
+wire  wen_xip, ren_xip;  // XPI address
+wire  wen_ctl, ren_ctl;  // control
+wire  wen_dat, ren_dat;  // data
 
 // configuration registers
 reg            cfg_hle;  // hold output enable
@@ -72,6 +78,46 @@ reg            cfg_bit;  // bit mode
 reg            cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
 reg            cfg_pol;  // clock polarity
 reg            cfg_pha;  // clock phase
+
+reg     [31:0] xip_reg;
+
+wire           cmo_trn;
+wire           cmi_trn;
+
+reg     [31:0] cmd_wdt;
+reg     [31:0] cmd_rdt;
+
+// data
+reg            dat_wld;  // write load
+reg            dat_rld;  // read  load
+
+////////////////////////////////////////////////////////////////////////////////
+// register decoder                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+// register write/read access signals
+assign {wen_cfg, ren_cfg} = {reg_wen, reg_ren} & {2{(reg_adr == 2'd0) & ~reg_wrq}};  // configuration
+assign {wen_xip, ren_xip} = {reg_wen, reg_ren} & {2{(reg_adr == 2'd1) & ~reg_wrq}};  // XPI address
+assign {wen_ctl, ren_ctl} = {reg_wen, reg_ren} & {2{(reg_adr == 2'd2) & ~reg_wrq}};  // control
+assign {wen_dat, ren_dat} = {reg_wen, reg_ren} & {2{(reg_adr == 2'd3) & ~reg_wrq}};  // data
+
+// read data
+always @ (*)
+case (reg_adr)
+  2'd0 : reg_rdt = reg_cfg;  // configuration
+  2'd1 : reg_rdt = xip_reg;  // XPI address
+  2'd2 : reg_rdt = 32'd0;    // control
+  3'd3 : reg_rdt = cmd_rdt;  // data
+endcase
+
+// wait request
+always @ (*)
+case (reg_adr)
+  2'd0 : reg_wrq = 1'b0;                                    // configuration
+  2'd1 : reg_wrq = 1'b0;                                    // XPI address
+  2'd2 : reg_wrq = reg_wen & ~cmo_grt;                      // control
+  3'd3 : reg_wrq = reg_wen &     1'b0 | reg_ren & dat_rld;  // data
+endcase
 
 ////////////////////////////////////////////////////////////////////////////////
 // configuration registers                                                    //
@@ -89,52 +135,64 @@ if (rst) begin
   {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= CFG_RST [11: 8];
   {cfg_coe}                            <= CFG_RST [ 7   ];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
-end else if (reg_wen & (reg_adr == 2'd0) & ~reg_wrq) begin
+end else if (wen_cfg) begin
   {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= reg_wdt [11: 8];
   {cfg_coe}                            <= reg_wdt [ 7   ];
   {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= reg_wdt [ 3: 0];
 end
 
-reg [31:0] xip_reg;
-
 // XIP configuration
 always @(posedge clk, posedge rst)
 if (rst) begin
   xip_reg <= XIP_RST [31: 0];
-end else if (reg_wen & (reg_adr == 2'd1) & ~reg_wrq) begin
+end else if (wen_xip) begin
   xip_reg <= reg_wdt;
 end
 
 ////////////////////////////////////////////////////////////////////////////////
-// data register                                                              //
+// command output                                                             //
 ////////////////////////////////////////////////////////////////////////////////
 
-wire        cmo_trn;
-wire        cmi_trn;
-
-reg [31:0] cmd_wdt;
-reg [31:0] cmd_rdt;
+// command input transfer
+assign cmo_trn = cmo_req & cmo_grt;
 
 // output data
 always @(posedge clk)
-if (reg_wen & (reg_adr == 2'd1) & ~reg_wrq)  cmd_wdt <= reg_wdt;
+if (wen_dat)  cmd_wdt <= reg_wdt;
 
-assign cmo_trn = cmo_req & cmo_grt;
+// output data load status
+always @(posedge clk, posedge rst)
+if (rst)             dat_wld <= 1'b0;
+else begin
+  if      (wen_dat)  dat_wld <= 1'b1;
+  else if (cmo_trn)  dat_wld <= 1'b0;
+end
+
+// command output
+assign cmo_req = reg_wen & (reg_adr == 2'd2) & ~reg_wrq;
+assign cmo_dat = cmd_wdt;
+assign cmo_ctl = reg_wdt;
+
+////////////////////////////////////////////////////////////////////////////////
+// command input register                                                     //
+////////////////////////////////////////////////////////////////////////////////
+
+// command input transfer
 assign cmi_trn = cmi_req & cmi_grt;
 
 // input data
 always @(posedge clk)
 if (cmi_trn)  cmd_rdt <= cmi_dat;
 
-////////////////////////////////////////////////////////////////////////////////
-// control register                                                           //
-////////////////////////////////////////////////////////////////////////////////
+// output data load status
+always @(posedge clk, posedge rst)
+if (rst)             dat_rld <= 1'b0;
+else begin
+  if      (cmi_trn)  dat_rld <= 1'b1;
+  else if (ren_dat)  dat_rld <= 1'b0;
+end
 
-// command output
-assign cmo_req = 1'b0;
-assign cmo_dat = 1'b0;
-assign cmo_ctl = 1'b0;
-// command input
-assign cmi_req = 1'b0;
+// transfer grant
+assign cmi_grt = ~dat_rld;
 
 endmodule

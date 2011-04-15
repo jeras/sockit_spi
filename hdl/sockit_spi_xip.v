@@ -53,10 +53,10 @@ module sockit_spi_xip #(
   output wire [CDW-1:0] cmo_dat,  // data
   input  wire           cmo_grt,  // grant
   // command input
-  output wire           cmi_req,  // request
+  input  wire           cmi_req,  // request
   input  wire [CCI-1:0] cmi_ctl,  // control
   input  wire [CDW-1:0] cmi_dat,  // data
-  input  wire           cmi_grt   // grant
+  output wire           cmi_grt   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
