@@ -23,13 +23,12 @@
 
 module sockit_spi_rpi #(
   // port widths
-  parameter SSW     =            8,  // serial data register width
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =            3,  // serial data register width logarithm
-  parameter CCO     =      5+SSW+7,  // command control output width
+  parameter CCO     =          5+6,  // command control output width
   parameter CCI     =            3,  // command control  input width
   parameter CDW     =           32,  // command data width
-  parameter BCO     =    SDL+SSW+7,  // buffer control output width
+  parameter BCO     =        SDL+7,  // buffer control output width
   parameter BCI     =            4,  // buffer control  input width
   parameter BDW     =        4*SDW   // buffer data width
 )(

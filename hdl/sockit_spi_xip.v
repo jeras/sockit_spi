@@ -28,9 +28,8 @@ module sockit_spi_xip #(
   parameter NOP     = 32'h00000000,  // no operation instruction (returned on error)
   // port widths
   parameter XAW     =           24,  // bus address width
-  parameter SSW     =            8,  // slave select width
   parameter SDW     =            8,  // serial data register width
-  parameter CCO     =      5+SSW+7,  // command control output width
+  parameter CCO     =          5+6,  // command control output width
   parameter CCI     =            3,  // command control  input width
   parameter CDW     =           32   // command data width
 )(

@@ -26,7 +26,7 @@ module sockit_spi_ser #(
   parameter SSW     =            8,  // slave select width
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =            3,  // serial data register width logarithm
-  parameter BCO     =    SDL+SSW+7,  // buffer control output width
+  parameter BCO     =        SDL+7,  // buffer control output width
   parameter BCI     =            4,  // buffer control  input width
   parameter BDW     =        4*SDW   // buffer data width
 )(
@@ -114,12 +114,12 @@ assign bfi_trn = bfi_req & bfi_grt;
 // transfer length counter
 always @(posedge clk, posedge rst)
 if (rst) begin
-  cyc_cnt <=  'd0;
-  cyc_cke <= 1'b0;
+  cyc_cke <=      1'b0  ;
+  cyc_cnt <= {SDL{1'b0}};
 end else begin
   if (bfo_trn) begin
-    cyc_cnt <= bfo_ctl [BCO-SDL-1:SDL];
-    cyc_cke <= bfo_ctl [2];
+    cyc_cke <= bfo_ctl [0     ];
+    cyc_cnt <= bfo_ctl [7+:SDL];
   end else begin
     if (~cyc_end)  cyc_cnt <= cyc_cnt - 'd1;
     if ( bfo_grt)  cyc_cke <= 1'b0;
@@ -131,25 +131,23 @@ assign cyc_end = ~|cyc_cnt;
 // IO control registers
 always @(posedge clk, posedge rst)
 if (rst) begin
-  cyc_lst <=      1'b0;
-  cyc_doe <=      4'h0;
-  cyc_die <=      1'b0;
-  cyc_iom <=      2'b00;
-  cyc_sse <= {SSW{1'b0}};
-  cyc_sso <= {SSW{1'b0}};
+  cyc_sso <= 1'b0;
+  cyc_doe <= 4'h0;
+  cyc_die <= 1'b0;
+  cyc_iom <= 2'd1;
+  cyc_lst <= 1'b0;
 end else if (bfo_trn) begin
-  cyc_lst <=      bfo_ctl [1];
   case (bfo_ctl [5:4])
     2'd0 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0001;
     2'd1 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0010;
     2'd2 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0011;
     2'd3 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b1111;
   endcase
-  cyc_doe <=      bfo_ctl [2];
-  cyc_die <=      bfo_ctl [3];
-  cyc_iom <=      bfo_ctl [5:4];
-  cyc_sse <= {SSW{bfo_ctl [6]}};
-  cyc_sso <=      bfo_ctl [7+:SSW];
+  cyc_sso <= bfo_ctl [4];  // TODO
+  cyc_doe <= bfo_ctl [2];
+  cyc_die <= bfo_ctl [3];
+  cyc_iom <= bfo_ctl [5:4];
+  cyc_lst <= bfo_ctl [6];
 end
 
 assign {spi_dto_3, spi_dto_2, spi_dto_1, spi_dto_0} = bfo_dat;

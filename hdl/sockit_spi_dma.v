@@ -26,8 +26,7 @@
 module sockit_spi_dma #(
   // port widths
   parameter DAW     =           32,  // DMA address width
-  parameter SSW     =            8,  // slave select width
-  parameter CCO     =      5+SSW+7,  // command control output width
+  parameter CCO     =          5+6,  // command control output width
   parameter CCI     =            3,  // command control  input width
   parameter CDW     =           32   // command data width
 )(

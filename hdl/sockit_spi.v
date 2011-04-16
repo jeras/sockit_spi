@@ -92,12 +92,12 @@ module sockit_spi #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // command parameters
-localparam CCO =      5+SSW+7;  // control output width
+localparam CCO =          5+6;  // control output width
 localparam CCI =            3;  // control  input width
 localparam CDW =           32;  // data width
 
 // buffer parameters
-localparam BCO =    SDL+SSW+7;  // control output width
+localparam BCO =        SDL+7;  // control output width
 localparam BCI =            4;  // control  input width
 localparam BDW =        4*SDW;  // data width
 
@@ -134,8 +134,7 @@ sockit_spi_reg #(
   .XIP_RST  (XIP_RST),
   .XIP_MSK  (XIP_MSK),
   // port widths
-  .XAW      (XAW    ),
-  .SSW      (SSW    )
+  .XAW      (XAW    )
 ) rgs (
   // system signals
   .clk      (clk_cpu),  // clock
@@ -169,8 +168,7 @@ sockit_spi_xip #(
   // configuration
   .NOP      (NOP    ),
   // port widths
-  .XAW      (XAW    ),
-  .SSW      (SSW    )
+  .XAW      (XAW    )
 ) xip (
   // system signals
   .clk      (clk_cpu),  // clock
@@ -202,8 +200,7 @@ sockit_spi_xip #(
 
 sockit_spi_dma #(
   // port widths
-  .DAW      (DAW    ),
-  .SSW      (SSW    )
+  .DAW      (DAW    )
 ) dma (
   // system signals
   .clk      (clk_cpu),
@@ -251,7 +248,6 @@ assign reg_cmi_grt =     cmo_grt & 1'b1;
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_rpo #(
-  .SSW      (SSW),
   .SDW      (SDW)
 ) rpo (
   // system signals
@@ -339,15 +335,17 @@ generate if (CDC) begin : cdc
 
 end else begin : syn
 
-  reg [31:0] buf_dat;
+  // data output
+  assign bor_req = bow_req;
+  assign bor_ctl = bow_ctl;
+  assign bor_dat = bow_dat;
+  assign bow_grt = bor_grt;
 
-  // write data
-  assign pod_sts = cyc_run;
-  assign buf_wdt = bus_wdt;
-
-  // read data
-  assign pid_sts = 1'bx;     // TODO
-  assign bus_rdt = buf_dat;
+  // data input
+  assign bir_req = biw_req;
+  assign bir_ctl = biw_ctl;
+  assign bir_dat = biw_dat;
+  assign biw_grt = bir_grt;
 
 end endgenerate
 

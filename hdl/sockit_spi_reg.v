@@ -29,8 +29,7 @@ module sockit_spi_reg #(
   parameter XIP_MSK = 32'h00000001,  // XIP configuration register implentation mask
   // port widths
   parameter XAW     =           24,  // XIP address width
-  parameter SSW     =            8,  // slave select width
-  parameter CCO     =      5+SSW+7,  // command control output width
+  parameter CCO     =          5+6,  // command control output width
   parameter CCI     =            3,  // command control  input width
   parameter CDW     =           32   // command data width
 )(
@@ -69,12 +68,7 @@ wire  wen_ctl, ren_ctl;  // control
 wire  wen_dat, ren_dat;  // data
 
 // configuration registers
-reg            cfg_hle;  // hold output enable
-reg            cfg_hlo;  // hold output
-reg            cfg_wpe;  // write protect output enable
-reg            cfg_wpo;  // write protect output
 reg            cfg_coe;  // clock output enable
-reg            cfg_bit;  // bit mode
 reg            cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
 reg            cfg_pol;  // clock polarity
 reg            cfg_pha;  // clock phase
@@ -124,21 +118,14 @@ endcase
 ////////////////////////////////////////////////////////////////////////////////
 
 // SPI configuration (read access)
-assign reg_cfg = {16'h0000,                     4'h0,
-                  cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo,
-                  cfg_coe,                      3'h0,
-                  cfg_bit, cfg_dir, cfg_pol, cfg_pha};
+assign reg_cfg = {24'h0000000, cfg_coe, cfg_dir, cfg_pol, cfg_pha};
 
 // SPI configuration (write access)
 always @(posedge clk, posedge rst)
 if (rst) begin
-  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= CFG_RST [11: 8];
-  {cfg_coe}                            <= CFG_RST [ 7   ];
-  {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
+  {cfg_coe, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
 end else if (wen_cfg) begin
-  {cfg_hle, cfg_wpe, cfg_hlo, cfg_wpo} <= reg_wdt [11: 8];
-  {cfg_coe}                            <= reg_wdt [ 7   ];
-  {cfg_bit, cfg_dir, cfg_pol, cfg_pha} <= reg_wdt [ 3: 0];
+  {cfg_coe, cfg_dir, cfg_pol, cfg_pha} <= reg_wdt [ 3: 0];
 end
 
 // XIP configuration
@@ -169,7 +156,7 @@ else begin
 end
 
 // command output
-assign cmo_req = reg_wen & (reg_adr == 2'd2) & ~reg_wrq;
+assign cmo_req = wen_ctl;
 assign cmo_dat = cmd_wdt;
 assign cmo_ctl = reg_wdt;
 
