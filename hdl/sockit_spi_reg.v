@@ -109,10 +109,10 @@ endcase
 // wait request
 always @ (*)
 case (reg_adr)
-  2'd0 : reg_wrq = 1'b0;                                    // configuration
-  2'd1 : reg_wrq = 1'b0;                                    // XPI address
-  2'd2 : reg_wrq = reg_wen & ~cmo_grt;                      // control
-  3'd3 : reg_wrq = reg_wen &     1'b0 | reg_ren & dat_rld;  // data
+  2'd0 : reg_wrq = 1'b0;                                     // configuration
+  2'd1 : reg_wrq = 1'b0;                                     // XPI address
+  2'd2 : reg_wrq = reg_wen & ~cmo_grt;                       // control
+  3'd3 : reg_wrq = reg_wen &     1'b0 | reg_ren & ~dat_rld;  // data
 endcase
 
 ////////////////////////////////////////////////////////////////////////////////
