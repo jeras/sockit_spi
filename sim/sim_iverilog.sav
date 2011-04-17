@@ -1,7 +1,7 @@
-[timestart] 0
+[timestart] 1581400
 [size] 1920 1123
 [pos] -1 -1
-*-18.225300 280000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.225300 1720000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 [treeopen] spi_tb.sockit_spi.cdc.
@@ -64,6 +64,7 @@ spi_tb.sockit_spi.rpo.cmd_req
 spi_tb.sockit_spi.rpo.cmd_trn
 @22
 spi_tb.sockit_spi.rpo.cyc_cnt[4:0]
+spi_tb.sockit_spi.rpo.cyc_nxt[4:0]
 spi_tb.sockit_spi.rpo.cyc_ctl[5:0]
 spi_tb.sockit_spi.rpo.cyc_dat[31:0]
 @28
@@ -93,9 +94,7 @@ spi_tb.sockit_spi.ser.cfg_coe
 spi_tb.sockit_spi.ser.cfg_m_s
 spi_tb.sockit_spi.ser.cfg_pha
 spi_tb.sockit_spi.ser.cfg_pol
-@29
 spi_tb.sockit_spi.ser.cfg_sse
-@28
 spi_tb.sockit_spi.ser.clk
 spi_tb.sockit_spi.ser.cyc_cke
 spi_tb.sockit_spi.ser.cyc_cnt[2:0]
@@ -142,8 +141,15 @@ spi_tb.sockit_spi.ser.spi_sio_e[3:0]
 (3)spi_tb.sockit_spi.ser.spi_sio_e[3:0]
 @1001200
 -group_end
-@22
+@800022
 spi_tb.sockit_spi.ser.spi_sio_i[3:0]
+@28
+(0)spi_tb.sockit_spi.ser.spi_sio_i[3:0]
+(1)spi_tb.sockit_spi.ser.spi_sio_i[3:0]
+(2)spi_tb.sockit_spi.ser.spi_sio_i[3:0]
+(3)spi_tb.sockit_spi.ser.spi_sio_i[3:0]
+@1001200
+-group_end
 @800022
 spi_tb.sockit_spi.ser.spi_sio_o[3:0]
 @28
@@ -159,5 +165,15 @@ spi_tb.sockit_spi.ser.spi_ss_i[7:0]
 spi_tb.sockit_spi.ser.spi_ss_o[7:0]
 @1000200
 -ser
+@22
+spi_tb.slave_spi.m_adr[31:0]
+spi_tb.slave_spi.m_cmd[7:0]
+spi_tb.slave_spi.i_dat[7:0]
+@821
+spi_tb.slave_spi.i_dat[7:0]
+@22
+spi_tb.slave_spi.m_rdt[7:0]
+@820
+spi_tb.slave_spi.m_rdt[7:0]
 [pattern_trace] 1
 [pattern_trace] 0

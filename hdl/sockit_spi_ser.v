@@ -33,6 +33,7 @@ module sockit_spi_ser #(
   // system signals
   input  wire           clk,      // clock
   input  wire           rst,      // reset
+  // spi clocks
   // configuration
   input  wire           cfg_pol,  // clock polarity
   input  wire           cfg_pha,  // clock phase
@@ -68,7 +69,7 @@ module sockit_spi_ser #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-// clocs
+// clocks
 wire           spi_clk;
 wire           spi_cko;
 wire           spi_cki;
@@ -117,8 +118,8 @@ wire [SDW-1:0] spi_dti_0;
 assign spi_clk = cfg_m_s ? clk : spi_sclk_i;
 
 // register clocks
-assign spi_cko = (cfg_pol ^ cfg_pha) ^ ~spi_clk;  // output registers
-assign spi_cki = (cfg_pol ^ cfg_pha) ^  spi_clk;  // input  registers
+assign spi_cko = (cfg_pol ^ cfg_pha) ^  spi_clk;  // output registers
+assign spi_cki = (cfg_pol ^ cfg_pha) ^ ~spi_clk;  // input  registers
 
 ////////////////////////////////////////////////////////////////////////////////
 // spi cycle timing                                                           //
@@ -179,7 +180,7 @@ assign bfi_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
 ////////////////////////////////////////////////////////////////////////////////
 
 // serial clock output
-assign spi_sclk_o = cfg_pol ^ (cyc_cke & clk);
+assign spi_sclk_o = cfg_pol ^ (cyc_cke & ~clk);
 assign spi_sclk_e = cfg_coe;
 
 

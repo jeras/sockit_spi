@@ -133,9 +133,9 @@ end else begin
 end
 
 // counter next
-assign cyc_nxt = cyc_cnt - cyc_len;
+assign cyc_nxt = cyc_lst ? 5'd0 : cyc_cnt - SDW;
 
-// SPI transfer length TODO
+// SPI transfer length
 assign cyc_len = cyc_lst ? cyc_cnt [SDL-1:0] : {SDL{1'b1}};
 
 // SPI IO mode
