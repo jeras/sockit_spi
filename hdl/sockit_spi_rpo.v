@@ -59,8 +59,9 @@ reg      [4:0] cyc_cnt;  // counter
 reg  [CCO-6:0] cyc_ctl;  // contol register
 reg  [CDW-1:0] cyc_dat;  // data   register
 
-wire           cyc_len;  // SPI transfer length
-wire           cyc_iom;  // SPI IO mode
+wire [SDL-1:0] cyc_len;  // SPI transfer length
+wire           cyc_lst;  // last piece
+wire     [1:0] cyc_iom;  // SPI IO mode
 
 wire           buf_trn;  // buffer transfer
 
@@ -68,7 +69,6 @@ wire           buf_trn;  // buffer transfer
 // repackaging function                                                       //
 ////////////////////////////////////////////////////////////////////////////////
 
-// output data repackegind 
 function [4*SDW-1:0] rpk (
   input  [4*SDW-1:0] dat,
   input        [1:0] mod
@@ -78,22 +78,22 @@ begin
   for (i=0; i<SDW; i=i+1) begin
     case (mod)
       2'd0 : begin  // 3-wire
-        rpk [4*SDW-1-i] = dat [32-1-1*i];
+        rpk [4*SDW-1-i] = 1'b1;
         rpk [3*SDW-1-i] = 1'b1;
         rpk [2*SDW-1-i] = 1'b1;
-        rpk [1*SDW-1-i] = 1'b1;
+        rpk [1*SDW-1-i] = dat [32-1-1*i];
       end
       2'd1 : begin  // spi
         rpk [4*SDW-1-i] = 1'b1;
-        rpk [3*SDW-1-i] = dat [32-1-1*i];
+        rpk [3*SDW-1-i] = 1'b1;
         rpk [2*SDW-1-i] = 1'b1;
-        rpk [1*SDW-1-i] = 1'b1;
+        rpk [1*SDW-1-i] = dat [32-1-1*i];
       end
       2'd2 : begin  // dual
-        rpk [4*SDW-1-i] = dat [32-1-2*i];
-        rpk [3*SDW-1-i] = dat [32-2-2*i];
-        rpk [2*SDW-1-i] = 1'b1;
-        rpk [1*SDW-1-i] = 1'b1;
+        rpk [4*SDW-1-i] = 1'b1;
+        rpk [3*SDW-1-i] = 1'b1;
+        rpk [2*SDW-1-i] = dat [32-1-2*i];
+        rpk [1*SDW-1-i] = dat [32-2-2*i];
       end
       2'd3 : begin  // quad
         rpk [4*SDW-1-i] = dat [32-1-4*i];
@@ -105,6 +105,10 @@ begin
   end
 end
 endfunction
+
+////////////////////////////////////////////////////////////////////////////////
+// repackaging state machine                                                  //
+////////////////////////////////////////////////////////////////////////////////
 
 // command flow control
 assign cmd_grt = ~cyc_run;
@@ -118,9 +122,9 @@ if (rst) begin
 end else begin
   if (cmd_trn) begin
     cyc_run <= 1'b1;
-    cyc_cnt <= cmd_ctl [CCO-6+:5];
+    cyc_cnt <= cmd_ctl [6+:5];
   end else if (buf_trn) begin
-    cyc_run <= cyc_cnt > SDW;
+    cyc_run <= ~cyc_lst;
     cyc_cnt <= cyc_cnt - cyc_len;
   end
 end
@@ -128,20 +132,23 @@ end
 // SPI transfer length TODO
 assign cyc_len = 3'd7;
 
+// last piece
+assign cyc_lst = cyc_cnt < SDW;
+
 // SPI IO mode
 assign cyc_iom = cyc_ctl [5:4];
 
 // control and data registers
 always @(posedge clk)
 if (cmd_trn) begin
-  cyc_ctl <= cmd_ctl [CCO-6:0];
+  cyc_ctl <= cmd_ctl [5:0];
   cyc_dat <= cmd_dat;
 end else if (buf_trn) begin
   cyc_dat <= cyc_dat << SDW;
 end
 
 // buffer control and data
-assign buf_ctl =     {cyc_len, cyc_ctl};
+assign buf_ctl = {cyc_len, cyc_lst, cyc_ctl};
 assign buf_dat = rpk (cyc_dat, cyc_iom);
 
 // buffer flow control

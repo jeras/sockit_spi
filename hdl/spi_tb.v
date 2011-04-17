@@ -131,34 +131,38 @@ initial begin
 
   IDLE (4);                // few clock periods
 
-  IOWR (0, 32'h01ff0f84);  // write slave select and clock divider
+  IOWR (0, 32'h0000003c);  // write slave select and clock divider
 
   IDLE (16);               // few clock periods
   test_name = "write 12B";
 
   // write data
   IOWR (3, 32'h02000000);  // write data    register
-  IOWR (2, 32'h00f50007);  // write control register ( 4 byte write)
-  IOWR (2, 32'h00fd0017);  // write control register (12 byte write)
-//  IDLE (150);              // few clock periods
+  IOWR (2, 32'h00001f17);  // write control register (32bit write)
   IOWR (3, "HELL");        // write flash data
+  IOWR (2, 32'h00001f17);  // write control register (32bit write)
   IOWR (3, "O WO");        // write flash data
+  IOWR (2, 32'h00001f17);  // write control register (32bit write)
   IOWR (3, "RLD!");        // write flash data
+  IOWR (2, 32'h00001f17);  // write control register (32bit write)
+  IOWR (2, 32'h00000010);  // write control register (cycle end)
 
-  IDLE (200);               // few clock periods
   IDLE (16);               // few clock periods
   test_name = "read 12B";
 
   // read data
   IOWR (3, 32'h0b5a0000);  // write data    register
-  IOWR (2, 32'h00f50007);  // write control register ( 4 byte write)
-  IOWR (2, 32'h00050001);  // write control register ( 1 byte idle )
-  IOWR (2, 32'h010d0017);  // write control register (12 byte read )
-  IDLE (150);              // few clock periods
+  IOWR (2, 32'h00001f17);  // write control register (32bit write)
+  IOWR (2, 32'h00001f1b);  // write control register ( 8bit idle)
+  IOWR (2, 32'h00001f1b);  // write control register (32bit read)
   IORD (3, data);          // read flash data
+  IOWR (2, 32'h00001f1b);  // write control register (32bit read)
   IORD (3, data);          // read flash data
+  IOWR (2, 32'h00001f1b);  // write control register (32bit read)
   IORD (3, data);          // read flash data
+  IOWR (2, 32'h00000010);  // write control register (cycle end)
 
+  IDLE (200);              // few clock periods
   IDLE (16);               // few clock periods
   test_name = "unnamed";
 

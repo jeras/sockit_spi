@@ -44,7 +44,15 @@ module sockit_spi_reg #(
   output reg     [31:0] reg_rdt,  // read data
   output reg            reg_wrq,  // wait request
   output wire           reg_irq,  // interrupt request
-  // configuration
+  // SPI configuration
+  output reg            cfg_pol,  // clock polarity
+  output reg            cfg_pha,  // clock phase
+  output reg            cfg_coe,  // clock output enable
+  output reg            cfg_sse,  // slave select output enable
+  output reg            cfg_m_s,  // mode (0 - slave, 1 - master)
+  output reg            cfg_dir,  // shift direction (0 - lsb first, 1 - msb first)
+  // XIP configuration
+  // DMA configuration
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
@@ -66,12 +74,6 @@ wire  wen_cfg, ren_cfg;  // configuration
 wire  wen_xip, ren_xip;  // XPI address
 wire  wen_ctl, ren_ctl;  // control
 wire  wen_dat, ren_dat;  // data
-
-// configuration registers
-reg            cfg_coe;  // clock output enable
-reg            cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
-reg            cfg_pol;  // clock polarity
-reg            cfg_pha;  // clock phase
 
 reg     [31:0] xip_reg;
 
@@ -118,14 +120,14 @@ endcase
 ////////////////////////////////////////////////////////////////////////////////
 
 // SPI configuration (read access)
-assign reg_cfg = {24'h0000000, cfg_coe, cfg_dir, cfg_pol, cfg_pha};
+assign reg_cfg = {23'h000000, cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha};
 
 // SPI configuration (write access)
 always @(posedge clk, posedge rst)
 if (rst) begin
-  {cfg_coe, cfg_dir, cfg_pol, cfg_pha} <= CFG_RST [ 3: 0];
+  {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= CFG_RST [ 4: 0];
 end else if (wen_cfg) begin
-  {cfg_coe, cfg_dir, cfg_pol, cfg_pha} <= reg_wdt [ 3: 0];
+  {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= reg_wdt [ 4: 0];
 end
 
 // XIP configuration
@@ -158,7 +160,7 @@ end
 // command output
 assign cmo_req = wen_ctl;
 assign cmo_dat = cmd_wdt;
-assign cmo_ctl = reg_wdt;
+assign cmo_ctl = {reg_wdt[12:8], reg_wdt[5:0]};
 
 ////////////////////////////////////////////////////////////////////////////////
 // command input register                                                     //

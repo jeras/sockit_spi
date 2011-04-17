@@ -102,26 +102,34 @@ localparam BCI =            4;  // control  input width
 localparam BDW =        4*SDW;  // data width
 
 // command output
-wire           reg_cmo_req, xip_cmo_req, dma_cmo_req,  cmo_req;
-wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl,  cmo_ctl;
-wire [CDW-1:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat,  cmo_dat;
-wire           reg_cmo_grt, xip_cmo_grt, dma_cmo_grt,  cmo_grt;
+wire           reg_cmo_req, xip_cmo_req, dma_cmo_req,  cmo_req;  // request
+wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl,  cmo_ctl;  // control
+wire [CDW-1:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat,  cmo_dat;  // data
+wire           reg_cmo_grt, xip_cmo_grt, dma_cmo_grt,  cmo_grt;  // grant
 // command input
-wire           reg_cmi_req, xip_cmi_req, dma_cmi_req,  cmi_req;
-wire [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl,  cmi_ctl;
-wire [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat,  cmi_dat;
-wire           reg_cmi_grt, xip_cmi_grt, dma_cmi_grt,  cmi_grt;
+wire           reg_cmi_req, xip_cmi_req, dma_cmi_req,  cmi_req;  // request
+wire [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl,  cmi_ctl;  // control
+wire [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat,  cmi_dat;  // data
+wire           reg_cmi_grt, xip_cmi_grt, dma_cmi_grt,  cmi_grt;  // grant
 
 // buffer output
-wire           bow_req, bor_req;
-wire [BCO-1:0] bow_ctl, bor_ctl;
-wire [BDW-1:0] bow_dat, bor_dat;
-wire           bow_grt, bor_grt;
+wire           bow_req, bor_req;  // request
+wire [BCO-1:0] bow_ctl, bor_ctl;  // control
+wire [BDW-1:0] bow_dat, bor_dat;  // data
+wire           bow_grt, bor_grt;  // grant
 // buffer input
-wire           bir_req, biw_req;
-wire [BCI-1:0] bir_ctl, biw_ctl;
-wire [BDW-1:0] bir_dat, biw_dat;
-wire           bir_grt, biw_grt;
+wire           bir_req, biw_req;  // request
+wire [BCI-1:0] bir_ctl, biw_ctl;  // control
+wire [BDW-1:0] bir_dat, biw_dat;  // data
+wire           bir_grt, biw_grt;  // grant
+
+// SPI configuration
+wire           cfg_pol;  // clock polarity
+wire           cfg_pha;  // clock phase
+wire           cfg_coe;  // clock output enable
+wire           cfg_sse;  // slave select output enable
+wire           cfg_m_s;  // mode (0 - slave, 1 - master)
+wire           cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
 
 ////////////////////////////////////////////////////////////////////////////////
 // REG instance                                                               //
@@ -147,7 +155,13 @@ sockit_spi_reg #(
   .reg_rdt  (reg_rdt),
   .reg_wrq  (reg_wrq),
   .reg_irq  (reg_irq),
-  // configuration
+  // SPI configuration
+  .cfg_pol  (cfg_pol),
+  .cfg_pha  (cfg_pha),
+  .cfg_coe  (cfg_coe),
+  .cfg_sse  (cfg_sse),
+  .cfg_m_s  (cfg_m_s),
+  .cfg_dir  (cfg_dir),
   // command output
   .cmo_req  (reg_cmo_req),
   .cmo_ctl  (reg_cmo_ctl),
@@ -306,10 +320,10 @@ generate if (CDC) begin : cdc
     // output port
     .cdo_clk  (clk_spi),
     .cdo_rst  (rst_spi),
-    .cdo_pli  (bor_req),
+    .cdo_plo  (bor_req),
     .cdo_dat ({bor_ctl,
                bor_dat}),
-    .cdo_plo  (bor_grt)
+    .cdo_pli  (bor_grt)
   );
 
   // data input
@@ -327,10 +341,10 @@ generate if (CDC) begin : cdc
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
-    .cdo_pli  (bir_grt),
+    .cdo_plo  (bir_req),
     .cdo_dat ({bir_ctl,
                bir_dat}),
-    .cdo_plo  (bir_req)
+    .cdo_pli  (bir_grt)
   );
 
 end else begin : syn
@@ -360,6 +374,12 @@ sockit_spi_ser #(
   // system signals
   .clk      (clk_spi),
   .rst      (rst_spi),
+  // SPI configuration
+  .cfg_pol  (cfg_pol),
+  .cfg_pha  (cfg_pha),
+  .cfg_coe  (cfg_coe),
+  .cfg_sse  (cfg_sse),
+  .cfg_m_s  (cfg_m_s),
   // output buffer
   .bfo_req  (bor_req),
   .bfo_ctl  (bor_ctl),
@@ -371,15 +391,15 @@ sockit_spi_ser #(
   .bfi_dat  (biw_dat),
   .bfi_grt  (biw_grt),
 
-  // serial clock
+  // SCLK (serial clock)
   .spi_sclk_i  (spi_sclk_i),
   .spi_sclk_o  (spi_sclk_o),
   .spi_sclk_e  (spi_sclk_e),
-  // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
+  // SIO  (serial input output) {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
   .spi_sio_i   (spi_sio_i),
   .spi_sio_o   (spi_sio_o),
   .spi_sio_e   (spi_sio_e),
-  // active low slave select signal
+  // SS_N (slave select - active low signal)
   .spi_ss_i    (spi_ss_i),
   .spi_ss_o    (spi_ss_o),
   .spi_ss_e    (spi_ss_e)

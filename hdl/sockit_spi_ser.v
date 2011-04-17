@@ -34,8 +34,11 @@ module sockit_spi_ser #(
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // configuration
-  input  wire           cfp_pol,  // clock polarity
-  input  wire           cfp_pha,  // clock phase
+  input  wire           cfg_pol,  // clock polarity
+  input  wire           cfg_pha,  // clock phase
+  input  wire           cfg_coe,  // closk output enable
+  input  wire           cfg_sse,  // slave select output enable
+  input  wire           cfg_m_s,  // mode (0 - slave, 1 - master)
   // output buffer
   input  wire           bfo_req,  // request
   input  wire [BCO-1:0] bfo_ctl,  // control
@@ -65,6 +68,11 @@ module sockit_spi_ser #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
+// clocs
+wire           spi_clk;
+wire           spi_cko;
+wire           spi_cki;
+
 // buffer transfers
 wire           bfi_trn;
 wire           bfo_trn;
@@ -86,18 +94,31 @@ reg  [SSW-1:0] cyc_sso;  // slave select outputs
 reg            cyc_new;  // new (first) data on input (used in slave mode)
 
 // output data signals
-reg  [SDW-1:0] spi_sdo [0:3];
-wire [SDW-1:0] spi_dto_3;
-wire [SDW-1:0] spi_dto_2;
-wire [SDW-1:0] spi_dto_1;
-wire [SDW-1:0] spi_dto_0;
+reg  [SDW-1:0] spi_sdo_3;
+reg  [SDW-1:0] spi_sdo_2;
+reg  [SDW-1:0] spi_sdo_1;
+reg  [SDW-1:0] spi_sdo_0;
 
 // input data signals
-reg  [SDW-1:0] spi_sdi [0:3];
+reg  [SDW-1:0] spi_sdi_3;
+reg  [SDW-1:0] spi_sdi_2;
+reg  [SDW-1:0] spi_sdi_1;
+reg  [SDW-1:0] spi_sdi_0;
 wire [SDW-1:0] spi_dti_3;
 wire [SDW-1:0] spi_dti_2;
 wire [SDW-1:0] spi_dti_1;
 wire [SDW-1:0] spi_dti_0;
+
+////////////////////////////////////////////////////////////////////////////////
+// master/slave mode                                                          //
+////////////////////////////////////////////////////////////////////////////////
+
+// clock source
+assign spi_clk = cfg_m_s ? clk : spi_sclk_i;
+
+// register clocks
+assign spi_cko = (cfg_pol ^ cfg_pha) ^ ~spi_clk;  // output registers
+assign spi_cki = (cfg_pol ^ cfg_pha) ^  spi_clk;  // input  registers
 
 ////////////////////////////////////////////////////////////////////////////////
 // spi cycle timing                                                           //
@@ -108,11 +129,11 @@ assign bfo_grt = cyc_end;
 assign bfo_trn = bfo_req & bfo_grt;
 
 // flow control for buffer input
-assign bfi_req = spi_sie & cyc_cke & cyc_end;
+assign bfi_req = cyc_die & cyc_cke & cyc_end;
 assign bfi_trn = bfi_req & bfi_grt;
 
 // transfer length counter
-always @(posedge clk, posedge rst)
+always @(posedge spi_cko, posedge rst)
 if (rst) begin
   cyc_cke <=      1'b0  ;
   cyc_cnt <= {SDL{1'b0}};
@@ -129,7 +150,7 @@ end
 assign cyc_end = ~|cyc_cnt;
 
 // IO control registers
-always @(posedge clk, posedge rst)
+always @(posedge spi_cko, posedge rst)
 if (rst) begin
   cyc_sso <= 1'b0;
   cyc_doe <= 4'h0;
@@ -139,18 +160,16 @@ if (rst) begin
 end else if (bfo_trn) begin
   case (bfo_ctl [5:4])
     2'd0 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0001;
-    2'd1 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0010;
+    2'd1 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0001;
     2'd2 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0011;
     2'd3 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b1111;
   endcase
-  cyc_sso <= bfo_ctl [4];  // TODO
+  cyc_sso <= bfo_ctl [1];  // TODO
   cyc_doe <= bfo_ctl [2];
   cyc_die <= bfo_ctl [3];
   cyc_iom <= bfo_ctl [5:4];
   cyc_lst <= bfo_ctl [6];
 end
-
-assign {spi_dto_3, spi_dto_2, spi_dto_1, spi_dto_0} = bfo_dat;
 
 assign bfi_ctl = {cyc_lst, cyc_new, cyc_iom};
 assign bfi_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
@@ -159,12 +178,8 @@ assign bfi_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
 // slave select, clock, data (input, output, enable)                          //
 ////////////////////////////////////////////////////////////////////////////////
 
-// serial clock input
-assign spi_cli =  spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for input registers
-assign spi_clo = ~spi_sclk_i ^ (cfg_pol ^ cfg_pha);  // clock for output registers
-
 // serial clock output
-assign spi_sclk_o = cfg_pol ^ ~(~cyc_cke | clk);
+assign spi_sclk_o = cfg_pol ^ (cyc_cke & clk);
 assign spi_sclk_e = cfg_coe;
 
 
@@ -172,44 +187,45 @@ assign spi_sclk_e = cfg_coe;
 assign spi_rsi = spi_ss_i;  // reset for output registers
 
 // slave select output, output enable
-assign spi_ss_o = cyc_sso;
-assign spi_ss_e = cyc_sse;
+assign spi_ss_o =      cyc_sso  ;
+assign spi_ss_e = {SSW{cfg_sse}};
 
-
-// data input
-always @ (posedge spi_cli)
-if (cyc_die) begin
-  spi_sdi [3] <= spi_dti_3;
-  spi_sdi [2] <= spi_dti_2;
-  spi_sdi [1] <= spi_dti_1;
-  spi_sdi [0] <= spi_dti_0;
-end
-
-assign spi_dti_3 = {spi_sdi [3], spi_ss_i [3]};
-assign spi_dti_2 = {spi_sdi [2], spi_ss_i [2]};
-assign spi_dti_1 = {spi_sdi [1], spi_ss_i [1]};
-assign spi_dti_0 = {spi_sdi [0], spi_ss_i [0]};
 
 // data output
-always @ (posedge spi_clo)
+always @ (posedge spi_cko)
 if (bfo_trn) begin
-  spi_sdo [3] <=  spi_dto_3;
-  spi_sdo [2] <=  spi_dto_2;
-  spi_sdo [1] <=  spi_dto_1;
-  spi_sdo [0] <=  spi_dto_0;
+  spi_sdo_3 <=  bfo_dat [3*SDW+:SDW];
+  spi_sdo_2 <=  bfo_dat [2*SDW+:SDW];
+  spi_sdo_1 <=  bfo_dat [1*SDW+:SDW];
+  spi_sdo_0 <=  bfo_dat [0*SDW+:SDW];
 end else begin
-  spi_sdo [3] <= {spi_sdo [3] [SDW-1:0], 1'bx};
-  spi_sdo [2] <= {spi_sdo [2] [SDW-1:0], 1'bx};
-  spi_sdo [1] <= {spi_sdo [1] [SDW-1:0], 1'bx};
-  spi_sdo [0] <= {spi_sdo [0] [SDW-1:0], 1'bx};
+  spi_sdo_3 <= {spi_sdo_3 [SDW-1:0], 1'bx};
+  spi_sdo_2 <= {spi_sdo_2 [SDW-1:0], 1'bx};
+  spi_sdo_1 <= {spi_sdo_1 [SDW-1:0], 1'bx};
+  spi_sdo_0 <= {spi_sdo_0 [SDW-1:0], 1'bx};
 end
 
-assign spi_sio_o [3] = spi_sdo [3] [SDW-1];
-assign spi_sio_o [2] = spi_sdo [2] [SDW-1];
-assign spi_sio_o [1] = spi_sdo [1] [SDW-1];
-assign spi_sio_o [0] = spi_sdo [0] [SDW-1];
+assign spi_sio_o [3] = spi_sdo_3 [SDW-1];
+assign spi_sio_o [2] = spi_sdo_2 [SDW-1];
+assign spi_sio_o [1] = spi_sdo_1 [SDW-1];
+assign spi_sio_o [0] = spi_sdo_0 [SDW-1];
 
 // data output enable
 assign spi_sio_e = cyc_doe;
+
+
+// data input
+always @ (posedge spi_cki)
+if (cyc_die) begin
+  spi_sdi_3 <= spi_dti_3;
+  spi_sdi_2 <= spi_dti_2;
+  spi_sdi_1 <= spi_dti_1;
+  spi_sdi_0 <= spi_dti_0;
+end
+
+assign spi_dti_3 = {spi_sdi_3, spi_ss_i [3]};
+assign spi_dti_2 = {spi_sdi_2, spi_ss_i [2]};
+assign spi_dti_1 = {spi_sdi_1, spi_ss_i [1]};
+assign spi_dti_0 = {spi_sdi_0, spi_ss_i [0]};
 
 endmodule
