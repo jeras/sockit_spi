@@ -30,7 +30,7 @@ module sockit_spi_reg #(
   // port widths
   parameter XAW     =           24,  // XIP address width
   parameter CCO     =          5+6,  // command control output width
-  parameter CCI     =            3,  // command control  input width
+  parameter CCI     =            4,  // command control  input width
   parameter CDW     =           32   // command data width
 )(
   // system signals (used by the CPU interface)
@@ -142,14 +142,14 @@ end
 // command output                                                             //
 ////////////////////////////////////////////////////////////////////////////////
 
-// command input transfer
+// command output transfer
 assign cmo_trn = cmo_req & cmo_grt;
 
-// output data
+// data output
 always @(posedge clk)
 if (wen_dat)  cmd_wdt <= reg_wdt;
 
-// output data load status
+// data output load status
 always @(posedge clk, posedge rst)
 if (rst)             dat_wld <= 1'b0;
 else begin
@@ -169,11 +169,11 @@ assign cmo_ctl = {reg_wdt[12:8], reg_wdt[5:0]};
 // command input transfer
 assign cmi_trn = cmi_req & cmi_grt;
 
-// input data
+// data input
 always @(posedge clk)
 if (cmi_trn)  cmd_rdt <= cmi_dat;
 
-// output data load status
+// data input load status
 always @(posedge clk, posedge rst)
 if (rst)             dat_rld <= 1'b0;
 else begin
@@ -181,7 +181,7 @@ else begin
   else if (ren_dat)  dat_rld <= 1'b0;
 end
 
-// transfer grant
+// command input transfer grant
 assign cmi_grt = ~dat_rld;
 
 endmodule

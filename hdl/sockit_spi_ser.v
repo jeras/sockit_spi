@@ -172,7 +172,12 @@ end else if (bfo_trn) begin
   cyc_lst <= bfo_ctl [6];
 end
 
-assign bfi_ctl = {cyc_lst, cyc_new, cyc_iom};
+// new data cycle indicator
+always @(posedge spi_cko, posedge spi_rsi)
+if (spi_rsi)      cyc_new <= 1'b1;
+else if (bfi_trn) cyc_new <= 1'b0;
+
+assign bfi_ctl = {cyc_new, cyc_lst, cyc_iom};
 assign bfi_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
 
 ////////////////////////////////////////////////////////////////////////////////

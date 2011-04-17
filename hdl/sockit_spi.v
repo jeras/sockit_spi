@@ -93,7 +93,7 @@ module sockit_spi #(
 
 // command parameters
 localparam CCO =          5+6;  // control output width
-localparam CCI =            3;  // control  input width
+localparam CCI =            4;  // control  input width
 localparam CDW =           32;  // data width
 
 // buffer parameters
@@ -256,10 +256,10 @@ assign     cmo_dat = reg_cmo_dat;
 assign reg_cmo_grt =     cmo_grt & 1'b1;
 
 // command input arbiter
-assign     cmi_req = reg_cmo_req;
-assign     cmi_ctl = reg_cmo_ctl;
-assign     cmi_dat = reg_cmo_dat;
-assign reg_cmi_grt =     cmo_grt & 1'b1;
+assign reg_cmi_req =     cmi_req;
+assign reg_cmi_ctl =     cmi_ctl;
+assign reg_cmi_dat =     cmi_dat;
+assign     cmi_grt = reg_cmi_grt & 1'b1;
 
 ////////////////////////////////////////////////////////////////////////////////
 // repack                                                                     //
@@ -312,7 +312,7 @@ generate if (CDC) begin : cdc
   // data output
   sockit_spi_cdc #(
     .CW       (      1),
-    .DW       (BDW+BCO)
+    .DW       (BCO+BDW)
   ) cdc_bfo (
     // input port
     .cdi_clk  (clk_cpu),
@@ -333,7 +333,7 @@ generate if (CDC) begin : cdc
   // data input
   sockit_spi_cdc #(
     .CW       (      1),
-    .DW       (BDW+BCI)
+    .DW       (BCI+BDW)
   ) cdc_bfi (
     // input port
     .cdi_clk  (spi_cki),
