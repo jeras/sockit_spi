@@ -198,7 +198,7 @@ if (bfo_trn) begin
   spi_sdo_2 <=  bfo_dat [2*SDW+:SDW];
   spi_sdo_1 <=  bfo_dat [1*SDW+:SDW];
   spi_sdo_0 <=  bfo_dat [0*SDW+:SDW];
-end else begin
+end else if (cyc_doe) begin
   spi_sdo_3 <= {spi_sdo_3 [SDW-1:0], 1'bx};
   spi_sdo_2 <= {spi_sdo_2 [SDW-1:0], 1'bx};
   spi_sdo_1 <= {spi_sdo_1 [SDW-1:0], 1'bx};
@@ -223,9 +223,9 @@ if (cyc_die) begin
   spi_sdi_0 <= spi_dti_0;
 end
 
-assign spi_dti_3 = {spi_sdi_3, spi_ss_i [3]};
-assign spi_dti_2 = {spi_sdi_2, spi_ss_i [2]};
-assign spi_dti_1 = {spi_sdi_1, spi_ss_i [1]};
-assign spi_dti_0 = {spi_sdi_0, spi_ss_i [0]};
+assign spi_dti_3 = {spi_sdi_3, spi_sio_i [3]};
+assign spi_dti_2 = {spi_sdi_2, spi_sio_i [2]};
+assign spi_dti_1 = {spi_sdi_1, spi_sio_i [1]};
+assign spi_dti_0 = {spi_sdi_0, spi_sio_i [0]};
 
 endmodule

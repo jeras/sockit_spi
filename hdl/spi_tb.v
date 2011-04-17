@@ -153,7 +153,7 @@ initial begin
   // read data
   IOWR (3, 32'h0b5a0000);  // write data    register
   IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (2, 32'h00001f1b);  // write control register ( 8bit idle)
+  IOWR (2, 32'h0000071b);  // write control register ( 8bit idle)
   IOWR (2, 32'h00001f1b);  // write control register (32bit read)
   IORD (3, data);          // read flash data
   IOWR (2, 32'h00001f1b);  // write control register (32bit read)

@@ -55,13 +55,13 @@ wire           cmd_trn;  // command transfer
 
 reg            cyc_run;  // counter run state
 reg      [4:0] cyc_cnt;  // counter
+wire     [4:0] cyc_nxt;  // counter next
+wire [SDL-1:0] cyc_len;  // SPI transfer length
+reg            cyc_lst;  // last piece
+wire     [1:0] cyc_iom;  // SPI IO mode
 
 reg  [CCO-6:0] cyc_ctl;  // contol register
 reg  [CDW-1:0] cyc_dat;  // data   register
-
-wire [SDL-1:0] cyc_len;  // SPI transfer length
-wire           cyc_lst;  // last piece
-wire     [1:0] cyc_iom;  // SPI IO mode
 
 wire           buf_trn;  // buffer transfer
 
@@ -111,29 +111,32 @@ endfunction
 ////////////////////////////////////////////////////////////////////////////////
 
 // command flow control
-assign cmd_grt = ~cyc_run;
+assign cmd_grt = ~cyc_run | buf_grt & cyc_lst;
 assign cmd_trn = cmd_req & cmd_grt;
 
 // counter
 always @(posedge clk, posedge rst)
 if (rst) begin
   cyc_run <= 1'b0;
+  cyc_lst <= 1'b0;
   cyc_cnt <= 5'd0;
 end else begin
   if (cmd_trn) begin
     cyc_run <= 1'b1;
+    cyc_lst <= cmd_ctl [6+:5] < SDW;
     cyc_cnt <= cmd_ctl [6+:5];
   end else if (buf_trn) begin
     cyc_run <= ~cyc_lst;
-    cyc_cnt <= cyc_cnt - cyc_len;
+    cyc_lst <= cyc_nxt < SDW;
+    cyc_cnt <= cyc_nxt;
   end
 end
 
-// SPI transfer length TODO
-assign cyc_len = 3'd7;
+// counter next
+assign cyc_nxt = cyc_cnt - cyc_len;
 
-// last piece
-assign cyc_lst = cyc_cnt < SDW;
+// SPI transfer length TODO
+assign cyc_len = cyc_lst ? cyc_cnt [SDL-1:0] : {SDL{1'b1}};
 
 // SPI IO mode
 assign cyc_iom = cyc_ctl [5:4];
