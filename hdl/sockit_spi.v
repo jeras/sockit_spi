@@ -131,6 +131,10 @@ wire           cfg_sse;  // slave select output enable
 wire           cfg_m_s;  // mode (0 - slave, 1 - master)
 wire           cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
 
+// SPI clocks
+wire           spi_cko;  // output registers
+wire           spi_cki;  // input  registers
+
 ////////////////////////////////////////////////////////////////////////////////
 // REG instance                                                               //
 ////////////////////////////////////////////////////////////////////////////////
@@ -318,7 +322,7 @@ generate if (CDC) begin : cdc
                bow_dat}),
     .cdi_plo  (bow_grt),
     // output port
-    .cdo_clk  (clk_spi),
+    .cdo_clk  (spi_cko),
     .cdo_rst  (rst_spi),
     .cdo_plo  (bor_req),
     .cdo_dat ({bor_ctl,
@@ -332,7 +336,7 @@ generate if (CDC) begin : cdc
     .DW       (BDW+BCI)
   ) cdc_bfi (
     // input port
-    .cdi_clk  (clk_spi),
+    .cdi_clk  (spi_cki),
     .cdi_rst  (rst_spi),
     .cdi_pli  (biw_req),
     .cdi_dat ({biw_ctl,
@@ -374,6 +378,9 @@ sockit_spi_ser #(
   // system signals
   .clk      (clk_spi),
   .rst      (rst_spi),
+  // SPI clocks
+  .spi_cko  (spi_cko),
+  .spi_cki  (spi_cki),
   // SPI configuration
   .cfg_pol  (cfg_pol),
   .cfg_pha  (cfg_pha),

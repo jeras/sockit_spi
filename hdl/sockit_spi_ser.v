@@ -33,8 +33,10 @@ module sockit_spi_ser #(
   // system signals
   input  wire           clk,      // clock
   input  wire           rst,      // reset
-  // spi clocks
-  // configuration
+  // SPI clocks
+  output wire           spi_cko,  // output registers
+  output wire           spi_cki,  // input  registers
+  // SPI configuration
   input  wire           cfg_pol,  // clock polarity
   input  wire           cfg_pha,  // clock phase
   input  wire           cfg_coe,  // closk output enable
@@ -69,10 +71,8 @@ module sockit_spi_ser #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-// clocks
+// internal clocks
 wire           spi_clk;
-wire           spi_cko;
-wire           spi_cki;
 
 // buffer transfers
 wire           bfi_trn;
