@@ -36,10 +36,10 @@ module sockit_spi_rpi #(
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // command
-  input  wire           cmd_req,  // request
-  input  wire [CCI-1:0] cmd_ctl,  // control
-  input  wire [CDW-1:0] cmd_dat,  // data
-  output wire           cmd_grt,  // grant
+  output wire           cmd_req,  // request
+  output wire [CCI-1:0] cmd_ctl,  // control
+  output wire [CDW-1:0] cmd_dat,  // data
+  input  wire           cmd_grt,  // grant
   // buffer
   input  wire           buf_req,  // request
   input  wire [BCI-1:0] buf_ctl,  // control
@@ -125,6 +125,7 @@ if (buf_trn) begin
 end
 
 // command data
+assign cmd_ctl = {cyc_new, cyc_lst};
 assign cmd_dat = cyc_dat;
 
 // buffer flow control

@@ -75,6 +75,8 @@ wire  wen_xip, ren_xip;  // XPI address
 wire  wen_ctl, ren_ctl;  // control
 wire  wen_dat, ren_dat;  // data
 
+wire    [31:0] reg_cfg;
+
 reg     [31:0] xip_reg;
 
 wire           cmo_trn;

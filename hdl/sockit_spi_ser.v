@@ -71,8 +71,9 @@ module sockit_spi_ser #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-// internal clocks
+// internal clocks, resets
 wire           spi_clk;
+wire           spi_rsi;
 
 // buffer transfers
 wire           bfi_trn;
