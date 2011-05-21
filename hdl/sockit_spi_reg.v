@@ -70,8 +70,13 @@ module sockit_spi_reg #(
   output reg            cfg_sse,  // slave select output enable
   output reg            cfg_m_s,  // mode (0 - slave, 1 - master)
   output reg            cfg_dir,  // shift direction (0 - lsb first, 1 - msb first)
-  // XIP configuration
-  // DMA configuration
+  // XIP configuration, DMA configuration, address offsets
+  output reg     [31:0] xip_cfg,  // XIP configuration
+  output reg     [31:0] dma_cfg,  // DMA configuration
+  output reg     [31:0] adr_rof,  // address read  offset
+  output reg     [31:0] adr_wof,  // address write offset
+  // arbitration
+  output wire     [1:0] arb_sel,  // arbiter select
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
@@ -96,10 +101,6 @@ wire    [31:0] spi_cfg;  // SPI configuration
 wire    [31:0] spi_par;  // SPI parameterization
 wire    [31:0] spi_ctl;  // SPI control
 wire    [31:0] spi_dat;  // SPI data
-reg     [31:0] xip_cfg;  // XIP configuration
-reg     [31:0] dma_cfg;  // DMA configuration
-reg     [31:0] adr_rof;  // address read  offset
-reg     [31:0] adr_wof;  // address write offset
 
 wire           cmo_trn;
 wire           cmi_trn;
@@ -146,13 +147,24 @@ case (reg_adr)
 endcase
 
 ////////////////////////////////////////////////////////////////////////////////
+// interrupt                                                                  //
+////////////////////////////////////////////////////////////////////////////////
+
+// interrupt
+assign reg_irq = 1'b0; // TODO
+
+////////////////////////////////////////////////////////////////////////////////
 // configuration registers                                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
 // SPI configuration (read access)
 assign spi_cfg = {26'h0, cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha};
+
 // SPI parameterization (read access)
 assign spi_par =  32'h0;
+
+// spi control
+assign spi_ctl =  32'h0; // TODO
 
 // SPI configuration (write access)
 always @(posedge clk, posedge rst)
@@ -162,7 +174,7 @@ end else if (reg_wen & (reg_adr == 3'd0)) begin
   {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= reg_wdt [ 5: 0];
 end
 
-// XIP configuration, DMA configuration, addresses
+// XIP configuration, DMA configuration, address offsets
 always @(posedge clk, posedge rst)
 if (rst) begin
   xip_cfg <= XIP_RST [31: 0];
@@ -175,6 +187,12 @@ end else if (reg_wen) begin
   if (reg_adr == 3'd6)  adr_rof <= reg_wdt;
   if (reg_adr == 3'd7)  adr_wof <= reg_wdt;
 end
+
+////////////////////////////////////////////////////////////////////////////////
+// arbitration                                                                //
+////////////////////////////////////////////////////////////////////////////////
+
+assign arb_sel = 2'b00;
 
 ////////////////////////////////////////////////////////////////////////////////
 // command output                                                             //

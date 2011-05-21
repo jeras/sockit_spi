@@ -41,6 +41,9 @@ module sockit_spi_dma #(
   input  wire    [31:0] dma_rdt,  // read data
   input  wire           dma_wrq,  // wait request
   // configuration
+  input  wire    [31:0] dma_cfg,  // DMA configuration
+  input  wire    [31:0] adr_rof,  // address read  offset
+  input  wire    [31:0] adr_wof,  // address write offset
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control

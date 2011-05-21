@@ -105,6 +105,9 @@ localparam BCO =        SDL+7;  // control output width
 localparam BCI =            4;  // control  input width
 localparam BDW =        4*SDW;  // data width
 
+// arbitration
+wire     [1:0] arb_sel;
+
 // command output
 wire           reg_cmo_req, xip_cmo_req, dma_cmo_req,  cmo_req;  // request
 wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl,  cmo_ctl;  // control
@@ -134,6 +137,12 @@ wire           cfg_coe;  // clock output enable
 wire           cfg_sse;  // slave select output enable
 wire           cfg_m_s;  // mode (0 - slave, 1 - master)
 wire           cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
+
+// XIP configuration, DMA configuration, address offsets
+wire    [31:0] xip_cfg;  // XIP configuration
+wire    [31:0] dma_cfg;  // DMA configuration
+wire    [31:0] adr_rof;  // address read  offset
+wire    [31:0] adr_wof;  // address write offset
 
 // SPI clocks
 wire           spi_cko;  // output registers
@@ -172,6 +181,13 @@ sockit_spi_reg #(
   .cfg_sse  (cfg_sse),
   .cfg_m_s  (cfg_m_s),
   .cfg_dir  (cfg_dir),
+  // XIP configuration, DMA configuration, address offsets
+  .xip_cfg  (xip_cfg),
+  .dma_cfg  (dma_cfg),
+  .adr_rof  (adr_rof),
+  .adr_wof  (adr_wof),
+  // arbitrstion
+  .arb_sel  (arb_sel),
   // command output
   .cmo_req  (reg_cmo_req),
   .cmo_ctl  (reg_cmo_ctl),
@@ -206,6 +222,9 @@ sockit_spi_xip #(
   .xip_wrq  (xip_wrq),  // wait request
   .xip_err  (xip_err),  // error interrupt
   // configuration
+  .xip_cfg  (xip_cfg),
+  .adr_rof  (adr_rof),
+  .adr_wof  (adr_wof),
   // command output
   .cmo_req  (xip_cmo_req),
   .cmo_ctl  (xip_cmo_ctl),
@@ -237,6 +256,9 @@ sockit_spi_dma #(
   .dma_rdt  (dma_rdt),
   .dma_wrq  (dma_wrq),
   // configuration
+  .dma_cfg  (dma_cfg),
+  .adr_rof  (adr_rof),
+  .adr_wof  (adr_wof),
   // command output
   .cmo_req  (dma_cmo_req),
   .cmo_ctl  (dma_cmo_ctl),
@@ -250,22 +272,24 @@ sockit_spi_dma #(
 );
 
 ////////////////////////////////////////////////////////////////////////////////
-// arbiter                                                                    //
+// arbiteration                                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-//reg [1:0] master;
+// command output multiplexer
+assign cmo_req = arb_sel[1] ? (arb_sel[0] ? xip_cmo_req : dma_cmo_req) : reg_cmo_req;
+assign cmo_ctl = arb_sel[1] ? (arb_sel[0] ? xip_cmo_ctl : dma_cmo_ctl) : reg_cmo_ctl;
+assign cmo_dat = arb_sel[1] ? (arb_sel[0] ? xip_cmo_dat : dma_cmo_dat) : reg_cmo_dat;
+// command output decoder
+assign reg_cmo_grt = cmo_grt & (arb_sel[1] == 1'b0 );
+assign dma_cmo_grt = cmo_grt & (arb_sel    == 2'b10);
+assign xip_cmo_grt = cmo_grt & (arb_sel    == 2'b11);
 
-// command output arbiter
-assign     cmo_req = reg_cmo_req;
-assign     cmo_ctl = reg_cmo_ctl;
-assign     cmo_dat = reg_cmo_dat;
-assign reg_cmo_grt =     cmo_grt & 1'b1;
-
-// command input arbiter
-assign reg_cmi_req =     cmi_req;
-assign reg_cmi_ctl =     cmi_ctl;
-assign reg_cmi_dat =     cmi_dat;
-assign     cmi_grt = reg_cmi_grt & 1'b1;
+// command input demultiplexer
+assign {xip_cmi_req, dma_cmi_req, reg_cmi_req} = {3{cmi_req}};
+assign {xip_cmi_ctl, dma_cmi_ctl, reg_cmi_ctl} = {3{cmi_ctl}};
+assign {xip_cmi_dat, dma_cmi_dat, reg_cmi_dat} = {3{cmi_dat}};
+// command input encoder
+assign cmi_grt = arb_sel[1] ? (arb_sel[0] ? xip_cmi_grt : dma_cmi_grt) : reg_cmi_grt;
 
 ////////////////////////////////////////////////////////////////////////////////
 // repack                                                                     //
