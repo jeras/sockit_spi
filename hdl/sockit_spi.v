@@ -29,12 +29,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi #(
+  // register reset values and masks
   parameter CTL_RST = 32'h00000000,  // control/status register reset value
   parameter CTL_MSK = 32'hffffffff,  // control/status register implementation mask
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
   parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
   parameter XIP_RST = 32'h00000000,  // XIP configuration register reset value
-  parameter XIP_MSK = 32'h00000001,  // XIP configuration register implentation mask
+  parameter XIP_MSK = 32'h00000000,  // XIP configuration register implentation mask
+  parameter DMA_RST = 32'h00000000,  // DMA configuration register reset value
+  parameter DMA_MSK = 32'h00000000,  // DMA configuration register implentation mask
+  //
   parameter NOP     = 32'h00000000,  // no operation instuction for the given CPU
   parameter XAW     =           24,  // XIP address width
   parameter DAW     =           32,  // DMA address width
@@ -145,6 +149,8 @@ sockit_spi_reg #(
   .CFG_MSK  (CFG_MSK),
   .XIP_RST  (XIP_RST),
   .XIP_MSK  (XIP_MSK),
+  .DMA_RST  (DMA_RST),
+  .DMA_MSK  (DMA_MSK),
   // port widths
   .XAW      (XAW    )
 ) rgs (

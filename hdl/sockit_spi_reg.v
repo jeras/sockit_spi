@@ -22,14 +22,20 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// Address space
-//
-//  adr |
-// -------------------------------------------------------------------------- //
-//  0x0 | cfg - configuration
-//  0x1 | 
-//
-//
+//                                                                            //
+//  Address space                                                             //
+//                                                                            //
+//  adr | reg name, short description                                         //
+// -----+-------------------------------------------------------------------- //
+//  0x0 | spi_cfg - SPI configuration                                         //
+//  0x1 | spi_par - SPI parameterization (synthesis parameters, read only)    //
+//  0x2 | spi_ctl - SPI control                                               //
+//  0x3 | spi_dat - SPI data                                                  //
+//  0x4 | xip_cfg - XIP configuration                                         //
+//  0x5 | dma_cfg - DMA configuration                                         //
+//  0x6 | adr_rof - address read  offset                                      //
+//  0x7 | adr_wof - address write offset                                      //
+//                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_reg #(
@@ -37,7 +43,9 @@ module sockit_spi_reg #(
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
   parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
   parameter XIP_RST = 32'h00000000,  // XIP configuration register reset value
-  parameter XIP_MSK = 32'h00000001,  // XIP configuration register implentation mask
+  parameter XIP_MSK = 32'h00000000,  // XIP configuration register implentation mask
+  parameter DMA_RST = 32'h00000000,  // DMA configuration register reset value
+  parameter DMA_MSK = 32'h00000000,  // DMA configuration register implentation mask
   // port widths
   parameter XAW     =           24,  // XIP address width
   parameter CCO     =          5+6,  // command control output width
@@ -81,14 +89,17 @@ module sockit_spi_reg #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // decoded register access signals
-wire  wen_cfg, ren_cfg;  // configuration
-wire  wen_xip, ren_xip;  // XPI address
 wire  wen_ctl, ren_ctl;  // control
 wire  wen_dat, ren_dat;  // data
 
-wire    [31:0] reg_cfg;
-
-reg     [31:0] xip_reg;
+wire    [31:0] spi_cfg;  // SPI configuration
+wire    [31:0] spi_par;  // SPI parameterization
+wire    [31:0] spi_ctl;  // SPI control
+wire    [31:0] spi_dat;  // SPI data
+reg     [31:0] xip_cfg;  // XIP configuration
+reg     [31:0] dma_cfg;  // DMA configuration
+reg     [31:0] adr_rof;  // address read  offset
+reg     [31:0] adr_wof;  // address write offset
 
 wire           cmo_trn;
 wire           cmi_trn;
@@ -105,27 +116,33 @@ reg            dat_rld;  // read  load
 ////////////////////////////////////////////////////////////////////////////////
 
 // register write/read access signals
-assign {wen_cfg, ren_cfg} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd0) & ~reg_wrq}};  // configuration
-assign {wen_xip, ren_xip} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd1) & ~reg_wrq}};  // XPI address
 assign {wen_ctl, ren_ctl} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd2) & ~reg_wrq}};  // control
 assign {wen_dat, ren_dat} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd3) & ~reg_wrq}};  // data
 
 // read data
 always @ (*)
 case (reg_adr)
-  3'd0 : reg_rdt = reg_cfg;  // configuration
-  3'd1 : reg_rdt = xip_reg;  // XPI address
-  3'd2 : reg_rdt = 32'd0;    // control
-  3'd3 : reg_rdt = cmd_rdt;  // data
+  3'd0 : reg_rdt = spi_cfg;  // SPI configuration
+  3'd1 : reg_rdt = spi_par;  // SPI parameterization
+  3'd2 : reg_rdt = spi_ctl;  // SPI control
+  3'd3 : reg_rdt = cmd_rdt;  // SPI data
+  3'd4 : reg_rdt = xip_cfg;  // XIP configuration
+  3'd5 : reg_rdt = dma_cfg;  // DMA configuration
+  3'd6 : reg_rdt = adr_rof;  // address read  offset
+  3'd7 : reg_rdt = adr_wof;  // address write offset
 endcase
 
 // wait request
 always @ (*)
 case (reg_adr)
-  3'd0 : reg_wrq = 1'b0;                                     // configuration
-  3'd1 : reg_wrq = 1'b0;                                     // XPI address
-  3'd2 : reg_wrq = reg_wen & ~cmo_grt;                       // control
-  3'd3 : reg_wrq = reg_wen &     1'b0 | reg_ren & ~dat_rld;  // data
+  3'd0 : reg_wrq = 1'b0;                                 // SPI configuration
+  3'd1 : reg_wrq = 1'b0;                                 // SPI parameterization
+  3'd2 : reg_wrq = reg_wen & ~cmo_grt;                   // SPI control
+  3'd3 : reg_wrq = reg_wen & 1'b0 | reg_ren & ~dat_rld;  // SPI data
+  3'd4 : reg_wrq = 1'b0;                                 // XIP configuration
+  3'd5 : reg_wrq = 1'b0;                                 // DMA configuration
+  3'd6 : reg_wrq = 1'b0;                                 // address read  offset
+  3'd7 : reg_wrq = 1'b0;                                 // address write offset
 endcase
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,22 +150,30 @@ endcase
 ////////////////////////////////////////////////////////////////////////////////
 
 // SPI configuration (read access)
-assign reg_cfg = {26'h000000, cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha};
+assign spi_cfg = {26'h0, cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha};
+// SPI parameterization (read access)
+assign spi_par =  32'h0;
 
 // SPI configuration (write access)
 always @(posedge clk, posedge rst)
 if (rst) begin
   {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= CFG_RST [ 5: 0];
-end else if (wen_cfg) begin
+end else if (reg_wen & (reg_adr == 3'd0)) begin
   {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= reg_wdt [ 5: 0];
 end
 
-// XIP configuration
+// XIP configuration, DMA configuration, addresses
 always @(posedge clk, posedge rst)
 if (rst) begin
-  xip_reg <= XIP_RST [31: 0];
-end else if (wen_xip) begin
-  xip_reg <= reg_wdt;
+  xip_cfg <= XIP_RST [31: 0];
+  dma_cfg <= XIP_RST [31: 0];
+  adr_rof <= XIP_RST [31: 0];
+  adr_wof <= XIP_RST [31: 0];
+end else if (reg_wen) begin
+  if (reg_adr == 3'd4)  xip_cfg <= reg_wdt;
+  if (reg_adr == 3'd5)  dma_cfg <= reg_wdt;
+  if (reg_adr == 3'd6)  adr_rof <= reg_wdt;
+  if (reg_adr == 3'd7)  adr_wof <= reg_wdt;
 end
 
 ////////////////////////////////////////////////////////////////////////////////
