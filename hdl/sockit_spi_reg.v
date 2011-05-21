@@ -21,6 +21,17 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+// Address space
+//
+//  adr |
+// -------------------------------------------------------------------------- //
+//  0x0 | cfg - configuration
+//  0x1 | 
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+
 module sockit_spi_reg #(
   // configuretion
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
@@ -39,7 +50,7 @@ module sockit_spi_reg #(
   // bus interface
   input  wire           reg_wen,  // write enable
   input  wire           reg_ren,  // read enable
-  input  wire     [1:0] reg_adr,  // address
+  input  wire     [2:0] reg_adr,  // address
   input  wire    [31:0] reg_wdt,  // write data
   output reg     [31:0] reg_rdt,  // read data
   output reg            reg_wrq,  // wait request
@@ -94,26 +105,26 @@ reg            dat_rld;  // read  load
 ////////////////////////////////////////////////////////////////////////////////
 
 // register write/read access signals
-assign {wen_cfg, ren_cfg} = {reg_wen, reg_ren} & {2{(reg_adr == 2'd0) & ~reg_wrq}};  // configuration
-assign {wen_xip, ren_xip} = {reg_wen, reg_ren} & {2{(reg_adr == 2'd1) & ~reg_wrq}};  // XPI address
-assign {wen_ctl, ren_ctl} = {reg_wen, reg_ren} & {2{(reg_adr == 2'd2) & ~reg_wrq}};  // control
-assign {wen_dat, ren_dat} = {reg_wen, reg_ren} & {2{(reg_adr == 2'd3) & ~reg_wrq}};  // data
+assign {wen_cfg, ren_cfg} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd0) & ~reg_wrq}};  // configuration
+assign {wen_xip, ren_xip} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd1) & ~reg_wrq}};  // XPI address
+assign {wen_ctl, ren_ctl} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd2) & ~reg_wrq}};  // control
+assign {wen_dat, ren_dat} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd3) & ~reg_wrq}};  // data
 
 // read data
 always @ (*)
 case (reg_adr)
-  2'd0 : reg_rdt = reg_cfg;  // configuration
-  2'd1 : reg_rdt = xip_reg;  // XPI address
-  2'd2 : reg_rdt = 32'd0;    // control
+  3'd0 : reg_rdt = reg_cfg;  // configuration
+  3'd1 : reg_rdt = xip_reg;  // XPI address
+  3'd2 : reg_rdt = 32'd0;    // control
   3'd3 : reg_rdt = cmd_rdt;  // data
 endcase
 
 // wait request
 always @ (*)
 case (reg_adr)
-  2'd0 : reg_wrq = 1'b0;                                     // configuration
-  2'd1 : reg_wrq = 1'b0;                                     // XPI address
-  2'd2 : reg_wrq = reg_wen & ~cmo_grt;                       // control
+  3'd0 : reg_wrq = 1'b0;                                     // configuration
+  3'd1 : reg_wrq = 1'b0;                                     // XPI address
+  3'd2 : reg_wrq = reg_wen & ~cmo_grt;                       // control
   3'd3 : reg_wrq = reg_wen &     1'b0 | reg_ren & ~dat_rld;  // data
 endcase
 
@@ -122,14 +133,14 @@ endcase
 ////////////////////////////////////////////////////////////////////////////////
 
 // SPI configuration (read access)
-assign reg_cfg = {23'h000000, cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha};
+assign reg_cfg = {26'h000000, cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha};
 
 // SPI configuration (write access)
 always @(posedge clk, posedge rst)
 if (rst) begin
-  {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= CFG_RST [ 4: 0];
+  {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= CFG_RST [ 5: 0];
 end else if (wen_cfg) begin
-  {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= reg_wdt [ 4: 0];
+  {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= reg_wdt [ 5: 0];
 end
 
 // XIP configuration

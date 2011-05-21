@@ -49,7 +49,7 @@ module spi_wrp #(
   // registers interface bus
   input  wire           reg_wen,     // write enable
   input  wire           reg_ren,     // read enable
-  input  wire     [1:0] reg_adr,     // address
+  input  wire     [2:0] reg_adr,     // address
   input  wire    [31:0] reg_wdt,     // write data
   output wire    [31:0] reg_rdt,     // read data
   output wire           reg_wrq,     // wait request
@@ -127,33 +127,15 @@ sockit_spi #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock
-//bufif1 buffer_sclk (spi_sclk, spi_sclk_o, spi_sclk_e);
-assign spi_sclk = spi_sclk_e ? spi_sclk_o : 1'bz;
+bufif1 buffer_sclk (spi_sclk, spi_sclk_o, spi_sclk_e);
 assign spi_sclk_i = spi_sclk;
 
 // data
-//bufif1 buffer_sio [3:0] ({spi_hold_n, spi_wp_n, spi_miso, spi_mosi}, spi_sio_o, spi_sio_e);
-//assign spi_sio_i =       {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
-//bufif1 buffer_hold_n (spi_hold_n, spi_sio_o[3], spi_sio_e[3]);
-//bufif1 buffer_wp_n   (spi_wp_n  , spi_sio_o[2], spi_sio_e[2]);
-//bufif1 buffer_miso   (spi_miso  , spi_sio_o[1], spi_sio_e[1]);
-//bufif1 buffer_mosi   (spi_mosi  , spi_sio_o[0], spi_sio_e[0]);
-assign spi_hold_n = spi_sio_e[3] ? spi_sio_o[3] : 1'bz;
-assign spi_wp_n   = spi_sio_e[2] ? spi_sio_o[2] : 1'bz;
-assign spi_miso   = spi_sio_e[1] ? spi_sio_o[1] : 1'bz;
-assign spi_mosi   = spi_sio_e[0] ? spi_sio_o[0] : 1'bz;
-assign spi_sio_i =   {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
+bufif1 buffer_sio [3:0] ({spi_hold_n, spi_wp_n, spi_miso, spi_mosi}, spi_sio_o, spi_sio_e);
+assign spi_sio_i =       {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
 
 // slave select (active low)
-//bufif1 buffer_ss_n [SSW-1:0] (spi_ss_n, ~spi_ss_o, spi_ss_e);
-assign spi_ss_n[0] = spi_ss_e[0] ? ~spi_ss_o[0] : 1'bz;
-assign spi_ss_n[1] = spi_ss_e[1] ? ~spi_ss_o[1] : 1'bz;
-assign spi_ss_n[2] = spi_ss_e[2] ? ~spi_ss_o[2] : 1'bz;
-assign spi_ss_n[3] = spi_ss_e[3] ? ~spi_ss_o[3] : 1'bz;
-assign spi_ss_n[4] = spi_ss_e[4] ? ~spi_ss_o[4] : 1'bz;
-assign spi_ss_n[5] = spi_ss_e[5] ? ~spi_ss_o[5] : 1'bz;
-assign spi_ss_n[6] = spi_ss_e[6] ? ~spi_ss_o[6] : 1'bz;
-assign spi_ss_n[7] = spi_ss_e[7] ? ~spi_ss_o[7] : 1'bz;
+bufif1 buffer_ss_n [SSW-1:0] (spi_ss_n, ~spi_ss_o, spi_ss_e);
 assign spi_ss_i = spi_ss_n;
 
 ////////////////////////////////////////////////////////////////////////////////

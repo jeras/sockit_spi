@@ -51,7 +51,7 @@ module sockit_spi #(
   // registers interface bus (slave)
   input  wire           reg_wen,     // write enable
   input  wire           reg_ren,     // read enable
-  input  wire     [1:0] reg_adr,     // address
+  input  wire     [2:0] reg_adr,     // address
   input  wire    [31:0] reg_wdt,     // write data
   output wire    [31:0] reg_rdt,     // read data
   output wire           reg_wrq,     // wait request

@@ -53,6 +53,7 @@ module sockit_spi_rpi #(
 
 reg            cyc_lst;
 reg            cyc_new;
+reg      [1:0] cyc_cnt;
 
 wire    [31:0] rpk_dat;
 reg     [31:0] cyc_dat;
@@ -106,12 +107,14 @@ always @(posedge clk, posedge rst)
 if (rst) begin
   cyc_lst <= 1'b0;
   cyc_new <= 1'b0;
+  cyc_cnt <= 2'd0;
 end else begin
   if (buf_trn) begin
     cyc_lst <= buf_ctl [2];
     cyc_new <= buf_ctl [3];
   end else if (cmd_trn) begin
     cyc_lst <= 1'b0;
+    cyc_cnt <= 2'd0;  // TODO
   end
 end
 
@@ -124,8 +127,8 @@ if (buf_trn) begin
   cyc_dat <= {cyc_dat [23: 0], rpk_dat [31:24]};
 end
 
-// command data
-assign cmd_ctl = {cyc_new, cyc_lst};
+// command control, data
+assign cmd_ctl = {cyc_new, cyc_lst, cyc_cnt};
 assign cmd_dat = cyc_dat;
 
 // buffer flow control

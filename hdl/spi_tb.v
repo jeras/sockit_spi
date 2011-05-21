@@ -35,7 +35,7 @@ localparam XDW = 32;
 localparam XBW = XDW/8;
 
 // register interface parameters
-localparam AAW =  2;
+localparam AAW =  3;
 localparam ADW = 32;
 localparam ABW = ADW/8;
 

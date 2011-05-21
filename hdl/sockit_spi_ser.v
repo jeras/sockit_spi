@@ -154,23 +154,22 @@ assign cyc_end = ~|cyc_cnt;
 // IO control registers
 always @(posedge spi_cko, posedge rst)
 if (rst) begin
-  cyc_sso <= 1'b0;
-  cyc_doe <= 4'h0;
-  cyc_die <= 1'b0;
-  cyc_iom <= 2'd1;
-  cyc_lst <= 1'b0;
+  cyc_sso <= {SSW{1'b0}};
+  cyc_doe <=      4'h0  ;
+  cyc_die <=      1'b0  ;
+  cyc_iom <=      2'd1  ;
+  cyc_lst <=      1'b0  ;
 end else if (bfo_trn) begin
+  cyc_sso <= {SSW{bfo_ctl [1]}} & 'd1;  // TODO
   case (bfo_ctl [5:4])
     2'd0 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0001;
     2'd1 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0001;
     2'd2 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0011;
     2'd3 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b1111;
   endcase
-  cyc_sso <= bfo_ctl [1];  // TODO
-  cyc_doe <= bfo_ctl [2];
-  cyc_die <= bfo_ctl [3];
+  cyc_die <= bfo_ctl [  3];
   cyc_iom <= bfo_ctl [5:4];
-  cyc_lst <= bfo_ctl [6];
+  cyc_lst <= bfo_ctl [  6];
 end
 
 // new data cycle indicator
@@ -191,7 +190,7 @@ assign spi_sclk_e = cfg_coe;
 
 
 // slave select input
-assign spi_rsi = spi_ss_i;  // reset for output registers
+assign spi_rsi = spi_ss_i [0];  // reset for output registers
 
 // slave select output, output enable
 assign spi_ss_o =      cyc_sso  ;
@@ -205,11 +204,11 @@ if (bfo_trn) begin
   spi_sdo_2 <=  bfo_dat [2*SDW+:SDW];
   spi_sdo_1 <=  bfo_dat [1*SDW+:SDW];
   spi_sdo_0 <=  bfo_dat [0*SDW+:SDW];
-end else if (cyc_doe) begin
-  spi_sdo_3 <= {spi_sdo_3 [SDW-1:0], 1'bx};
-  spi_sdo_2 <= {spi_sdo_2 [SDW-1:0], 1'bx};
-  spi_sdo_1 <= {spi_sdo_1 [SDW-1:0], 1'bx};
-  spi_sdo_0 <= {spi_sdo_0 [SDW-1:0], 1'bx};
+end else begin
+  if (cyc_doe [3])  spi_sdo_3 <= {spi_sdo_3 [SDW-2:0], 1'bx};
+  if (cyc_doe [2])  spi_sdo_2 <= {spi_sdo_2 [SDW-2:0], 1'bx};
+  if (cyc_doe [1])  spi_sdo_1 <= {spi_sdo_1 [SDW-2:0], 1'bx};
+  if (cyc_doe [0])  spi_sdo_0 <= {spi_sdo_0 [SDW-2:0], 1'bx};
 end
 
 assign spi_sio_o [3] = spi_sdo_3 [SDW-1];
@@ -230,9 +229,9 @@ if (cyc_die) begin
   spi_sdi_0 <= spi_dti_0;
 end
 
-assign spi_dti_3 = {spi_sdi_3, spi_sio_i [3]};
-assign spi_dti_2 = {spi_sdi_2, spi_sio_i [2]};
-assign spi_dti_1 = {spi_sdi_1, spi_sio_i [1]};
-assign spi_dti_0 = {spi_sdi_0, spi_sio_i [0]};
+assign spi_dti_3 = {spi_sdi_3 [SDW-2:0], spi_sio_i [3]};
+assign spi_dti_2 = {spi_sdi_2 [SDW-2:0], spi_sio_i [2]};
+assign spi_dti_1 = {spi_sdi_1 [SDW-2:0], spi_sio_i [1]};
+assign spi_dti_0 = {spi_sdi_0 [SDW-2:0], spi_sio_i [0]};
 
 endmodule
