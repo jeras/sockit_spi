@@ -36,10 +36,12 @@ module sockit_spi_dma #(
   // bus interface
   output wire           dma_wen,  // write enable
   output wire           dma_ren,  // read enable
-  output wire [DAW-1:0] dma_adr,  // address
+  output reg  [DAW-1:0] dma_adr,  // address
+  output wire     [3:0] dma_ben,  // byte enable
   output wire    [31:0] dma_wdt,  // write data
   input  wire    [31:0] dma_rdt,  // read data
   input  wire           dma_wrq,  // wait request
+  input  wire           dma_err,  // error response
   // configuration
   input  wire    [31:0] dma_cfg,  // DMA configuration
   input  wire    [31:0] adr_rof,  // address read  offset
@@ -60,6 +62,10 @@ module sockit_spi_dma #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
+wire           ctl_wen;
+reg     [15:0] ctl_cnt;
 
+always @ (posedge clk)
+dma_adr <= (ctl_wen ? adr_wof : adr_rof) + ctl_cnt;
 
 endmodule

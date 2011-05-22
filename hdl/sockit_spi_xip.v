@@ -40,10 +40,11 @@ module sockit_spi_xip #(
   input  wire           xip_wen,  // write enable
   input  wire           xip_ren,  // read enable
   input  wire [XAW-1:0] xip_adr,  // address
+  input  wire     [3:0] xip_ben,  // byte enable
   input  wire    [31:0] xip_wdt,  // write data
   output wire    [31:0] xip_rdt,  // read data
   output wire           xip_wrq,  // wait request
-  output wire           xip_err,  // error interrupt
+  output wire           xip_err,  // error response
   // configuration
   input  wire    [31:0] xip_cfg,  // XIP configuration
   input  wire    [31:0] adr_rof,  // address read  offset

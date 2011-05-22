@@ -62,6 +62,7 @@ module sockit_spi_reg #(
   input  wire    [31:0] reg_wdt,  // write data
   output reg     [31:0] reg_rdt,  // read data
   output reg            reg_wrq,  // wait request
+  output wire           reg_err,  // error response
   output wire           reg_irq,  // interrupt request
   // SPI configuration
   output reg            cfg_pol,  // clock polarity
@@ -80,7 +81,7 @@ module sockit_spi_reg #(
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
-  output wire [CDW-1:0] cmo_dat,  // data
+  output reg  [CDW-1:0] cmo_dat,  // data
   input  wire           cmo_grt,  // grant
   // command input
   input  wire           cmi_req,  // request
@@ -100,12 +101,10 @@ wire  wen_dat, ren_dat;  // data
 wire    [31:0] spi_cfg;  // SPI configuration
 wire    [31:0] spi_par;  // SPI parameterization
 wire    [31:0] spi_ctl;  // SPI control
+reg     [31:0] spi_dat;  // SPI data
 
 wire           cmo_trn;
 wire           cmi_trn;
-
-reg     [31:0] cmd_wdt;
-reg     [31:0] cmd_rdt;
 
 // data
 reg            dat_wld;  // write load
@@ -125,7 +124,7 @@ case (reg_adr)
   3'd0 : reg_rdt = spi_cfg;  // SPI configuration
   3'd1 : reg_rdt = spi_par;  // SPI parameterization
   3'd2 : reg_rdt = spi_ctl;  // SPI control
-  3'd3 : reg_rdt = cmd_rdt;  // SPI data
+  3'd3 : reg_rdt = spi_dat;  // SPI data
   3'd4 : reg_rdt = xip_cfg;  // XIP configuration
   3'd5 : reg_rdt = dma_cfg;  // DMA configuration
   3'd6 : reg_rdt = adr_rof;  // address read  offset
@@ -144,6 +143,9 @@ case (reg_adr)
   3'd6 : reg_wrq = 1'b0;                                 // address read  offset
   3'd7 : reg_wrq = 1'b0;                                 // address write offset
 endcase
+
+// error response
+assign reg_err = 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // interrupt                                                                  //
@@ -202,7 +204,7 @@ assign cmo_trn = cmo_req & cmo_grt;
 
 // data output
 always @(posedge clk)
-if (wen_dat)  cmd_wdt <= reg_wdt;
+if (wen_dat)  cmo_dat <= reg_wdt;
 
 // data output load status
 always @(posedge clk, posedge rst)
@@ -214,7 +216,6 @@ end
 
 // command output
 assign cmo_req = wen_ctl;
-assign cmo_dat = cmd_wdt;
 assign cmo_ctl = {reg_wdt[12:8], reg_wdt[5:0]};
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -226,7 +227,7 @@ assign cmi_trn = cmi_req & cmi_grt;
 
 // data input
 always @(posedge clk)
-if (cmi_trn)  cmd_rdt <= cmi_dat;
+if (cmi_trn)  spi_dat <= cmi_dat;
 
 // data input load status
 always @(posedge clk, posedge rst)

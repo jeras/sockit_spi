@@ -59,22 +59,26 @@ module sockit_spi #(
   input  wire    [31:0] reg_wdt,     // write data
   output wire    [31:0] reg_rdt,     // read data
   output wire           reg_wrq,     // wait request
+  output wire           reg_err,     // error response
   output wire           reg_irq,     // interrupt request
   // XIP interface bus (slave)
   input  wire           xip_wen,     // write enable
   input  wire           xip_ren,     // read enable
   input  wire [XAW-1:0] xip_adr,     // address
+  input  wire     [3:0] xip_ben,     // byte enable
   input  wire    [31:0] xip_wdt,     // write data
   output wire    [31:0] xip_rdt,     // read data
   output wire           xip_wrq,     // wait request
-  output wire           xip_err,     // error interrupt
+  output wire           xip_err,     // error response
   // DMA interface bus (master)
   output wire           dma_wen,     // write enable
   output wire           dma_ren,     // read enable
   output wire [DAW-1:0] dma_adr,     // address
+  output wire     [3:0] dma_ben,     // byte enable
   output wire    [31:0] dma_wdt,     // write data
   input  wire    [31:0] dma_rdt,     // read data
   input  wire           dma_wrq,     // wait request
+  input  wire           dma_err,     // error response
 
   // SPI signals (at a higher level should be connected to tristate IO pads)
   // serial clock
@@ -173,6 +177,7 @@ sockit_spi_reg #(
   .reg_wdt  (reg_wdt),
   .reg_rdt  (reg_rdt),
   .reg_wrq  (reg_wrq),
+  .reg_err  (reg_err),
   .reg_irq  (reg_irq),
   // SPI configuration
   .cfg_pol  (cfg_pol),
@@ -211,16 +216,17 @@ sockit_spi_xip #(
   .XAW      (XAW    )
 ) xip (
   // system signals
-  .clk      (clk_cpu),  // clock
-  .rst      (rst_cpu),  // reset
+  .clk      (clk_cpu),
+  .rst      (rst_cpu),
   // input bus (XIP requests)
-  .xip_wen  (xip_wen),  // write enable
-  .xip_ren  (xip_ren),  // read enable
-  .xip_adr  (xip_adr),  // address
-  .xip_wdt  (xip_wdt),  // write data
-  .xip_rdt  (xip_rdt),  // read data
-  .xip_wrq  (xip_wrq),  // wait request
-  .xip_err  (xip_err),  // error interrupt
+  .xip_wen  (xip_wen),
+  .xip_ren  (xip_ren),
+  .xip_adr  (xip_adr),
+  .xip_ben  (xip_ben),
+  .xip_wdt  (xip_wdt),
+  .xip_rdt  (xip_rdt),
+  .xip_wrq  (xip_wrq),
+  .xip_err  (xip_err),
   // configuration
   .xip_cfg  (xip_cfg),
   .adr_rof  (adr_rof),
@@ -252,9 +258,11 @@ sockit_spi_dma #(
   .dma_wen  (dma_wen),
   .dma_ren  (dma_ren),
   .dma_adr  (dma_adr),
+  .dma_ben  (dma_ben),
   .dma_wdt  (dma_wdt),
   .dma_rdt  (dma_rdt),
   .dma_wrq  (dma_wrq),
+  .dma_err  (dma_err),
   // configuration
   .dma_cfg  (dma_cfg),
   .adr_rof  (adr_rof),

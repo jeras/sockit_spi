@@ -29,15 +29,22 @@ module spi_tb ();
 // local parameters and signals                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
+// register interface parameters
+localparam AAW =  3;
+localparam ADW = 32;
+localparam ABW = ADW/8;
+
 // XIP interface parameters
 localparam XAW = 24;
 localparam XDW = 32;
 localparam XBW = XDW/8;
 
-// register interface parameters
-localparam AAW =  3;
-localparam ADW = 32;
-localparam ABW = ADW/8;
+// DMA interface parameters
+localparam DAW = 32;
+localparam DDW = 32;
+localparam DBW = XDW/8;
+
+localparam DMA_SIZ = 1024;
 
 // SPI parameters
 localparam SSW = 8;
@@ -49,25 +56,41 @@ reg clk_cpu, rst_cpu;
 reg clk_spi, rst_spi;
 
 // Avalon MM interfacie
-reg            reg_wen;
-reg            reg_ren;
-reg  [AAW-1:0] reg_adr;
-reg  [ABW-1:0] reg_ben;
-reg  [ADW-1:0] reg_wdt;
-wire [ADW-1:0] reg_rdt;
-wire           reg_wrq;
-wire           reg_trn;
+reg            reg_wen;  // read enable
+reg            reg_ren;  // read enable
+reg  [AAW-1:0] reg_adr;  // address
+reg  [ABW-1:0] reg_ben;  // byte enable
+reg  [ADW-1:0] reg_wdt;  // write data
+wire [ADW-1:0] reg_rdt;  // read data
+wire           reg_wrq;  // wait request
+wire           reg_err;  // error response
+wire           reg_trn;  // transfer
 
 // XIP bus
 reg            xip_wen;  // read enable
 reg            xip_ren;  // read enable
 reg  [XAW-1:0] xip_adr;  // address
 reg  [XBW-1:0] xip_ben;  // byte enable
-reg  [XDW-1:0] xip_wdt;  // read data
+reg  [XDW-1:0] xip_wdt;  // write data
 wire [XDW-1:0] xip_rdt;  // read data
 wire           xip_wrq;  // wait request
+wire           xip_err;  // error response
 wire           xip_trn;  // transfer
  
+// DMA bus
+wire           dma_wen;  // read enable
+wire           dma_ren;  // read enable
+wire [DAW-1:0] dma_adr;  // address
+wire [DBW-1:0] dma_ben;  // byte enable
+wire [DDW-1:0] dma_wdt;  // write data
+reg  [DDW-1:0] dma_rdt;  // read data
+wire           dma_wrq;  // wait request
+wire           dma_err;  // error response
+wire           dma_trn;  // transfer
+
+// DMA memory
+reg  [DDW-1:0] dma_mem [0:DMA_SIZ-1];
+
 // transfer data
 reg  [ADW-1:0] data;
 
@@ -228,49 +251,7 @@ initial begin
 end
 
 ////////////////////////////////////////////////////////////////////////////////
-// avalon tasks                                                               //
-////////////////////////////////////////////////////////////////////////////////
-
-// transfer cycle end status
-assign xip_trn = (xip_ren | xip_wen) & ~xip_wrq;
-
-task xip_cyc;
-  input            r_w;  // 0-read or 1-write cycle
-  input  [XAW-1:0] adr;
-  input  [XBW-1:0] ben;
-  input  [XDW-1:0] wdt;
-  output [XDW-1:0] rdt;
-// task reg_cyc (
-//   input            r_w,  // 0-read or 1-write cycle
-//   input  [XAW-1:0] adr,
-//   input  [XBW-1:0] ben,
-//   input  [XDW-1:0] wdt,
-//   output [XDW-1:0] rdt
-// );
-begin
-//  $display ("XIP cycle start: T=%10tns, %s adr=%08x ben=%04b wdt=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
-  // begin cycle
-  xip_ren <= ~r_w;
-  xip_wen <=  r_w;
-  xip_adr <=  adr;
-  xip_ben <=  ben;
-  xip_wdt <=  wdt;
-  // wait for waitrequest to be retracted
-  @ (posedge clk_cpu); while (~xip_trn) @ (posedge clk_cpu);
-  // end cycle
-  xip_ren <=      1'b0  ;
-  xip_wen <=      1'b0  ;
-  xip_adr <= {XAW{1'bx}};
-  xip_ben <= {XBW{1'bx}};
-  xip_wdt <= {XDW{1'bx}};
-  // read data
-  rdt = xip_rdt;
-//  $display ("XIP cycle end  : T=%10tns, rdt=%08x", $time/1000.0, rdt);
-end
-endtask
-
-////////////////////////////////////////////////////////////////////////////////
-// avalon tasks                                                               //
+// register bus tasks                                                         //
 ////////////////////////////////////////////////////////////////////////////////
 
 // avalon cycle transfer cycle end status
@@ -344,7 +325,72 @@ end
 endtask
 
 ////////////////////////////////////////////////////////////////////////////////
-// spi controller instance                                                    //
+// XIP bus tasks                                                              //
+////////////////////////////////////////////////////////////////////////////////
+
+// transfer cycle end status
+assign xip_trn = (xip_ren | xip_wen) & ~xip_wrq;
+
+task xip_cyc;
+  input            r_w;  // 0-read or 1-write cycle
+  input  [XAW-1:0] adr;
+  input  [XBW-1:0] ben;
+  input  [XDW-1:0] wdt;
+  output [XDW-1:0] rdt;
+// task reg_cyc (
+//   input            r_w,  // 0-read or 1-write cycle
+//   input  [XAW-1:0] adr,
+//   input  [XBW-1:0] ben,
+//   input  [XDW-1:0] wdt,
+//   output [XDW-1:0] rdt
+// );
+begin
+//  $display ("XIP cycle start: T=%10tns, %s adr=%08x ben=%04b wdt=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
+  // begin cycle
+  xip_ren <= ~r_w;
+  xip_wen <=  r_w;
+  xip_adr <=  adr;
+  xip_ben <=  ben;
+  xip_wdt <=  wdt;
+  // wait for waitrequest to be retracted
+  @ (posedge clk_cpu); while (~xip_trn) @ (posedge clk_cpu);
+  // end cycle
+  xip_ren <=      1'b0  ;
+  xip_wen <=      1'b0  ;
+  xip_adr <= {XAW{1'bx}};
+  xip_ben <= {XBW{1'bx}};
+  xip_wdt <= {XDW{1'bx}};
+  // read data
+  rdt = xip_rdt;
+//  $display ("XIP cycle end  : T=%10tns, rdt=%08x", $time/1000.0, rdt);
+end
+endtask
+
+////////////////////////////////////////////////////////////////////////////////
+// DMA memory model                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+// write access
+always @ (posedge clk_cpu)
+begin
+  if (dma_wen & ~dma_wrq & dma_ben[3])  dma_mem[dma_adr][8*3+:8] = dma_wdt[8*3+:8];
+  if (dma_wen & ~dma_wrq & dma_ben[2])  dma_mem[dma_adr][8*2+:8] = dma_wdt[8*2+:8];
+  if (dma_wen & ~dma_wrq & dma_ben[1])  dma_mem[dma_adr][8*1+:8] = dma_wdt[8*1+:8];
+  if (dma_wen & ~dma_wrq & dma_ben[0])  dma_mem[dma_adr][8*0+:8] = dma_wdt[8*0+:8];
+end
+
+// read access
+always @ (posedge clk_cpu)
+if (dma_ren & ~dma_wrq)  dma_rdt <= dma_mem[dma_adr];
+
+// timing
+assign dma_wrq = 1'b0;
+
+// error response
+assign dma_err = 1'b0;
+
+////////////////////////////////////////////////////////////////////////////////
+// SPI controller instance                                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi #(
@@ -357,12 +403,6 @@ sockit_spi #(
   .rst_cpu     (rst_cpu),
   .clk_spi     (clk_spi),
   .rst_spi     (rst_spi),
-  // XIP interface
-  .xip_ren     (xip_ren),
-  .xip_adr     (xip_adr),
-  .xip_rdt     (xip_rdt),
-  .xip_wrq     (xip_wrq),
-  .xip_err     (),
   // register interface
   .reg_wen     (reg_wen),
   .reg_ren     (reg_ren),
@@ -370,7 +410,24 @@ sockit_spi #(
   .reg_wdt     (reg_wdt),
   .reg_rdt     (reg_rdt),
   .reg_wrq     (reg_wrq),
+  .reg_err     (reg_err),
   .reg_irq     (reg_irq),
+  // XIP interface
+  .xip_ren     (xip_ren),
+  .xip_adr     (xip_adr),
+  .xip_ben     (xip_ben),
+  .xip_wdt     (xip_wdt),
+  .xip_rdt     (xip_rdt),
+  .xip_wrq     (xip_wrq),
+  .xip_err     (xip_err),
+  // DMA interface
+  .dma_ren     (dma_ren),
+  .dma_adr     (dma_adr),
+  .dma_ben     (dma_ben),
+  .dma_wdt     (dma_wdt),
+  .dma_rdt     (dma_rdt),
+  .dma_wrq     (dma_wrq),
+  .dma_err     (dma_err),
   // SPI signals (should be connected to tristate IO pads)
   // serial clock
   .spi_sclk_i  (spi_sclk_i),
