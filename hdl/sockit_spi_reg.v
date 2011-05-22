@@ -100,7 +100,6 @@ wire  wen_dat, ren_dat;  // data
 wire    [31:0] spi_cfg;  // SPI configuration
 wire    [31:0] spi_par;  // SPI parameterization
 wire    [31:0] spi_ctl;  // SPI control
-wire    [31:0] spi_dat;  // SPI data
 
 wire           cmo_trn;
 wire           cmi_trn;
