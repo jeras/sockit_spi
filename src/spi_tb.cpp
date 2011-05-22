@@ -63,7 +63,7 @@ int main(int argc, char **argv, char **env) {
   top->rst_spi = 1;
   // after two clock periods remove reset
   for (i=0; i<2; i++) clk_tgl ();
-  top->rst     = 0;
+  top->rst_cpu = 0;
   top->rst_spi = 0;
   for (i=0; i<2; i++) clk_tgl ();
 
