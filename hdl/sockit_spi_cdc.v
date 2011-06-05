@@ -41,12 +41,38 @@ module sockit_spi_cdc #(
   output wire [DW-1:0] cdo_dat   // data
 );
 
-// gray function
-function automatic [CW-1:0] gry_inc (input [CW-1:0] gry_cnt); 
+////////////////////////////////////////////////////////////////////////////////
+// gray code ralated functions
+////////////////////////////////////////////////////////////////////////////////
+
+// conversion from integer to gray
+function automatic [CW-1:0] int2gry (input [CW-1:0] val);                                                                                                               
+  integer i;
 begin
-  gry_inc = gry_cnt + 'd1;  // TODO, this is only a placeholder
+  for (i=0; i<CW-1; i=i+1)  int2gry[i] = val[i+1] ^ val[i];
+  int2gry[CW-1] = val[CW-1];
 end
 endfunction
+
+// conversion from gray to integer
+function automatic [CW-1:0] gry2int (input [CW-1:0] val);
+  integer i;
+begin
+  gry2int[CW-1] = val[CW-1];
+  for (i=CW-1; i>0; i=i-1)  gry2int[i-1] = val[i-1] ^ gry2int[i];
+end
+endfunction
+
+// gray increment (with conversion into integer and back to gray)
+function automatic [CW-1:0] gry_inc (input [CW-1:0] gry_cnt); 
+begin
+  gry_inc = int2gry (gry2int (gry_cnt) + 'd1);
+end
+endfunction
+
+////////////////////////////////////////////////////////////////////////////////
+// local signals                                                              //
+////////////////////////////////////////////////////////////////////////////////
 
 // input port
 wire          cdi_trn;  // transfer
