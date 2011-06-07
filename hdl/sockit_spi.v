@@ -105,8 +105,19 @@ localparam BCO =        SDL+7;  // control output width
 localparam BCI =            4;  // control  input width
 localparam BDW =        4*SDW;  // data width
 
-// arbitration
-wire     [1:0] arb_sel;
+// SPI/XIP/DMA configuration
+wire           cfg_pol;  // clock polarity
+wire           cfg_pha;  // clock phase
+wire           cfg_coe;  // clock output enable
+wire           cfg_sse;  // slave select output enable
+wire           cfg_m_s;  // mode (0 - slave, 1 - master)
+wire           cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
+wire     [7:0] cfg_xip;  // XIP configuration
+wire     [7:0] cfg_dma;  // DMA configuration
+
+// address offsets
+wire    [31:0] adr_rof;  // address read  offset
+wire    [31:0] adr_wof;  // address write offset
 
 // command output
 wire           reg_cmo_req, xip_cmo_req, dma_cmo_req,  cmo_req;  // request
@@ -130,19 +141,13 @@ wire [BCI-1:0] bir_ctl, biw_ctl;  // control
 wire [BDW-1:0] bir_dat, biw_dat;  // data
 wire           bir_grt, biw_grt;  // grant
 
-// SPI/XIP/DMA configuration
-wire           cfg_pol;  // clock polarity
-wire           cfg_pha;  // clock phase
-wire           cfg_coe;  // clock output enable
-wire           cfg_sse;  // slave select output enable
-wire           cfg_m_s;  // mode (0 - slave, 1 - master)
-wire           cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
-wire     [7:0] cfg_xip;  // XIP configuration
-wire     [7:0] cfg_dma;  // DMA configuration
+// DMA control/status interface
+wire           dma_ctl_stb;  // DMA strobe
+wire    [20:0] dma_ctl_ctl;  // DMA control
+wire    [20:0] dma_ctl_sts;  // DMA status
 
-// address offsets
-wire    [31:0] adr_rof;  // address read  offset
-wire    [31:0] adr_wof;  // address write offset
+// arbitration
+wire     [1:0] arb_sel;
 
 // SPI clocks
 wire           spi_cko;  // output registers
@@ -185,8 +190,6 @@ sockit_spi_reg #(
   // address offsets
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
-  // arbitrstion
-  .arb_sel  (arb_sel),
   // command output
   .cmo_req  (reg_cmo_req),
   .cmo_ctl  (reg_cmo_ctl),
@@ -196,7 +199,13 @@ sockit_spi_reg #(
   .cmi_req  (reg_cmi_req),
   .cmi_ctl  (reg_cmi_ctl),
   .cmi_dat  (reg_cmi_dat),
-  .cmi_grt  (reg_cmi_grt)
+  .cmi_grt  (reg_cmi_grt),
+  // DMA control/status interface
+  .dma_stb  (dma_ctl_stb),
+  .dma_ctl  (dma_ctl_ctl),
+  .dma_sts  (dma_ctl_sts),
+  // arbitrstion
+  .arb_sel  (arb_sel)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -261,6 +270,10 @@ sockit_spi_dma #(
   .cfg_dma  (cfg_dma),
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
+  // control/status
+  .ctl_stb  (dma_ctl_stb),
+  .ctl_ctl  (dma_ctl_ctl),
+  .ctl_sts  (dma_ctl_sts),
   // command output
   .cmo_req  (dma_cmo_req),
   .cmo_ctl  (dma_cmo_ctl),

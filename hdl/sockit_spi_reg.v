@@ -74,8 +74,6 @@ module sockit_spi_reg #(
   // address offsets
   output reg     [31:0] adr_rof,  // address read  offset
   output reg     [31:0] adr_wof,  // address write offset
-  // arbitration
-  output wire     [1:0] arb_sel,  // arbiter select
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
@@ -85,7 +83,13 @@ module sockit_spi_reg #(
   input  wire           cmi_req,  // request
   input  wire [CCI-1:0] cmi_ctl,  // control
   input  wire [CDW-1:0] cmi_dat,  // data
-  output wire           cmi_grt   // grant
+  output wire           cmi_grt,  // grant
+  // DMA control/status interface
+  output wire           dma_stb,  // DMA strobe
+  output wire    [20:0] dma_ctl,  // DMA control
+  input  wire    [20:0] dma_sts,  // DMA status
+  // arbitration
+  output wire     [1:0] arb_sel   // arbiter select
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +106,6 @@ wire    [31:0] spi_cfg;  // SPI configuration
 wire    [31:0] spi_par;  // SPI parameterization
 wire    [31:0] spi_sts;  // SPI status
 reg     [31:0] spi_dat;  // SPI data
-wire    [31:0] dma_sts;  // SPI status
 
 // SPI command interface
 wire           cmo_trn;
@@ -126,14 +129,14 @@ assign {wen_dma, ren_dma} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd5) & ~reg_wrq
 // read data
 always @ (*)
 case (reg_adr)
-  3'd0 : reg_rdt = spi_cfg;  // SPI configuration
-  3'd1 : reg_rdt = spi_par;  // SPI parameterization
-  3'd2 : reg_rdt = spi_sts;  // SPI status
-  3'd3 : reg_rdt = spi_dat;  // SPI data
-  3'd4 : reg_rdt = 32'hx;    // reserved
-  3'd5 : reg_rdt = dma_sts;  // DMA status
-  3'd6 : reg_rdt = adr_rof;  // address read  offset
-  3'd7 : reg_rdt = adr_wof;  // address write offset
+  3'd0 : reg_rdt =         spi_cfg ;  // SPI configuration
+  3'd1 : reg_rdt =         spi_par ;  // SPI parameterization
+  3'd2 : reg_rdt =         spi_sts ;  // SPI status
+  3'd3 : reg_rdt =         spi_dat ;  // SPI data
+  3'd4 : reg_rdt =    32'hxxxxxxxx ;  // reserved
+  3'd5 : reg_rdt = {11'b0, dma_sts};  // DMA status
+  3'd6 : reg_rdt =         adr_rof ;   // address read  offset
+  3'd7 : reg_rdt =         adr_wof ;   // address write offset
 endcase
 
 // wait request
