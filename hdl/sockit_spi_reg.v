@@ -31,7 +31,7 @@
 //  0x1 | spi_par - SPI parameterization (synthesis parameters, read only)    //
 //  0x2 | spi_ctl - SPI control/status                                        //
 //  0x3 | spi_dat - SPI data                                                  //
-//  0x4 |         - reserved                                                  //
+//  0x4 | spi_irq - SPI interrupts                                            //
 //  0x5 | dma_ctl - DMA control/status                                        //
 //  0x6 | adr_rof - address read  offset                                      //
 //  0x7 | adr_wof - address write offset                                      //
@@ -133,7 +133,7 @@ case (reg_adr)
   3'd1 : reg_rdt =         spi_par ;  // SPI parameterization
   3'd2 : reg_rdt =         spi_sts ;  // SPI status
   3'd3 : reg_rdt =         spi_dat ;  // SPI data
-  3'd4 : reg_rdt =    32'hxxxxxxxx ;  // reserved
+  3'd4 : reg_rdt =    32'hxxxxxxxx ;  // SPI interrupts
   3'd5 : reg_rdt = {11'b0, dma_sts};  // DMA status
   3'd6 : reg_rdt =         adr_rof ;   // address read  offset
   3'd7 : reg_rdt =         adr_wof ;   // address write offset
@@ -146,8 +146,8 @@ case (reg_adr)
   3'd1 : reg_wrq = 1'b0;                                 // SPI parameterization
   3'd2 : reg_wrq = reg_wen & ~cmo_grt;                   // SPI control
   3'd3 : reg_wrq = reg_wen & 1'b0 | reg_ren & ~dat_rld;  // SPI data
-  3'd4 : reg_wrq = 1'b0;                                 // XIP configuration
-  3'd5 : reg_wrq = 1'b0;                                 // DMA configuration
+  3'd4 : reg_wrq = 1'b0;                                 // SPI interrupts
+  3'd5 : reg_wrq = 1'b0;                                 // DMA control/status
   3'd6 : reg_wrq = 1'b0;                                 // address read  offset
   3'd7 : reg_wrq = 1'b0;                                 // address write offset
 endcase
@@ -156,7 +156,7 @@ endcase
 assign reg_err = 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
-// interrupt                                                                  //
+// interrupts                                                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
 // interrupt
@@ -186,18 +186,12 @@ end
 // XIP/DMA address offsets
 always @(posedge clk, posedge rst)
 if (rst) begin
-                        adr_rof <= ADR_ROF [31: 0];
-                        adr_wof <= ADR_WOF [31: 0];
+                        adr_rof <= ADR_ROF [31:0];
+                        adr_wof <= ADR_WOF [31:0];
 end else if (reg_wen) begin
-  if (reg_adr == 3'd6)  adr_rof <= reg_wdt [31: 0];
-  if (reg_adr == 3'd7)  adr_wof <= reg_wdt [31: 0];
+  if (reg_adr == 3'd6)  adr_rof <= reg_wdt [31:0];
+  if (reg_adr == 3'd7)  adr_wof <= reg_wdt [31:0];
 end
-
-////////////////////////////////////////////////////////////////////////////////
-// arbitration                                                                //
-////////////////////////////////////////////////////////////////////////////////
-
-assign arb_sel = 2'b00;
 
 ////////////////////////////////////////////////////////////////////////////////
 // command output                                                             //
@@ -243,5 +237,18 @@ end
 
 // command input transfer grant
 assign cmi_grt = ~dat_rld;
+
+////////////////////////////////////////////////////////////////////////////////
+// DMA control/status interface                                               //
+////////////////////////////////////////////////////////////////////////////////
+
+assign dma_stb = wen_dma;
+assign dma_ctl = reg_wdt [20:0];
+
+////////////////////////////////////////////////////////////////////////////////
+// arbitration                                                                //
+////////////////////////////////////////////////////////////////////////////////
+
+assign arb_sel = 2'b00;
 
 endmodule

@@ -33,12 +33,12 @@ module sockit_spi_dma #(
   // system signals
   input  wire           clk,      // clock
   input  wire           rst,      // reset
-  // bus interface
+  // memory bus interface
   output reg            dma_wen,  // write enable
   output reg            dma_ren,  // read enable
   output reg  [DAW-1:0] dma_adr,  // address
   output reg      [3:0] dma_ben,  // byte enable
-  output wire    [31:0] dma_wdt,  // write data
+  output reg     [31:0] dma_wdt,  // write data
   input  wire    [31:0] dma_rdt,  // read data
   input  wire           dma_wrq,  // wait request
   input  wire           dma_err,  // error response
@@ -67,8 +67,10 @@ module sockit_spi_dma #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-// DMA bus transfer
-wire           dma_trn;
+// memory interface
+wire           dma_wen_trn;  // write transfer
+wire           dma_ren_trn;  // read ransfer
+wire           dma_trn;      // common transfer
 
 // control registers
 reg      [1:0] ctl_siz;  // transfer size
@@ -76,9 +78,51 @@ reg            ctl_wen;  // write enable
 reg            ctl_ren;  // read  enable
 reg            ctl_pri;  // write/read priority
 
-// DMA cycle
+// cycle
 reg     [15:0] cyc_cnt;  // transfer counter
 reg            cyc_w_r;  // write/read cycle
+
+// command output
+wire           cmo_trn;  // transfer
+
+// command input
+wire           cmi_trn;  // transfer
+
+////////////////////////////////////////////////////////////////////////////////
+// memory interface                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+// transfers
+assign dma_wen_trn = (~dma_wrq | dma_err) & dma_wen;
+assign dma_ren_trn = (~dma_wrq | dma_err) & dma_ren;
+assign dma_trn = ctl_pri ? dma_ren_trn : dma_wen_trn;
+
+// write/read control
+always @ (posedge clk, posedge rst)
+if (rst) begin
+  dma_wen <= 1'b0;
+  dma_ren <= 1'b0;
+end else if (ctl_stb) begin
+  dma_wen <= ctl_wen;
+  dma_ren <= ctl_ren;
+end
+
+// transfer size
+always @ (posedge clk)
+dma_ben <= 4'hf;
+
+// address register
+always @ (posedge clk)
+dma_adr <= (cyc_w_r ? adr_wof : adr_rof) + {16'h0000, cyc_cnt};
+
+// write data
+// TODO proper alignment
+always @ (posedge clk)
+if (cmi_trn)  dma_wdt <= cmi_dat;
+
+////////////////////////////////////////////////////////////////////////////////
+// cycle control                                                              //
+////////////////////////////////////////////////////////////////////////////////
 
 // control registers
 always @ (posedge clk, posedge rst)
@@ -94,10 +138,6 @@ end else if (ctl_stb) begin
   ctl_pri <= ctl_ctl[20];
 end
 
-// address register
-always @ (posedge clk)
-dma_adr <= (cyc_w_r ? adr_wof : adr_rof) + {16'h0000, cyc_cnt};
-
 // transfer counter
 always @ (posedge clk)
 if (cfg_m_s) begin
@@ -107,5 +147,19 @@ if (cfg_m_s) begin
 end else begin
   // slave operation
 end
+
+////////////////////////////////////////////////////////////////////////////////
+// command output                                                             //
+////////////////////////////////////////////////////////////////////////////////
+
+// transfer
+assign cmo_trn = cmo_req & cmo_grt;
+
+////////////////////////////////////////////////////////////////////////////////
+// command input                                                              //
+////////////////////////////////////////////////////////////////////////////////
+
+// transfer
+assign cmi_trn = cmi_req & cmi_grt;
 
 endmodule
