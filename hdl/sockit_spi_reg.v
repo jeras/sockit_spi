@@ -29,23 +29,21 @@
 // -----+-------------------------------------------------------------------- //
 //  0x0 | spi_cfg - SPI configuration                                         //
 //  0x1 | spi_par - SPI parameterization (synthesis parameters, read only)    //
-//  0x2 | spi_ctl - SPI control                                               //
+//  0x2 | spi_ctl - SPI control/status                                        //
 //  0x3 | spi_dat - SPI data                                                  //
-//  0x4 | xip_cfg - XIP configuration                                         //
-//  0x5 | dma_cfg - DMA configuration                                         //
+//  0x4 |         - reserved                                                  //
+//  0x5 | dma_ctl - DMA control/status                                        //
 //  0x6 | adr_rof - address read  offset                                      //
 //  0x7 | adr_wof - address write offset                                      //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_reg #(
-  // configuretion
+  // configuration (register reset values and masks)
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
   parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
-  parameter XIP_RST = 32'h00000000,  // XIP configuration register reset value
-  parameter XIP_MSK = 32'h00000000,  // XIP configuration register implentation mask
-  parameter DMA_RST = 32'h00000000,  // DMA configuration register reset value
-  parameter DMA_MSK = 32'h00000000,  // DMA configuration register implentation mask
+  parameter ADR_ROF = 32'h00000000,  // address write offset
+  parameter ADR_WOF = 32'h00000000,  // address read  offset
   // port widths
   parameter XAW     =           24,  // XIP address width
   parameter CCO     =          5+6,  // command control output width
@@ -64,16 +62,16 @@ module sockit_spi_reg #(
   output reg            reg_wrq,  // wait request
   output wire           reg_err,  // error response
   output wire           reg_irq,  // interrupt request
-  // SPI configuration
+  // SPI/XIP/DMA configuration
   output reg            cfg_pol,  // clock polarity
   output reg            cfg_pha,  // clock phase
   output reg            cfg_coe,  // clock output enable
   output reg            cfg_sse,  // slave select output enable
   output reg            cfg_m_s,  // mode (0 - slave, 1 - master)
   output reg            cfg_dir,  // shift direction (0 - lsb first, 1 - msb first)
-  // XIP configuration, DMA configuration, address offsets
-  output reg     [31:0] xip_cfg,  // XIP configuration
-  output reg     [31:0] dma_cfg,  // DMA configuration
+  output reg      [7:0] cfg_xip,  // XIP configuration
+  output reg      [7:0] cfg_dma,  // DMA configuration
+  // address offsets
   output reg     [31:0] adr_rof,  // address read  offset
   output reg     [31:0] adr_wof,  // address write offset
   // arbitration
@@ -95,14 +93,18 @@ module sockit_spi_reg #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // decoded register access signals
-wire  wen_ctl, ren_ctl;  // control
-wire  wen_dat, ren_dat;  // data
+wire  wen_spi, ren_spi;  // SPI control/status
+wire  wen_dat, ren_dat;  // SPI data
+wire  wen_dma, ren_dma;  // DMA control/staus
 
+//
 wire    [31:0] spi_cfg;  // SPI configuration
 wire    [31:0] spi_par;  // SPI parameterization
-wire    [31:0] spi_ctl;  // SPI control
+wire    [31:0] spi_sts;  // SPI status
 reg     [31:0] spi_dat;  // SPI data
+wire    [31:0] dma_sts;  // SPI status
 
+// SPI command interface
 wire           cmo_trn;
 wire           cmi_trn;
 
@@ -110,23 +112,26 @@ wire           cmi_trn;
 reg            dat_wld;  // write load
 reg            dat_rld;  // read  load
 
+// DMA command interface
+
 ////////////////////////////////////////////////////////////////////////////////
 // register decoder                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 // register write/read access signals
-assign {wen_ctl, ren_ctl} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd2) & ~reg_wrq}};  // control
-assign {wen_dat, ren_dat} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd3) & ~reg_wrq}};  // data
+assign {wen_spi, ren_spi} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd2) & ~reg_wrq}};  // SPI control/status
+assign {wen_dat, ren_dat} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd3) & ~reg_wrq}};  // SPI data
+assign {wen_dma, ren_dma} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd5) & ~reg_wrq}};  // DMA control/staus
 
 // read data
 always @ (*)
 case (reg_adr)
   3'd0 : reg_rdt = spi_cfg;  // SPI configuration
   3'd1 : reg_rdt = spi_par;  // SPI parameterization
-  3'd2 : reg_rdt = spi_ctl;  // SPI control
+  3'd2 : reg_rdt = spi_sts;  // SPI status
   3'd3 : reg_rdt = spi_dat;  // SPI data
-  3'd4 : reg_rdt = xip_cfg;  // XIP configuration
-  3'd5 : reg_rdt = dma_cfg;  // DMA configuration
+  3'd4 : reg_rdt = 32'hx;    // reserved
+  3'd5 : reg_rdt = dma_sts;  // DMA status
   3'd6 : reg_rdt = adr_rof;  // address read  offset
   3'd7 : reg_rdt = adr_wof;  // address write offset
 endcase
@@ -164,8 +169,8 @@ assign spi_cfg = {26'h0, cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha};
 // SPI parameterization (read access)
 assign spi_par =  32'h0;
 
-// spi control
-assign spi_ctl =  32'h0; // TODO
+// SPI status
+assign spi_sts =  32'h0; // TODO
 
 // SPI configuration (write access)
 always @(posedge clk, posedge rst)
@@ -175,18 +180,14 @@ end else if (reg_wen & (reg_adr == 3'd0)) begin
   {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= reg_wdt [ 5: 0];
 end
 
-// XIP configuration, DMA configuration, address offsets
+// XIP/DMA address offsets
 always @(posedge clk, posedge rst)
 if (rst) begin
-  xip_cfg <= XIP_RST [31: 0];
-  dma_cfg <= XIP_RST [31: 0];
-  adr_rof <= XIP_RST [31: 0];
-  adr_wof <= XIP_RST [31: 0];
+                        adr_rof <= ADR_ROF [31: 0];
+                        adr_wof <= ADR_WOF [31: 0];
 end else if (reg_wen) begin
-  if (reg_adr == 3'd4)  xip_cfg <= reg_wdt;
-  if (reg_adr == 3'd5)  dma_cfg <= reg_wdt;
-  if (reg_adr == 3'd6)  adr_rof <= reg_wdt;
-  if (reg_adr == 3'd7)  adr_wof <= reg_wdt;
+  if (reg_adr == 3'd6)  adr_rof <= reg_wdt [31: 0];
+  if (reg_adr == 3'd7)  adr_wof <= reg_wdt [31: 0];
 end
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +216,7 @@ else begin
 end
 
 // command output
-assign cmo_req = wen_ctl;
+assign cmo_req = wen_spi;
 assign cmo_ctl = {reg_wdt[12:8], reg_wdt[5:0]};
 
 ////////////////////////////////////////////////////////////////////////////////

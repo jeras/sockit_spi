@@ -46,7 +46,7 @@ module sockit_spi_xip #(
   output wire           xip_wrq,  // wait request
   output wire           xip_err,  // error response
   // configuration
-  input  wire    [31:0] xip_cfg,  // XIP configuration
+  input  wire     [7:0] cfg_xip,  // XIP configuration
   input  wire    [31:0] adr_rof,  // address read  offset
   input  wire    [31:0] adr_wof,  // address write offset
   // command output

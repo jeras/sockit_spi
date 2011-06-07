@@ -34,18 +34,23 @@ module sockit_spi_dma #(
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // bus interface
-  output wire           dma_wen,  // write enable
-  output wire           dma_ren,  // read enable
+  output reg            dma_wen,  // write enable
+  output reg            dma_ren,  // read enable
   output reg  [DAW-1:0] dma_adr,  // address
-  output wire     [3:0] dma_ben,  // byte enable
+  output reg      [3:0] dma_ben,  // byte enable
   output wire    [31:0] dma_wdt,  // write data
   input  wire    [31:0] dma_rdt,  // read data
   input  wire           dma_wrq,  // wait request
   input  wire           dma_err,  // error response
   // configuration
-  input  wire    [31:0] dma_cfg,  // DMA configuration
+  input  wire           cfg_m_s,  // mode (0 - slave, 1 - master)
+  input  wire     [7:0] cfg_dma,  // DMA configuration
   input  wire    [31:0] adr_rof,  // address read  offset
   input  wire    [31:0] adr_wof,  // address write offset
+  // control
+  input  wire           ctl_req,  // DMA transfer request
+  output wire           ctl_grt,  // DMA transfer grant
+  input  wire    [15:0] ctl_len,  // DMA transfer length
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
@@ -62,10 +67,25 @@ module sockit_spi_dma #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
+// DMA bus transfer
+wire           dma_trn;
+
 wire           ctl_wen;
 reg     [15:0] ctl_cnt;
+reg     [ 1:0] ctl_siz;
 
+// address register
 always @ (posedge clk)
-dma_adr <= (ctl_wen ? adr_wof : adr_rof) + ctl_cnt;
+dma_adr <= (ctl_wen ? adr_wof : adr_rof) + {16'h0000, ctl_cnt};
+
+// transfer counter
+always @ (posedge clk)
+if (cfg_m_s) begin
+  // master operation
+  if (~|ctl_cnt & ctl_req)  ctl_cnt <= ctl_len;
+  else if        (dma_trn)  ctl_cnt <= ctl_cnt - {14'd0, ctl_siz};
+end else begin
+  // slave operation
+end
 
 endmodule

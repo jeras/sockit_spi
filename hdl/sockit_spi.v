@@ -29,15 +29,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi #(
-  // register reset values and masks
-  parameter CTL_RST = 32'h00000000,  // control/status register reset value
-  parameter CTL_MSK = 32'hffffffff,  // control/status register implementation mask
+  // configuration (register reset values and masks)
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
   parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
-  parameter XIP_RST = 32'h00000000,  // XIP configuration register reset value
-  parameter XIP_MSK = 32'h00000000,  // XIP configuration register implentation mask
-  parameter DMA_RST = 32'h00000000,  // DMA configuration register reset value
-  parameter DMA_MSK = 32'h00000000,  // DMA configuration register implentation mask
+  parameter ADR_ROF = 32'h00000000,  // address write offset
+  parameter ADR_WOF = 32'h00000000,  // address read  offset
   //
   parameter NOP     = 32'h00000000,  // no operation instuction for the given CPU
   parameter XAW     =           24,  // XIP address width
@@ -134,17 +130,17 @@ wire [BCI-1:0] bir_ctl, biw_ctl;  // control
 wire [BDW-1:0] bir_dat, biw_dat;  // data
 wire           bir_grt, biw_grt;  // grant
 
-// SPI configuration
+// SPI/XIP/DMA configuration
 wire           cfg_pol;  // clock polarity
 wire           cfg_pha;  // clock phase
 wire           cfg_coe;  // clock output enable
 wire           cfg_sse;  // slave select output enable
 wire           cfg_m_s;  // mode (0 - slave, 1 - master)
 wire           cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
+wire     [7:0] cfg_xip;  // XIP configuration
+wire     [7:0] cfg_dma;  // DMA configuration
 
-// XIP configuration, DMA configuration, address offsets
-wire    [31:0] xip_cfg;  // XIP configuration
-wire    [31:0] dma_cfg;  // DMA configuration
+// address offsets
 wire    [31:0] adr_rof;  // address read  offset
 wire    [31:0] adr_wof;  // address write offset
 
@@ -160,10 +156,8 @@ sockit_spi_reg #(
   // configuration
   .CFG_RST  (CFG_RST),
   .CFG_MSK  (CFG_MSK),
-  .XIP_RST  (XIP_RST),
-  .XIP_MSK  (XIP_MSK),
-  .DMA_RST  (DMA_RST),
-  .DMA_MSK  (DMA_MSK),
+  .ADR_ROF  (ADR_ROF),
+  .ADR_WOF  (ADR_WOF),
   // port widths
   .XAW      (XAW    )
 ) rgs (
@@ -179,16 +173,16 @@ sockit_spi_reg #(
   .reg_wrq  (reg_wrq),
   .reg_err  (reg_err),
   .reg_irq  (reg_irq),
-  // SPI configuration
+  // SPI/XIP/DMA configuration
   .cfg_pol  (cfg_pol),
   .cfg_pha  (cfg_pha),
   .cfg_coe  (cfg_coe),
   .cfg_sse  (cfg_sse),
   .cfg_m_s  (cfg_m_s),
   .cfg_dir  (cfg_dir),
-  // XIP configuration, DMA configuration, address offsets
-  .xip_cfg  (xip_cfg),
-  .dma_cfg  (dma_cfg),
+  .cfg_xip  (cfg_xip),
+  .cfg_dma  (cfg_dma),
+  // address offsets
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
   // arbitrstion
@@ -228,7 +222,7 @@ sockit_spi_xip #(
   .xip_wrq  (xip_wrq),
   .xip_err  (xip_err),
   // configuration
-  .xip_cfg  (xip_cfg),
+  .cfg_xip  (cfg_xip),
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
   // command output
@@ -264,7 +258,7 @@ sockit_spi_dma #(
   .dma_wrq  (dma_wrq),
   .dma_err  (dma_err),
   // configuration
-  .dma_cfg  (dma_cfg),
+  .cfg_dma  (cfg_dma),
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
   // command output
