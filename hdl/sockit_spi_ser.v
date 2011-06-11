@@ -26,9 +26,9 @@ module sockit_spi_ser #(
   parameter SSW     =            8,  // slave select width
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =            3,  // serial data register width logarithm
-  parameter BCO     =        SDL+7,  // buffer control output width
-  parameter BCI     =            4,  // buffer control  input width
-  parameter BDW     =        4*SDW   // buffer data width
+  parameter QCO     =        SDL+7,  // queue control output width
+  parameter QCI     =            4,  // queue control  input width
+  parameter QDW     =        4*SDW   // queue data width
 )(
   // system signals
   input  wire           clk,      // clock
@@ -42,16 +42,16 @@ module sockit_spi_ser #(
   input  wire           cfg_coe,  // closk output enable
   input  wire           cfg_sse,  // slave select output enable
   input  wire           cfg_m_s,  // mode (0 - slave, 1 - master)
-  // output buffer
-  input  wire           bfo_req,  // request
-  input  wire [BCO-1:0] bfo_ctl,  // control
-  input  wire [BDW-1:0] bfo_dat,  // data
-  output wire           bfo_grt,  // grant
-  // input buffer
-  output wire           bfi_req,  // request
-  output wire [BCI-1:0] bfi_ctl,  // control
-  output wire [BDW-1:0] bfi_dat,  // data
-  input  wire           bfi_grt,  // grant
+  // output queue
+  input  wire           quo_req,  // request
+  input  wire [QCO-1:0] quo_ctl,  // control
+  input  wire [QDW-1:0] quo_dat,  // data
+  output wire           quo_grt,  // grant
+  // input queue
+  output wire           qui_req,  // request
+  output wire [QCI-1:0] qui_ctl,  // control
+  output wire [QDW-1:0] qui_dat,  // data
+  input  wire           qui_grt,  // grant
 
   // SCLK (serial clock)
   input  wire           spi_sclk_i,  // input (clock loopback)
@@ -75,9 +75,9 @@ module sockit_spi_ser #(
 wire           spi_clk;
 wire           spi_rsi;
 
-// buffer transfers
-wire           bfi_trn;
-wire           bfo_trn;
+// queue transfers
+wire           qui_trn;
+wire           quo_trn;
 
 // cycle timing
 reg  [SDL-1:0] cyc_cnt;  // clock counter
@@ -126,13 +126,13 @@ assign spi_cki = (cfg_pol ^ cfg_pha) ^ ~spi_clk;  // input  registers
 // spi cycle timing                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-// flow control for buffer output
-assign bfo_grt = cyc_end;
-assign bfo_trn = bfo_req & bfo_grt;
+// flow control for queue output
+assign quo_grt = cyc_end;
+assign quo_trn = quo_req & quo_grt;
 
-// flow control for buffer input
-assign bfi_req = cyc_die & cyc_cke & cyc_end;
-assign bfi_trn = bfi_req & bfi_grt;
+// flow control for queue input
+assign qui_req = cyc_die & cyc_cke & cyc_end;
+assign qui_trn = qui_req & qui_grt;
 
 // transfer length counter
 always @(posedge spi_cko, posedge rst)
@@ -140,12 +140,12 @@ if (rst) begin
   cyc_cke <=      1'b0  ;
   cyc_cnt <= {SDL{1'b0}};
 end else begin
-  if (bfo_trn) begin
-    cyc_cke <= bfo_ctl [0     ];
-    cyc_cnt <= bfo_ctl [7+:SDL];
+  if (quo_trn) begin
+    cyc_cke <= quo_ctl [0     ];
+    cyc_cnt <= quo_ctl [7+:SDL];
   end else begin
     if (~cyc_end)  cyc_cnt <= cyc_cnt - 'd1;
-    if ( bfo_grt)  cyc_cke <= 1'b0;
+    if ( quo_grt)  cyc_cke <= 1'b0;
   end
 end
 
@@ -159,26 +159,26 @@ if (rst) begin
   cyc_die <=      1'b0  ;
   cyc_iom <=      2'd1  ;
   cyc_lst <=      1'b0  ;
-end else if (bfo_trn) begin
-  cyc_sso <= {SSW{bfo_ctl [1]}} & 'd1;  // TODO
-  case (bfo_ctl [5:4])
-    2'd0 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0001;
-    2'd1 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0001;
-    2'd2 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b0011;
-    2'd3 : cyc_doe <= {4{bfo_ctl [2]}} & 4'b1111;
+end else if (quo_trn) begin
+  cyc_sso <= {SSW{quo_ctl [1]}} & 'd1;  // TODO
+  case (quo_ctl [5:4])
+    2'd0 : cyc_doe <= {4{quo_ctl [2]}} & 4'b0001;
+    2'd1 : cyc_doe <= {4{quo_ctl [2]}} & 4'b0001;
+    2'd2 : cyc_doe <= {4{quo_ctl [2]}} & 4'b0011;
+    2'd3 : cyc_doe <= {4{quo_ctl [2]}} & 4'b1111;
   endcase
-  cyc_die <= bfo_ctl [  3];
-  cyc_iom <= bfo_ctl [5:4];
-  cyc_lst <= bfo_ctl [  6];
+  cyc_die <= quo_ctl [  3];
+  cyc_iom <= quo_ctl [5:4];
+  cyc_lst <= quo_ctl [  6];
 end
 
 // new data cycle indicator
 always @(posedge spi_cko, posedge spi_rsi)
 if (spi_rsi)      cyc_new <= 1'b1;
-else if (bfi_trn) cyc_new <= 1'b0;
+else if (qui_trn) cyc_new <= 1'b0;
 
-assign bfi_ctl = {cyc_new, cyc_lst, cyc_iom};
-assign bfi_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
+assign qui_ctl = {cyc_new, cyc_lst, cyc_iom};
+assign qui_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
 
 ////////////////////////////////////////////////////////////////////////////////
 // slave select, clock, data (input, output, enable)                          //
@@ -199,11 +199,11 @@ assign spi_ss_e = {SSW{cfg_sse}};
 
 // data output
 always @ (posedge spi_cko)
-if (bfo_trn) begin
-  spi_sdo_3 <=  bfo_dat [3*SDW+:SDW];
-  spi_sdo_2 <=  bfo_dat [2*SDW+:SDW];
-  spi_sdo_1 <=  bfo_dat [1*SDW+:SDW];
-  spi_sdo_0 <=  bfo_dat [0*SDW+:SDW];
+if (quo_trn) begin
+  spi_sdo_3 <=  quo_dat [3*SDW+:SDW];
+  spi_sdo_2 <=  quo_dat [2*SDW+:SDW];
+  spi_sdo_1 <=  quo_dat [1*SDW+:SDW];
+  spi_sdo_0 <=  quo_dat [0*SDW+:SDW];
 end else begin
   if (cyc_doe [3])  spi_sdo_3 <= {spi_sdo_3 [SDW-2:0], 1'bx};
   if (cyc_doe [2])  spi_sdo_2 <= {spi_sdo_2 [SDW-2:0], 1'bx};

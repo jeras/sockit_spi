@@ -28,9 +28,8 @@ module sockit_spi_rpi #(
   parameter CCO     =          5+6,  // command control output width
   parameter CCI     =            4,  // command control  input width
   parameter CDW     =           32,  // command data width
-  parameter BCO     =        SDL+7,  // buffer control output width
-  parameter BCI     =            4,  // buffer control  input width
-  parameter BDW     =        4*SDW   // buffer data width
+  parameter QCI     =            4,  // queue control  input width
+  parameter QDW     =        4*SDW   // queue data width
 )(
   // system signals
   input  wire           clk,      // clock
@@ -40,11 +39,11 @@ module sockit_spi_rpi #(
   output wire [CCI-1:0] cmd_ctl,  // control
   output wire [CDW-1:0] cmd_dat,  // data
   input  wire           cmd_grt,  // grant
-  // buffer
-  input  wire           buf_req,  // request
-  input  wire [BCI-1:0] buf_ctl,  // control
-  input  wire [BDW-1:0] buf_dat,  // data
-  output wire           buf_grt   // grant
+  // queue
+  input  wire           que_req,  // request
+  input  wire [QCI-1:0] que_ctl,  // control
+  input  wire [QDW-1:0] que_dat,  // data
+  output wire           que_grt   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,7 +58,7 @@ wire    [31:0] rpk_dat;
 reg     [31:0] cyc_dat;
 
 wire           cmd_trn;
-wire           buf_trn;
+wire           que_trn;
 
 ////////////////////////////////////////////////////////////////////////////////
 // repackaging function                                                       //
@@ -109,9 +108,9 @@ if (rst) begin
   cyc_new <= 1'b0;
   cyc_cnt <= 2'd0;
 end else begin
-  if (buf_trn) begin
-    cyc_lst <= buf_ctl [2];
-    cyc_new <= buf_ctl [3];
+  if (que_trn) begin
+    cyc_lst <= que_ctl [2];
+    cyc_new <= que_ctl [3];
   end else if (cmd_trn) begin
     cyc_lst <= 1'b0;
     cyc_cnt <= 2'd0;  // TODO
@@ -119,11 +118,11 @@ end else begin
 end
 
 // repackaged data
-assign rpk_dat = rpk(buf_dat, buf_ctl [1:0]);
+assign rpk_dat = rpk(que_dat, que_ctl [1:0]);
 
 // data registers
 always @(posedge clk)
-if (buf_trn) begin
+if (que_trn) begin
   cyc_dat <= {cyc_dat [23: 0], rpk_dat [31:24]};
 end
 
@@ -131,8 +130,8 @@ end
 assign cmd_ctl = {cyc_new, cyc_lst, cyc_cnt};
 assign cmd_dat = cyc_dat;
 
-// buffer flow control
-assign buf_grt = ~cyc_lst;
-assign buf_trn = buf_req & buf_grt;
+// queue flow control
+assign que_grt = ~cyc_lst;
+assign que_trn = que_req & que_grt;
 
 endmodule

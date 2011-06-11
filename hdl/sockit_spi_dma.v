@@ -24,6 +24,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_dma #(
+  // bus properties
+  parameter ENDIAN  =        "BIG",  // endian options include "BIG", "LITTLE"
   // port widths
   parameter DAW     =           32,  // DMA address width
   parameter CCO     =          5+6,  // command control output width
@@ -54,7 +56,7 @@ module sockit_spi_dma #(
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
-  output wire [CDW-1:0] cmo_dat,  // data
+  output reg  [CDW-1:0] cmo_dat,  // data
   input  wire           cmo_grt,  // grant
   // command input
   input  wire           cmi_req,  // request
@@ -72,13 +74,11 @@ wire           dma_wen_trn;  // write transfer
 wire           dma_ren_trn;  // read ransfer
 wire           dma_trn;      // common transfer
 
-// control registers
-reg      [1:0] ctl_siz;  // transfer size
-reg            ctl_wen;  // write enable
-reg            ctl_ren;  // read  enable
-reg            ctl_pri;  // write/read priority
-
-// cycle
+// cycle registers
+reg      [1:0] cyc_siz;  // transfer size
+reg            cyc_wen;  // write enable
+reg            cyc_ren;  // read  enable
+reg            cyc_pri;  // write/read priority
 reg     [15:0] cyc_cnt;  // transfer counter
 reg            cyc_w_r;  // write/read cycle
 
@@ -95,7 +95,7 @@ wire           cmi_trn;  // transfer
 // transfers
 assign dma_wen_trn = (~dma_wrq | dma_err) & dma_wen;
 assign dma_ren_trn = (~dma_wrq | dma_err) & dma_ren;
-assign dma_trn = ctl_pri ? dma_ren_trn : dma_wen_trn;
+assign dma_trn = cyc_pri ? dma_ren_trn : dma_wen_trn;
 
 // write/read control
 always @ (posedge clk, posedge rst)
@@ -103,8 +103,8 @@ if (rst) begin
   dma_wen <= 1'b0;
   dma_ren <= 1'b0;
 end else if (ctl_stb) begin
-  dma_wen <= ctl_wen;
-  dma_ren <= ctl_ren;
+  dma_wen <= cyc_wen;
+  dma_ren <= cyc_ren;
 end
 
 // transfer size
@@ -127,15 +127,15 @@ if (cmi_trn)  dma_wdt <= cmi_dat;
 // control registers
 always @ (posedge clk, posedge rst)
 if (rst) begin
-  ctl_siz <= 2'd0;
-  ctl_wen <= 1'b0;
-  ctl_ren <= 1'b0;
-  ctl_pri <= 1'b0;
+  cyc_siz <= 2'd0;
+  cyc_wen <= 1'b0;
+  cyc_ren <= 1'b0;
+  cyc_pri <= 1'b0;
 end else if (ctl_stb) begin
-  ctl_siz <= ctl_ctl[17:16];
-  ctl_wen <= ctl_ctl[18];
-  ctl_ren <= ctl_ctl[19];
-  ctl_pri <= ctl_ctl[20];
+  cyc_siz <= ctl_ctl[17:16];
+  cyc_wen <= ctl_ctl[18];
+  cyc_ren <= ctl_ctl[19];
+  cyc_pri <= ctl_ctl[20];
 end
 
 // transfer counter
@@ -143,7 +143,7 @@ always @ (posedge clk)
 if (cfg_m_s) begin
   // master operation
   if      (ctl_stb)  cyc_cnt <= ctl_ctl[15:0];
-  else if (dma_trn)  cyc_cnt <= cyc_cnt - {14'd0, ctl_siz};
+  else if (dma_trn)  cyc_cnt <= cyc_cnt - ({14'd0, cyc_siz} + 16'd1);
 end else begin
   // slave operation
 end
@@ -154,6 +154,35 @@ end
 
 // transfer
 assign cmo_trn = cmo_req & cmo_grt;
+
+// control
+
+
+// data
+generate if (ENDIAN == "BIG") begin
+
+always @ (*) begin
+  case (cyc_siz)
+    2'd0    : cmo_dat = (dma_rdt << ( 8*dma_adr[1:0])) ^ 32'h00xxxxxx;
+    2'd1    : cmo_dat = (dma_rdt << (16*dma_adr[1]  )) ^ 32'h0000xxxx;
+    2'd2    : cmo_dat = (dma_rdt << ( 8*dma_adr[1:0])) ^ 32'h000000xx;
+    default : cmo_dat =  dma_rdt;
+  endcase
+end
+
+end else if (ENDIAN == "LITTLE") begin
+
+// TODO, think about it and than implement it
+always @ (*) begin
+  case (cyc_siz)
+    2'd0    : cmo_dat = (dma_rdt << ( 8*dma_adr[1:0])) ^ 32'h00xxxxxx;
+    2'd1    : cmo_dat = (dma_rdt << (16*dma_adr[1]  )) ^ 32'h0000xxxx;
+    2'd2    : cmo_dat = (dma_rdt << ( 8*dma_adr[1:0])) ^ 32'h000000xx;
+    default : cmo_dat =  dma_rdt;
+  endcase
+end
+
+end endgenerate
 
 ////////////////////////////////////////////////////////////////////////////////
 // command input                                                              //

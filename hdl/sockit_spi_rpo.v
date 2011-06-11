@@ -28,9 +28,8 @@ module sockit_spi_rpo #(
   parameter CCO     =          5+6,  // command control output width
   parameter CCI     =            4,  // command control  input width
   parameter CDW     =           32,  // command data width
-  parameter BCO     =        SDL+7,  // buffer control output width
-  parameter BCI     =            4,  // buffer control  input width
-  parameter BDW     =        4*SDW   // buffer data width
+  parameter QCO     =        SDL+7,  // queue control output width
+  parameter QDW     =        4*SDW   // queue data width
 )(
   // system signals
   input  wire           clk,      // clock
@@ -40,11 +39,11 @@ module sockit_spi_rpo #(
   input  wire [CCO-1:0] cmd_ctl,  // control
   input  wire [CDW-1:0] cmd_dat,  // data
   output wire           cmd_grt,  // grant
-  // buffer
-  output wire           buf_req,  // request
-  output wire [BCO-1:0] buf_ctl,  // control
-  output wire [BDW-1:0] buf_dat,  // data
-  input  wire           buf_grt   // grant
+  // queue
+  output wire           que_req,  // request
+  output wire [QCO-1:0] que_ctl,  // control
+  output wire [QDW-1:0] que_dat,  // data
+  input  wire           que_grt   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -63,7 +62,7 @@ wire     [1:0] cyc_iom;  // SPI IO mode
 reg  [CCO-6:0] cyc_ctl;  // contol register
 reg  [CDW-1:0] cyc_dat;  // data   register
 
-wire           buf_trn;  // buffer transfer
+wire           que_trn;  // queue transfer
 
 ////////////////////////////////////////////////////////////////////////////////
 // repackaging function                                                       //
@@ -111,7 +110,7 @@ endfunction
 ////////////////////////////////////////////////////////////////////////////////
 
 // command flow control
-assign cmd_grt = ~cyc_run | buf_grt & cyc_lst;
+assign cmd_grt = ~cyc_run | que_grt & cyc_lst;
 assign cmd_trn = cmd_req & cmd_grt;
 
 // counter
@@ -125,7 +124,7 @@ end else begin
     cyc_run <= 1'b1;
     cyc_lst <= cmd_ctl [6+:5] < SDW;
     cyc_cnt <= cmd_ctl [6+:5];
-  end else if (buf_trn) begin
+  end else if (que_trn) begin
     cyc_run <= ~cyc_lst;
     cyc_lst <= cyc_nxt < SDW;
     cyc_cnt <= cyc_nxt;
@@ -146,16 +145,16 @@ always @(posedge clk)
 if (cmd_trn) begin
   cyc_ctl <= cmd_ctl [5:0];
   cyc_dat <= cmd_dat;
-end else if (buf_trn) begin
+end else if (que_trn) begin
   cyc_dat <= cyc_dat << SDW;
 end
 
-// buffer control and data
-assign buf_ctl = {cyc_len, cyc_lst, cyc_ctl};
-assign buf_dat = rpk (cyc_dat, cyc_iom);
+// queue control and data
+assign que_ctl = {cyc_len, cyc_lst, cyc_ctl};
+assign que_dat = rpk (cyc_dat, cyc_iom);
 
-// buffer flow control
-assign buf_req = cyc_run;
-assign buf_trn = buf_req & buf_grt;
+// queue flow control
+assign que_req = cyc_run;
+assign que_trn = que_req & que_grt;
 
 endmodule

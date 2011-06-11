@@ -100,10 +100,10 @@ localparam CCO =          5+6;  // control output width
 localparam CCI =            4;  // control  input width
 localparam CDW =           32;  // data width
 
-// buffer parameters
-localparam BCO =        SDL+7;  // control output width
-localparam BCI =            4;  // control  input width
-localparam BDW =        4*SDW;  // data width
+// queue parameters
+localparam QCO =        SDL+7;  // control output width
+localparam QCI =            4;  // control  input width
+localparam QDW =        4*SDW;  // data width
 
 // SPI/XIP/DMA configuration
 wire           cfg_pol;  // clock polarity
@@ -130,16 +130,16 @@ wire [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl,  cmi_ctl;  // control
 wire [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat,  cmi_dat;  // data
 wire           reg_cmi_grt, xip_cmi_grt, dma_cmi_grt,  cmi_grt;  // grant
 
-// buffer output
-wire           bow_req, bor_req;  // request
-wire [BCO-1:0] bow_ctl, bor_ctl;  // control
-wire [BDW-1:0] bow_dat, bor_dat;  // data
-wire           bow_grt, bor_grt;  // grant
-// buffer input
-wire           bir_req, biw_req;  // request
-wire [BCI-1:0] bir_ctl, biw_ctl;  // control
-wire [BDW-1:0] bir_dat, biw_dat;  // data
-wire           bir_grt, biw_grt;  // grant
+// queue output
+wire           qow_req, qor_req;  // request
+wire [QCO-1:0] qow_ctl, qor_ctl;  // control
+wire [QDW-1:0] qow_dat, qor_dat;  // data
+wire           qow_grt, qor_grt;  // grant
+// queue input
+wire           qir_req, qiw_req;  // request
+wire [QCI-1:0] qir_ctl, qiw_ctl;  // control
+wire [QDW-1:0] qir_dat, qiw_dat;  // data
+wire           qir_grt, qiw_grt;  // grant
 
 // DMA control/status interface
 wire           dma_ctl_stb;  // DMA strobe
@@ -322,11 +322,11 @@ sockit_spi_rpo #(
   .cmd_ctl  (cmo_ctl),
   .cmd_dat  (cmo_dat),
   .cmd_grt  (cmo_grt),
-  // buffer output
-  .buf_req  (bow_req),
-  .buf_ctl  (bow_ctl),
-  .buf_dat  (bow_dat),
-  .buf_grt  (bow_grt)
+  // queue output
+  .que_req  (qow_req),
+  .que_ctl  (qow_ctl),
+  .que_dat  (qow_dat),
+  .que_grt  (qow_grt)
 );
 
 sockit_spi_rpi #(
@@ -341,11 +341,11 @@ sockit_spi_rpi #(
   .cmd_ctl  (cmi_ctl),
   .cmd_dat  (cmi_dat),
   .cmd_grt  (cmi_grt),
-  // buffer output
-  .buf_req  (bir_req),
-  .buf_ctl  (bir_ctl),
-  .buf_dat  (bir_dat),
-  .buf_grt  (bir_grt)
+  // queue output
+  .que_req  (qir_req),
+  .que_ctl  (qir_ctl),
+  .que_dat  (qir_dat),
+  .que_grt  (qir_grt)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -357,58 +357,58 @@ generate if (CDC) begin : cdc
   // data output
   sockit_spi_cdc #(
     .CW       (      1),
-    .DW       (BCO+BDW)
-  ) cdc_bfo (
+    .DW       (QCO+QDW)
+  ) cdc_quo (
     // input port
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
-    .cdi_pli  (bow_req),
-    .cdi_dat ({bow_ctl,
-               bow_dat}),
-    .cdi_plo  (bow_grt),
+    .cdi_pli  (qow_req),
+    .cdi_dat ({qow_ctl,
+               qow_dat}),
+    .cdi_plo  (qow_grt),
     // output port
     .cdo_clk  (spi_cko),
     .cdo_rst  (rst_spi),
-    .cdo_plo  (bor_req),
-    .cdo_dat ({bor_ctl,
-               bor_dat}),
-    .cdo_pli  (bor_grt)
+    .cdo_plo  (qor_req),
+    .cdo_dat ({qor_ctl,
+               qor_dat}),
+    .cdo_pli  (qor_grt)
   );
 
   // data input
   sockit_spi_cdc #(
     .CW       (      1),
-    .DW       (BCI+BDW)
-  ) cdc_bfi (
+    .DW       (QCI+QDW)
+  ) cdc_qui (
     // input port
     .cdi_clk  (spi_cki),
     .cdi_rst  (rst_spi),
-    .cdi_pli  (biw_req),
-    .cdi_dat ({biw_ctl,
-               biw_dat}),
-    .cdi_plo  (biw_grt),
+    .cdi_pli  (qiw_req),
+    .cdi_dat ({qiw_ctl,
+               qiw_dat}),
+    .cdi_plo  (qiw_grt),
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
-    .cdo_plo  (bir_req),
-    .cdo_dat ({bir_ctl,
-               bir_dat}),
-    .cdo_pli  (bir_grt)
+    .cdo_plo  (qir_req),
+    .cdo_dat ({qir_ctl,
+               qir_dat}),
+    .cdo_pli  (qir_grt)
   );
 
 end else begin : syn
 
   // data output
-  assign bor_req = bow_req;
-  assign bor_ctl = bow_ctl;
-  assign bor_dat = bow_dat;
-  assign bow_grt = bor_grt;
+  assign qor_req = qow_req;
+  assign qor_ctl = qow_ctl;
+  assign qor_dat = qow_dat;
+  assign qow_grt = qor_grt;
 
   // data input
-  assign bir_req = biw_req;
-  assign bir_ctl = biw_ctl;
-  assign bir_dat = biw_dat;
-  assign biw_grt = bir_grt;
+  assign qir_req = qiw_req;
+  assign qir_ctl = qiw_ctl;
+  assign qir_dat = qiw_dat;
+  assign qiw_grt = qir_grt;
 
 end endgenerate
 
@@ -432,16 +432,16 @@ sockit_spi_ser #(
   .cfg_coe  (cfg_coe),
   .cfg_sse  (cfg_sse),
   .cfg_m_s  (cfg_m_s),
-  // output buffer
-  .bfo_req  (bor_req),
-  .bfo_ctl  (bor_ctl),
-  .bfo_dat  (bor_dat),
-  .bfo_grt  (bor_grt),
-  // input buffer
-  .bfi_req  (biw_req),
-  .bfi_ctl  (biw_ctl),
-  .bfi_dat  (biw_dat),
-  .bfi_grt  (biw_grt),
+  // output sequence
+  .quo_req  (qor_req),
+  .quo_ctl  (qor_ctl),
+  .quo_dat  (qor_dat),
+  .quo_grt  (qor_grt),
+  // input sequence
+  .qui_req  (qiw_req),
+  .qui_ctl  (qiw_ctl),
+  .qui_dat  (qiw_dat),
+  .qui_grt  (qiw_grt),
 
   // SCLK (serial clock)
   .spi_sclk_i  (spi_sclk_i),
