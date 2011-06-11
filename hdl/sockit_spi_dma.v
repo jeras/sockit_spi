@@ -155,8 +155,11 @@ end
 // transfer
 assign cmo_trn = cmo_req & cmo_grt;
 
-// control
+// transfer request
+assign cmo_req = dma_ren;
 
+// control                    siz,  lst,     iom,  sso,  cke
+assign cmo_ctl = {cyc_siz, 3'b000, 1'b0, cfg_iom, 1'b1, 1'b1};
 
 // data
 generate if (ENDIAN == "BIG") begin
@@ -190,5 +193,8 @@ end endgenerate
 
 // transfer
 assign cmi_trn = cmi_req & cmi_grt;
+
+// trasfer grant
+assign cmi_grt = dma_wen & ~dma_wrq;
 
 endmodule
