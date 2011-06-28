@@ -1,7 +1,7 @@
-[timestart] 5003700
+[timestart] 5248600
 [size] 1366 744
 [pos] -1 -1
-*-17.225300 5360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.225300 5320000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 @820
@@ -57,7 +57,12 @@ spi_tb.sockit_spi.dma.ctl_stb
 @22
 spi_tb.sockit_spi.dma.ctl_ctl[20:0]
 spi_tb.sockit_spi.dma.ctl_sts[20:0]
+spi_tb.sockit_spi.dma.cyc_ocn[15:0]
+spi_tb.sockit_spi.dma.cyc_icn[15:0]
+@29
+spi_tb.sockit_spi.dma.cyc_oen
 @28
+spi_tb.sockit_spi.dma.cyc_ien
 spi_tb.sockit_spi.arb_xip
 spi_tb.sockit_spi.arb_dmo
 spi_tb.sockit_spi.arb_dmi

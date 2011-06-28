@@ -38,7 +38,7 @@ module sockit_spi_dma #(
   // memory bus interface
   output reg            dma_wen,  // write enable
   output reg            dma_ren,  // read enable
-  output reg  [DAW-1:0] dma_adr,  // address
+  output wire [DAW-1:0] dma_adr,  // address
   output reg      [3:0] dma_ben,  // byte enable
   output reg     [31:0] dma_wdt,  // write data
   input  wire    [31:0] dma_rdt,  // read data
@@ -75,6 +75,7 @@ wire           dma_ren_trn;  // read  transfer
 wire           dma_trn;  // common transfer
 wire           dma_wrd, dma_rrd;  // write/read ready
 wire           dma_wcy, dma_rcy;  // write/read cycle
+reg  [DAW-1:0] dma_wad, dma_rad;  // write/read address
 
 // cycle registers
 reg      [1:0] cyc_siz;  // transfer size
@@ -119,10 +120,18 @@ end
 always @ (posedge clk)
 dma_ben <= 4'hf;
 
-// address register
+// write/read address register
 always @ (posedge clk)
-dma_adr <= dma_wcy ? adr_wof + {16'h0000, cyc_icn}
-                   : adr_rof + {16'h0000, cyc_ocn};
+if (ctl_stb) begin
+  dma_wad <= adr_wof;
+  dma_rad <= adr_rof;
+end else begin
+  if (dma_wen_trn)  dma_wad <= dma_wad + ({14'd0, cyc_siz} + 16'd1);
+  if (dma_ren_trn)  dma_rad <= dma_rad + ({14'd0, cyc_siz} + 16'd1);
+end
+
+// write/read address multiplexer
+assign dma_adr = dma_wcy ? dma_wad : dma_rad;
 
 // write data
 // TODO proper alignment
@@ -145,8 +154,8 @@ end else begin
     cyc_oen <= ctl_ctl[18];
     cyc_ien <= ctl_ctl[19];
   end else begin
-    if (cmo_trn) cyc_oen <= cyc_ofn;
-    if (cmi_trn) cyc_ien <= cyc_ifn;
+    if (cmo_trn) cyc_oen <= ~cyc_ofn;
+    if (cmi_trn) cyc_ien <= ~cyc_ifn;
   end
 end
 
@@ -161,8 +170,8 @@ end else if (cfg_m_s) begin
     if (ctl_ctl[18])  cyc_ocn <= ctl_ctl[15:0];
     if (ctl_ctl[19])  cyc_icn <= ctl_ctl[15:0];
   end else begin
-    if (cmo_trn)  cyc_ocn <= cyc_ocn - ({14'd0, cyc_siz} + 16'd1);
-    if (cmi_trn)  cyc_icn <= cyc_icn - ({14'd0, cyc_siz} + 16'd1);
+    if (cmo_trn)  cyc_ocn <= cyc_ocn - 16'd1;
+    if (cmi_trn)  cyc_icn <= cyc_icn - 16'd1;
   end
 end else begin
   // slave operation
