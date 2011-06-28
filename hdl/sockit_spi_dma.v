@@ -51,8 +51,8 @@ module sockit_spi_dma #(
   input  wire    [31:0] adr_wof,  // address write offset
   // control/status
   input  wire           ctl_stb,  // DMA strobe
-  output wire    [20:0] ctl_ctl,  // DMA control
-  input  wire    [20:0] ctl_sts,  // DMA status
+  input  wire    [20:0] ctl_ctl,  // DMA control
+  output wire    [20:0] ctl_sts,  // DMA status
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
@@ -71,8 +71,11 @@ module sockit_spi_dma #(
 
 // memory interface
 wire           dma_wen_trn;  // write transfer
-wire           dma_ren_trn;  // read ransfer
-wire           dma_trn;      // common transfer
+wire           dma_ren_trn;  // read  transfer
+wire           dma_pri_trn;  // priority transfer
+wire           dma_trn;  // common transfer
+wire           dma_wrd;  // write ready
+wire           dma_rrd;  // read  ready
 
 // cycle registers
 reg      [1:0] cyc_siz;  // transfer size
@@ -82,6 +85,8 @@ reg            cyc_pri;  // write/read priority
 reg     [15:0] cyc_cnt;  // transfer counter
 reg            cyc_w_r;  // write/read cycle
 
+wire           cyc_rdy;  // cycle ready
+
 // command output
 wire           cmo_trn;  // transfer
 
@@ -90,21 +95,26 @@ wire           cmi_trn;  // transfer
 
 ////////////////////////////////////////////////////////////////////////////////
 // memory interface                                                           //
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
-// transfers
+// write/read transfers
 assign dma_wen_trn = (~dma_wrq | dma_err) & dma_wen;
 assign dma_ren_trn = (~dma_wrq | dma_err) & dma_ren;
-assign dma_trn = cyc_pri ? dma_ren_trn : dma_wen_trn;
+assign dma_pri_trn = cyc_pri ? dma_ren_trn : dma_wen_trn;
+assign dma_trn     = dma_ren_trn | dma_wen_trn;
+
+// write/read ready
+assign dma_wrd = (~dma_wen | dma_wen_trn);
+assign dma_rrd = (~dma_ren | dma_ren_trn);
 
 // write/read control
 always @ (posedge clk, posedge rst)
 if (rst) begin
   dma_wen <= 1'b0;
   dma_ren <= 1'b0;
-end else if (ctl_stb) begin
-  dma_wen <= cyc_wen;
-  dma_ren <= cyc_ren;
+end else begin
+  if (dma_wrd)  dma_wen <= cyc_wen & ~cyc_w_r & cmi_req;
+  if (dma_rrd)  dma_ren <= cyc_ren &  cyc_w_r & cmo_grt;
 end
 
 // transfer size
@@ -113,7 +123,7 @@ dma_ben <= 4'hf;
 
 // address register
 always @ (posedge clk)
-dma_adr <= (cyc_w_r ? adr_wof : adr_rof) + {16'h0000, cyc_cnt};
+dma_adr <= (cyc_w_r ? adr_rof : adr_wof) + {16'h0000, cyc_cnt};
 
 // write data
 // TODO proper alignment
@@ -131,22 +141,48 @@ if (rst) begin
   cyc_wen <= 1'b0;
   cyc_ren <= 1'b0;
   cyc_pri <= 1'b0;
-end else if (ctl_stb) begin
-  cyc_siz <= ctl_ctl[17:16];
-  cyc_wen <= ctl_ctl[18];
-  cyc_ren <= ctl_ctl[19];
-  cyc_pri <= ctl_ctl[20];
+end else begin
+  if (ctl_stb) begin
+    cyc_siz <= ctl_ctl[17:16];
+    cyc_wen <= ctl_ctl[18];
+    cyc_ren <= ctl_ctl[19];
+    cyc_pri <= ctl_ctl[20];
+  end else begin
+    if (dma_wen_trn) cyc_wen <= ~cyc_end;
+    if (dma_ren_trn) cyc_ren <= ~cyc_end;
+  end
 end
 
 // transfer counter
-always @ (posedge clk)
-if (cfg_m_s) begin
+always @ (posedge clk, posedge rst)
+if (rst)                 cyc_cnt <= 16'd0;
+else if (cfg_m_s) begin
   // master operation
-  if      (ctl_stb)  cyc_cnt <= ctl_ctl[15:0];
-  else if (dma_trn)  cyc_cnt <= cyc_cnt - ({14'd0, cyc_siz} + 16'd1);
+  if      (ctl_stb)      cyc_cnt <= ctl_ctl[15:0];
+  else if (dma_pri_trn)  cyc_cnt <= cyc_cnt - ({14'd0, cyc_siz} + 16'd1);
 end else begin
   // slave operation
 end
+
+// write/read switch
+always @ (posedge clk, posedge rst)
+if (rst)             cyc_w_r <= 1'b0;
+else begin
+  if      (cyc_rdy)  cyc_w_r <= cyc_pri;
+  else if (dma_trn)  cyc_w_r <= cyc_w_r ^ (cyc_wen & cyc_ren);         
+end
+
+// cycle end
+assign cyc_end = ~|cyc_cnt;
+
+// cycle ready state (idle or end of cycle)
+assign cyc_rdy = cyc_end & (~cyc_wen | dma_wen_trn) & (~cyc_ren | dma_ren_trn);
+
+////////////////////////////////////////////////////////////////////////////////
+// cycle status                                                               //
+////////////////////////////////////////////////////////////////////////////////
+
+assign ctl_sts = {5'd0, cyc_cnt};
 
 ////////////////////////////////////////////////////////////////////////////////
 // command output                                                             //
@@ -156,7 +192,7 @@ end
 assign cmo_trn = cmo_req & cmo_grt;
 
 // transfer request
-assign cmo_req = dma_ren;
+assign cmo_req = dma_rrd & cyc_ren;
 
 // control                    siz,  lst,     iom,  sso,  cke
 assign cmo_ctl = {cyc_siz, 3'b000, 1'b0, cfg_iom, 1'b1, 1'b1};
@@ -195,6 +231,6 @@ end endgenerate
 assign cmi_trn = cmi_req & cmi_grt;
 
 // trasfer grant
-assign cmi_grt = dma_wen & ~dma_wrq;
+assign cmi_grt = dma_wrd;
 
 endmodule

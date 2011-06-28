@@ -116,10 +116,6 @@ wire     [3:0] spi_sio_i,
 // testbench status descriptor
 reg  [64*8-1:0] test_name;
 
-////////////////////////////////////////////////////////////////////////////////
-// testbench                                                                  //
-////////////////////////////////////////////////////////////////////////////////
-
 integer i;
 
 // request for a dumpfile
@@ -127,6 +123,12 @@ initial begin
   $dumpfile("spi.fst");
   $dumpvars(0, spi_tb);
 end
+
+////////////////////////////////////////////////////////////////////////////////
+// clock sources                                                              //
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO enable asynchronous clocking
 
 // clock generation
 initial    clk_cpu <= 1'b1;
@@ -136,7 +138,9 @@ always  #5 clk_cpu <= ~clk_cpu;
 initial    clk_spi <= 1'b1;
 always  #5 clk_spi <= ~clk_spi;
 
-// TODO enable asynchronous clocking
+////////////////////////////////////////////////////////////////////////////////
+// testbench                                                                  //
+////////////////////////////////////////////////////////////////////////////////
 
 // test sequence
 initial begin
@@ -186,58 +190,76 @@ initial begin
   IOWR (2, 32'h00000010);  // write control register (cycle end)
 
   IDLE (200);              // few clock periods
-  IDLE (16);               // few clock periods
-  test_name = "unnamed";
-
-  IOWR (3, 32'h3b5a0000);  // write data    register (command fast read dual output)
-  IOWR (2, 32'h00174007);  // write control register (enable a chip and start a 4 byte write)
-  POLL (2, 32'h0000000f);
-  IOWR (2, 32'h00104001);  // write control register (enable a chip and start a 1 byte dummy)
-  POLL (2, 32'h0000000f);
-  IOWR (2, 32'h00388007);  // write control register (enable a chip and start a 4 byte read)
-  POLL (2, 32'h0000000f);
-  IORD (3, data);          // read flash data
 
   IDLE (16);               // few clock periods
+  test_name = "write DMA";
 
-  IOWR (3, 32'h6b5a0000);  // write data    register (command fast read quad output)
-  IOWR (2, 32'h00174007);  // write control register (enable a chip and start a 4 byte write)
-  POLL (2, 32'h0000000f);
-  IOWR (2, 32'h00104001);  // write control register (enable a chip and start a 1 byte dummy)
-  POLL (2, 32'h0000000f);
-  IOWR (2, 32'h0038c007);  // write control register (enable a chip and start a 4 byte read)
-  POLL (2, 32'h0000000f);
-  IORD (3, data);          // read flash data
+  IOWR (3, 32'h02000000);  // write data    register
+  IOWR (2, 32'h00001f17);  // write control register (32bit write)
+  IOWR (5, 32'h00040010);  // request a DMA write transfer
+  POLL (5, 32'h0000ffff);  // wait for dma to finish
+  IOWR (2, 32'h00000010);  // write control register (cycle end)
 
   IDLE (16);               // few clock periods
+  test_name = "read DMA";
 
-  IOWR (3, 32'hbb000000);  // write data    register (command fast read dual IO)
-  IOWR (2, 32'h00174001);  // write control register (send command)
-  POLL (2, 32'h0000000f);
-  IOWR (3, 32'h5a000000);  // write data    register (address and dummy)
-  IOWR (2, 32'h00138007);  // write control register (send address and dummy)
-  POLL (2, 32'h0000000f);
-  IOWR (2, 32'h00388007);  // write control register (4 byte read)
-  POLL (2, 32'h0000000f);
-  IORD (3, data);          // read flash data
+  IOWR (3, 32'h0b5a0000);  // write data    register
+  IOWR (2, 32'h00001f17);  // write control register (32bit write)
+  IOWR (5, 32'h00080010);  // request a DMA read transfer
+  POLL (5, 32'h0000ffff);  // wait for dma to finish
+  IOWR (2, 32'h00000010);  // write control register (cycle end)
 
-  IDLE (16);               // few clock periods
+  IDLE (200);              // few clock periods
 
-  IOWR (3, 32'heb000000);  // write data    register (command fast read quad IO)
-  IOWR (2, 32'h00174001);  // write control register (send command)
-  POLL (2, 32'h0000000f);
-  IOWR (3, 32'h5a000000);  // write data    register (address and dummy)
-  IOWR (2, 32'h0017c007);  // write control register (send address and dummy)
-  POLL (2, 32'h0000000f);
-  IOWR (2, 32'h0038c007);  // write control register (4 byte read)
-  POLL (2, 32'h0000000f);
-  IORD (3, data);          // read flash data
-
-  IDLE (16);               // few clock periods
-
-  IOWR (1, 32'h00000001);  // enable XIP
-
-  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from xip port
+//  IOWR (3, 32'h3b5a0000);  // write data    register (command fast read dual output)
+//  IOWR (2, 32'h00174007);  // write control register (enable a chip and start a 4 byte write)
+//  POLL (2, 32'h0000000f);
+//  IOWR (2, 32'h00104001);  // write control register (enable a chip and start a 1 byte dummy)
+//  POLL (2, 32'h0000000f);
+//  IOWR (2, 32'h00388007);  // write control register (enable a chip and start a 4 byte read)
+//  POLL (2, 32'h0000000f);
+//  IORD (3, data);          // read flash data
+//
+//  IDLE (16);               // few clock periods
+//
+//  IOWR (3, 32'h6b5a0000);  // write data    register (command fast read quad output)
+//  IOWR (2, 32'h00174007);  // write control register (enable a chip and start a 4 byte write)
+//  POLL (2, 32'h0000000f);
+//  IOWR (2, 32'h00104001);  // write control register (enable a chip and start a 1 byte dummy)
+//  POLL (2, 32'h0000000f);
+//  IOWR (2, 32'h0038c007);  // write control register (enable a chip and start a 4 byte read)
+//  POLL (2, 32'h0000000f);
+//  IORD (3, data);          // read flash data
+//
+//  IDLE (16);               // few clock periods
+//
+//  IOWR (3, 32'hbb000000);  // write data    register (command fast read dual IO)
+//  IOWR (2, 32'h00174001);  // write control register (send command)
+//  POLL (2, 32'h0000000f);
+//  IOWR (3, 32'h5a000000);  // write data    register (address and dummy)
+//  IOWR (2, 32'h00138007);  // write control register (send address and dummy)
+//  POLL (2, 32'h0000000f);
+//  IOWR (2, 32'h00388007);  // write control register (4 byte read)
+//  POLL (2, 32'h0000000f);
+//  IORD (3, data);          // read flash data
+//
+//  IDLE (16);               // few clock periods
+//
+//  IOWR (3, 32'heb000000);  // write data    register (command fast read quad IO)
+//  IOWR (2, 32'h00174001);  // write control register (send command)
+//  POLL (2, 32'h0000000f);
+//  IOWR (3, 32'h5a000000);  // write data    register (address and dummy)
+//  IOWR (2, 32'h0017c007);  // write control register (send address and dummy)
+//  POLL (2, 32'h0000000f);
+//  IOWR (2, 32'h0038c007);  // write control register (4 byte read)
+//  POLL (2, 32'h0000000f);
+//  IORD (3, data);          // read flash data
+//
+//  IDLE (16);               // few clock periods
+//
+//  IOWR (1, 32'h00000001);  // enable XIP
+//
+//  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from xip port
 
   IDLE (16);               // few clock periods
 

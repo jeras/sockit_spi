@@ -1,25 +1,30 @@
-[timestart] 1830800
-[size] 1920 1123
+[timestart] 5323700
+[size] 1366 744
 [pos] -1 -1
-*-17.225300 2050000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.225300 5360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
-[treeopen] spi_tb.sockit_spi.cdc.
+@820
+spi_tb.test_name[511:0]
 @28
 spi_tb.sockit_spi.clk_cpu
 spi_tb.sockit_spi.rst_cpu
 spi_tb.sockit_spi.clk_spi
 spi_tb.sockit_spi.rst_spi
-@800200
+@c00200
 -XIP bus
 @28
-spi_tb.sockit_spi.xip_ren
+spi_tb.sockit_spi.xip.xip_wen
+spi_tb.sockit_spi.xip.xip_ren
 @22
-spi_tb.sockit_spi.xip_adr[23:0]
-spi_tb.sockit_spi.xip_rdt[31:0]
+spi_tb.sockit_spi.xip.xip_ben[3:0]
+spi_tb.sockit_spi.xip.xip_adr[23:0]
+spi_tb.sockit_spi.xip.xip_wdt[31:0]
+spi_tb.sockit_spi.xip.xip_rdt[31:0]
 @28
-spi_tb.sockit_spi.xip_wrq
-@1000200
+spi_tb.sockit_spi.xip.xip_wrq
+spi_tb.sockit_spi.xip.xip_err
+@1401200
 -XIP bus
 @c00200
 -XIP
@@ -30,11 +35,43 @@ spi_tb.sockit_spi.xip.xip_wrq
 @1401200
 -group_end
 @800200
+-DMA bus
+@28
+spi_tb.sockit_spi.dma.dma_wen
+spi_tb.sockit_spi.dma.dma_ren
+@22
+spi_tb.sockit_spi.dma.dma_adr[31:0]
+spi_tb.sockit_spi.dma.dma_ben[3:0]
+spi_tb.sockit_spi.dma.dma_wdt[31:0]
+spi_tb.sockit_spi.dma.dma_rdt[31:0]
+@28
+spi_tb.sockit_spi.dma.dma_wrq
+spi_tb.sockit_spi.dma.dma_err
+@1000200
+-DMA bus
+@800200
+-DMA
+@28
+spi_tb.sockit_spi.dma.cfg_m_s
+spi_tb.sockit_spi.dma.ctl_stb
+@22
+spi_tb.sockit_spi.dma.ctl_ctl[20:0]
+spi_tb.sockit_spi.dma.ctl_sts[20:0]
+spi_tb.sockit_spi.dma.cyc_cnt[15:0]
+@28
+spi_tb.sockit_spi.dma.cyc_wen
+spi_tb.sockit_spi.dma.cyc_w_r
+spi_tb.sockit_spi.dma.cyc_ren
+spi_tb.sockit_spi.dma.cyc_pri
+@1000200
+-DMA
+@800200
 -reg bus
 @28
 spi_tb.sockit_spi.reg_wen
 spi_tb.sockit_spi.reg_ren
-spi_tb.sockit_spi.reg_adr[1:0]
+@24
+spi_tb.sockit_spi.reg_adr[2:0]
 @22
 spi_tb.sockit_spi.reg_wdt[31:0]
 spi_tb.sockit_spi.reg_rdt[31:0]
@@ -45,40 +82,40 @@ spi_tb.sockit_spi.reg_wrq
 spi_tb.sockit_spi.reg_irq
 @1000200
 -reg bus
-@c00200
+@800200
 -rpo
-@22
+@23
 spi_tb.sockit_spi.rpo.que_ctl[9:0]
 spi_tb.sockit_spi.rpo.que_dat[31:0]
-@28
+@29
 spi_tb.sockit_spi.rpo.que_grt
 spi_tb.sockit_spi.rpo.que_req
 spi_tb.sockit_spi.rpo.que_trn
 spi_tb.sockit_spi.rpo.clk
-@22
+@23
 spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
 spi_tb.sockit_spi.rpo.cmd_dat[31:0]
-@28
+@29
 spi_tb.sockit_spi.rpo.cmd_grt
 spi_tb.sockit_spi.rpo.cmd_req
 spi_tb.sockit_spi.rpo.cmd_trn
-@22
+@23
 spi_tb.sockit_spi.rpo.cyc_cnt[4:0]
-@24
+@25
 spi_tb.sockit_spi.rpo.cyc_cnt[4:0]
-@22
+@23
 spi_tb.sockit_spi.rpo.cyc_nxt[4:0]
 spi_tb.sockit_spi.rpo.cyc_ctl[5:0]
 spi_tb.sockit_spi.rpo.cyc_dat[31:0]
-@28
+@29
 spi_tb.sockit_spi.rpo.cyc_iom[1:0]
 spi_tb.sockit_spi.rpo.cyc_len[2:0]
 spi_tb.sockit_spi.rpo.cyc_lst
 spi_tb.sockit_spi.rpo.cyc_run
 spi_tb.sockit_spi.rpo.rst
-@1401200
+@1000200
 -rpo
-@800200
+@c00200
 -rpi
 @28
 spi_tb.sockit_spi.rpi.clk
@@ -144,7 +181,7 @@ spi_tb.sockit_spi.rpi.cyc_dat[31:0]
 @28
 spi_tb.sockit_spi.rpi.cyc_lst
 spi_tb.sockit_spi.rpi.cyc_new
-@1000200
+@1401200
 -rpi
 @800200
 -ser

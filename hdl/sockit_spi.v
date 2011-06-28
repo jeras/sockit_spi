@@ -267,6 +267,7 @@ sockit_spi_dma #(
   .dma_wrq  (dma_wrq),
   .dma_err  (dma_err),
   // configuration
+  .cfg_m_s  (cfg_m_s),
   .cfg_dma  (cfg_dma),
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
