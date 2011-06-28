@@ -1,7 +1,7 @@
-[timestart] 5323700
+[timestart] 5003700
 [size] 1366 744
 [pos] -1 -1
-*-16.225300 5360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.225300 5360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 @820
@@ -57,12 +57,62 @@ spi_tb.sockit_spi.dma.ctl_stb
 @22
 spi_tb.sockit_spi.dma.ctl_ctl[20:0]
 spi_tb.sockit_spi.dma.ctl_sts[20:0]
-spi_tb.sockit_spi.dma.cyc_cnt[15:0]
 @28
-spi_tb.sockit_spi.dma.cyc_wen
-spi_tb.sockit_spi.dma.cyc_w_r
-spi_tb.sockit_spi.dma.cyc_ren
-spi_tb.sockit_spi.dma.cyc_pri
+spi_tb.sockit_spi.arb_xip
+spi_tb.sockit_spi.arb_dmo
+spi_tb.sockit_spi.arb_dmi
+@c00022
+spi_tb.sockit_spi.dma_ctl_sts[20:0]
+@28
+(0)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(1)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(2)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(3)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(4)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(5)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(6)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(7)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(8)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(9)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(10)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(11)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(12)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(13)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(14)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(15)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(16)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(17)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(18)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(19)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+(20)spi_tb.sockit_spi.dma_ctl_sts[20:0]
+@1401200
+-group_end
+@c00022
+spi_tb.sockit_spi.dma.ctl_sts[20:0]
+@28
+(0)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(1)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(2)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(3)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(4)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(5)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(6)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(7)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(8)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(9)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(10)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(11)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(12)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(13)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(14)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(15)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(16)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(17)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(18)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(19)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+(20)spi_tb.sockit_spi.dma.ctl_sts[20:0]
+@1401200
+-group_end
 @1000200
 -DMA
 @800200
@@ -82,38 +132,38 @@ spi_tb.sockit_spi.reg_wrq
 spi_tb.sockit_spi.reg_irq
 @1000200
 -reg bus
-@800200
+@c00200
 -rpo
-@23
+@22
 spi_tb.sockit_spi.rpo.que_ctl[9:0]
 spi_tb.sockit_spi.rpo.que_dat[31:0]
-@29
+@28
 spi_tb.sockit_spi.rpo.que_grt
 spi_tb.sockit_spi.rpo.que_req
 spi_tb.sockit_spi.rpo.que_trn
 spi_tb.sockit_spi.rpo.clk
-@23
+@22
 spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
 spi_tb.sockit_spi.rpo.cmd_dat[31:0]
-@29
+@28
 spi_tb.sockit_spi.rpo.cmd_grt
 spi_tb.sockit_spi.rpo.cmd_req
 spi_tb.sockit_spi.rpo.cmd_trn
-@23
+@22
 spi_tb.sockit_spi.rpo.cyc_cnt[4:0]
-@25
+@24
 spi_tb.sockit_spi.rpo.cyc_cnt[4:0]
-@23
+@22
 spi_tb.sockit_spi.rpo.cyc_nxt[4:0]
 spi_tb.sockit_spi.rpo.cyc_ctl[5:0]
 spi_tb.sockit_spi.rpo.cyc_dat[31:0]
-@29
+@28
 spi_tb.sockit_spi.rpo.cyc_iom[1:0]
 spi_tb.sockit_spi.rpo.cyc_len[2:0]
 spi_tb.sockit_spi.rpo.cyc_lst
 spi_tb.sockit_spi.rpo.cyc_run
 spi_tb.sockit_spi.rpo.rst
-@1000200
+@1401200
 -rpo
 @c00200
 -rpi
@@ -183,7 +233,7 @@ spi_tb.sockit_spi.rpi.cyc_lst
 spi_tb.sockit_spi.rpi.cyc_new
 @1401200
 -rpi
-@800200
+@c00200
 -ser
 @c00022
 spi_tb.sockit_spi.ser.qui_ctl[3:0]
@@ -323,7 +373,7 @@ spi_tb.sockit_spi.ser.spi_sio_o[3:0]
 spi_tb.sockit_spi.ser.spi_ss_e[7:0]
 spi_tb.sockit_spi.ser.spi_ss_i[7:0]
 spi_tb.sockit_spi.ser.spi_ss_o[7:0]
-@1000200
+@1401200
 -ser
 @22
 spi_tb.slave_spi.m_adr[31:0]

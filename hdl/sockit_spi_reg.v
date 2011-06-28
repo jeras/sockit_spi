@@ -249,6 +249,6 @@ assign dma_ctl = reg_wdt [20:0];
 // arbitration                                                                //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign arb_sel = 2'b00;
+assign arb_sel = |dma_sts[15:0] ? 2'b10 : 2'b00;
 
 endmodule

@@ -291,21 +291,26 @@ sockit_spi_dma #(
 // arbiteration                                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
+// TODO
+assign arb_dmo = dma_ctl_sts[0];
+assign arb_dmi = dma_ctl_sts[1];
+assign arb_xip = 1'b0;  // todo
+
 // command output multiplexer
-assign cmo_req = arb_sel[1] ? (arb_sel[0] ? xip_cmo_req : dma_cmo_req) : reg_cmo_req;
-assign cmo_ctl = arb_sel[1] ? (arb_sel[0] ? xip_cmo_ctl : dma_cmo_ctl) : reg_cmo_ctl;
-assign cmo_dat = arb_sel[1] ? (arb_sel[0] ? xip_cmo_dat : dma_cmo_dat) : reg_cmo_dat;
+assign cmo_req = arb_xip ? xip_cmo_req : arb_dmo ? dma_cmo_req : reg_cmo_req;
+assign cmo_ctl = arb_xip ? xip_cmo_ctl : arb_dmo ? dma_cmo_ctl : reg_cmo_ctl;
+assign cmo_dat = arb_xip ? xip_cmo_dat : arb_dmo ? dma_cmo_dat : reg_cmo_dat;
 // command output decoder
-assign reg_cmo_grt = cmo_grt & (arb_sel[1] == 1'b0 );
-assign dma_cmo_grt = cmo_grt & (arb_sel    == 2'b10);
-assign xip_cmo_grt = cmo_grt & (arb_sel    == 2'b11);
+assign reg_cmo_grt = cmo_grt & ~arb_xip & ~arb_dmo;
+assign dma_cmo_grt = cmo_grt & ~arb_xip &  arb_dmo;
+assign xip_cmo_grt = cmo_grt &  arb_xip;
 
 // command input demultiplexer
 assign {xip_cmi_req, dma_cmi_req, reg_cmi_req} = {3{cmi_req}};
 assign {xip_cmi_ctl, dma_cmi_ctl, reg_cmi_ctl} = {3{cmi_ctl}};
 assign {xip_cmi_dat, dma_cmi_dat, reg_cmi_dat} = {3{cmi_dat}};
 // command input encoder
-assign cmi_grt = arb_sel[1] ? (arb_sel[0] ? xip_cmi_grt : dma_cmi_grt) : reg_cmi_grt;
+assign cmi_grt = arb_xip ? xip_cmi_grt : arb_dmi ? dma_cmi_grt : reg_cmi_grt;
 
 ////////////////////////////////////////////////////////////////////////////////
 // repack                                                                     //

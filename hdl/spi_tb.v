@@ -192,21 +192,21 @@ initial begin
   IDLE (200);              // few clock periods
 
   IDLE (16);               // few clock periods
-  test_name = "write DMA";
+  test_name = "DMA -> SPI";
 
   IOWR (3, 32'h02000000);  // write data    register
   IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (5, 32'h00040010);  // request a DMA write transfer
+  IOWR (5, 32'h00080010);  // request a DMA read, SPI write transfer
   POLL (5, 32'h0000ffff);  // wait for dma to finish
   IOWR (2, 32'h00000010);  // write control register (cycle end)
 
   IDLE (16);               // few clock periods
-  test_name = "read DMA";
+  test_name = "SPI -> DMA";
 
   IOWR (3, 32'h0b5a0000);  // write data    register
   IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (5, 32'h00080010);  // request a DMA read transfer
-  POLL (5, 32'h0000ffff);  // wait for dma to finish
+  IOWR (5, 32'h00040010);  // request a SPI read, DMA write transfer
+  POLL (5, 32'h00000003);  // wait for dma to finish
   IOWR (2, 32'h00000010);  // write control register (cycle end)
 
   IDLE (200);              // few clock periods
