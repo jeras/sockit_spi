@@ -23,6 +23,10 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
 module sockit_spi_dma #(
   // bus properties
   parameter ENDIAN  =        "BIG",  // endian options include "BIG", "LITTLE"
@@ -76,7 +80,8 @@ wire           dma_wcy, dma_rcy;  // write/read cycle
 reg  [DAW-1:0] dma_wad, dma_rad;  // write/read address
 
 // cycle registers
-reg      [1:0] cyc_siz;  // transfer size
+reg      [1:0] cyc_siz;           // transfer size
+reg      [1:0] cyc_iom;           // SPI IO mode
 reg            cyc_oen, cyc_ien;  // output/input enable
 reg     [15:0] cyc_ocn, cyc_icn;  // output/input counter
 wire           cyc_ofn, cyc_ifn;  // output/input finish
@@ -140,16 +145,21 @@ if (cmi_trn)  dma_wdt <= cmi_dat;
 ////////////////////////////////////////////////////////////////////////////////
 
 // control registers
+always @ (posedge clk)
+if (ctl_stb) begin
+  cyc_siz <= ctl_ctl[17:16];
+  cyc_iom <= ctl_ctl[19:18];
+end
+
+// control registers
 always @ (posedge clk, posedge rst)
 if (rst) begin
-  cyc_siz <= 2'd0;
   cyc_oen <= 1'b0;
   cyc_ien <= 1'b0;
 end else begin
   if (ctl_stb) begin
-    cyc_siz <= ctl_ctl[17:16];
-    cyc_oen <= ctl_ctl[18];
-    cyc_ien <= ctl_ctl[19];
+    cyc_oen <= ctl_ctl[20];
+    cyc_ien <= ctl_ctl[21];
   end else begin
     if (cmo_trn) cyc_oen <= ~cyc_ofn;
     if (cmi_trn) cyc_ien <= ~cyc_ifn;
@@ -164,8 +174,8 @@ if (rst) begin
 end else if (cfg_m_s) begin
   // master operation
   if (ctl_stb) begin
-    if (ctl_ctl[18])  cyc_ocn <= ctl_ctl[15:0];
-    if (ctl_ctl[19])  cyc_icn <= ctl_ctl[15:0];
+    if (ctl_ctl[20])  cyc_ocn <= ctl_ctl[15:0];
+    if (ctl_ctl[21])  cyc_icn <= ctl_ctl[15:0];
   end else begin
     if (cmo_trn)  cyc_ocn <= cyc_ocn - 16'd1;
     if (cmi_trn)  cyc_icn <= cyc_icn - 16'd1;
@@ -194,8 +204,8 @@ assign cmo_trn = cmo_req & cmo_grt;
 // transfer request
 assign cmo_req = dma_rtr;
 
-// control                    siz,  lst,     iom,  sso,  cke
-assign cmo_ctl = {cyc_siz, 3'b000, 1'b0, cfg_iom, 1'b1, 1'b1};
+// control            siz,        lst,     iom,     die,     doe,  sso,  cke
+assign cmo_ctl = {cyc_siz, 3'd0, 1'b0, cyc_iom, cyc_ien, cyc_oen, 1'b1, 1'b1};
 
 // data
 generate if (ENDIAN == "BIG") begin
