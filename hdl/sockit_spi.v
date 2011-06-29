@@ -22,10 +22,47 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
-// this file contains:                                                        //
-// - the system bus interface                                                 //
-// - static configuration registers                                           //
-// - SPI state machine and serialization logic                                //
+//                                                                            //
+// Block diagram (data stages, block connections, internal protocols):        //
+//                                                                            //
+//                                                                            //
+//  SYSTEM       BUS     INTERNAL  REPACKAGING   CLOCK     SERIALIZER         //
+//  BUSSES   INTERFACES   ARBITER                DOMAIN        DE-            //
+//                                               CROSSING  SERIALIZER         //
+//             -------     -----                                              //
+//   reg_* --> | REG | <=> |   |                                              //
+//             -------     | a |     -------     -------     -----            //
+//                |        | r | --> | RPO | --> | CDC | --> |   |            //
+//                v        | b |     -------     -------     | S |            //
+//             -------     | i |                             | E | <=> SPI_*  //
+//   dma_* <-- | DMA | <=> | t |     -------     -------     | R |            //
+//             -------     | e | <-- | RPI | <-- | CDC | <-- |   |            //
+//             -------     | r |     -------     -------     -----            //
+//   xip_* --> | XIP | <=> |   |                                              //
+//             -------     -----                                              //
+//                                                                            //
+//           DMA CONTROL  COMMAND                 QUEUE                       //
+//            PROTOCOL    PROTOCOL               PROTOCOL                     //
+//                                                                            //
+//                                                                            //
+// The above diagram shows the main building blocks of the sockit_spi module. //
+// Most blocks are contained in separate modules:                             //
+// - sockit_spi_reg  -  configuration, control, status registers              //
+// - sockit_spi_dma  -  DMA (Direct Memory Access) interface                  //
+// - sockit_spi_xip  -  XIP (eXecute In Place) interface                      //
+// - sockit_spi_rpo  -  repackageing output (command into queue protocol)     //
+// - sockit_spi_rpi  -  repackageing input  (queue into command protocol)     //
+// - sockit_spi_cdc  -  asynchronous clock domain crossing FIFO               //
+// - sockit_spi_ser  -  data serializer/de-serializer, clave select, clocks   //
+//                                                                            //
+// Internal protocols are used to transfer data, commands and status between  //
+// building blocks.                                                           //
+// - dma control     -  DMA control requests from a system CPU                //
+// - command         -  32bit data packets + control bits                     //
+// - queue           -   8bit data packets + control bits (sized for serial.) //
+// The DMA related protocol is described inside sockit_spi_dma.v, command and //
+// queue protocols are described inside sockit_spi_rpo.v and sockit_spi_rpi.v //
+//                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi #(
