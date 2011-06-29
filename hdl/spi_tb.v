@@ -83,7 +83,7 @@ wire           dma_ren;  // read enable
 wire [DAW-1:0] dma_adr;  // address
 wire [DBW-1:0] dma_ben;  // byte enable
 wire [DDW-1:0] dma_wdt;  // write data
-reg  [DDW-1:0] dma_rdt;  // read data
+wire [DDW-1:0] dma_rdt;  // read data
 wire           dma_wrq;  // wait request
 wire           dma_err;  // error response
 wire           dma_trn;  // transfer
@@ -395,21 +395,23 @@ endtask
 // write access
 always @ (posedge clk_cpu)
 begin
-  if (dma_wen & ~dma_wrq & dma_ben[3])  dma_mem[dma_adr][8*3+:8] = dma_wdt[8*3+:8];
-  if (dma_wen & ~dma_wrq & dma_ben[2])  dma_mem[dma_adr][8*2+:8] = dma_wdt[8*2+:8];
-  if (dma_wen & ~dma_wrq & dma_ben[1])  dma_mem[dma_adr][8*1+:8] = dma_wdt[8*1+:8];
-  if (dma_wen & ~dma_wrq & dma_ben[0])  dma_mem[dma_adr][8*0+:8] = dma_wdt[8*0+:8];
+  if (dma_wen & ~dma_wrq & dma_ben[3])  dma_mem[dma_adr[DAW-1:2]][8*3+:8] = dma_wdt[8*3+:8];
+  if (dma_wen & ~dma_wrq & dma_ben[2])  dma_mem[dma_adr[DAW-1:2]][8*2+:8] = dma_wdt[8*2+:8];
+  if (dma_wen & ~dma_wrq & dma_ben[1])  dma_mem[dma_adr[DAW-1:2]][8*1+:8] = dma_wdt[8*1+:8];
+  if (dma_wen & ~dma_wrq & dma_ben[0])  dma_mem[dma_adr[DAW-1:2]][8*0+:8] = dma_wdt[8*0+:8];
 end
 
 // read access
-always @ (posedge clk_cpu)
-if (dma_ren & ~dma_wrq)  dma_rdt <= dma_mem[dma_adr];
+assign dma_rdt = (dma_ren & ~dma_wrq) ? dma_mem[dma_adr[DAW-1:2]] : 32'hxxxxxxxx;
 
 // timing
 assign dma_wrq = 1'b0;
 
 // error response
 assign dma_err = 1'b0;
+
+// initializing memory contents
+initial  $readmemh("dma_mem.hex", dma_mem);
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI controller instance                                                    //

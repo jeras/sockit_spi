@@ -43,6 +43,11 @@ spi_tb.sockit_spi.dma.dma_ren
 spi_tb.sockit_spi.dma.dma_adr[31:0]
 spi_tb.sockit_spi.dma.dma_ben[3:0]
 spi_tb.sockit_spi.dma.dma_wdt[31:0]
+@821
+spi_tb.sockit_spi.dma.dma_wdt[31:0]
+@22
+spi_tb.sockit_spi.dma.dma_rdt[31:0]
+@820
 spi_tb.sockit_spi.dma.dma_rdt[31:0]
 @28
 spi_tb.sockit_spi.dma.dma_wrq
@@ -59,9 +64,8 @@ spi_tb.sockit_spi.dma.ctl_ctl[20:0]
 spi_tb.sockit_spi.dma.ctl_sts[20:0]
 spi_tb.sockit_spi.dma.cyc_ocn[15:0]
 spi_tb.sockit_spi.dma.cyc_icn[15:0]
-@29
-spi_tb.sockit_spi.dma.cyc_oen
 @28
+spi_tb.sockit_spi.dma.cyc_oen
 spi_tb.sockit_spi.dma.cyc_ien
 spi_tb.sockit_spi.arb_xip
 spi_tb.sockit_spi.arb_dmo

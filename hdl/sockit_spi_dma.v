@@ -70,9 +70,7 @@ module sockit_spi_dma #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // memory interface
-wire           dma_wen_trn;  // write transfer
-wire           dma_ren_trn;  // read  transfer
-wire           dma_trn;  // common transfer
+wire           dma_wtr, dma_rtr;  // write/read transfer
 wire           dma_wrd, dma_rrd;  // write/read ready
 wire           dma_wcy, dma_rcy;  // write/read cycle
 reg  [DAW-1:0] dma_wad, dma_rad;  // write/read address
@@ -94,13 +92,12 @@ wire           cmi_trn;  // transfer
 //////////////////////////////////////////////////////////////////////////
 
 // write/read transfers
-assign dma_wen_trn = (~dma_wrq | dma_err) & dma_wen;
-assign dma_ren_trn = (~dma_wrq | dma_err) & dma_ren;
-assign dma_trn     = (~dma_wrq | dma_err) & (dma_wen | dma_ren);
+assign dma_wtr = (~dma_wrq | dma_err) & dma_wen;
+assign dma_rtr = (~dma_wrq | dma_err) & dma_ren;
 
 // write/read ready
-assign dma_wrd = (~dma_wen | dma_wen_trn);
-assign dma_rrd = (~dma_ren | dma_ren_trn);
+assign dma_wrd = (~dma_wen | dma_wtr);
+assign dma_rrd = (~dma_ren | dma_rtr);
 
 // write/read cycle
 assign dma_wcy = cyc_ien & cmi_req;
@@ -126,8 +123,8 @@ if (ctl_stb) begin
   dma_wad <= adr_wof;
   dma_rad <= adr_rof;
 end else begin
-  if (dma_wen_trn)  dma_wad <= dma_wad + ({14'd0, cyc_siz} + 16'd1);
-  if (dma_ren_trn)  dma_rad <= dma_rad + ({14'd0, cyc_siz} + 16'd1);
+  if (dma_wtr)  dma_wad <= dma_wad + ({14'd0, cyc_siz} + 16'd1);
+  if (dma_rtr)  dma_rad <= dma_rad + ({14'd0, cyc_siz} + 16'd1);
 end
 
 // write/read address multiplexer
@@ -195,7 +192,7 @@ assign ctl_sts = {~cyc_ifn, ~cyc_ofn};
 assign cmo_trn = cmo_req & cmo_grt;
 
 // transfer request
-assign cmo_req = dma_rrd & cyc_oen;
+assign cmo_req = dma_rtr;
 
 // control                    siz,  lst,     iom,  sso,  cke
 assign cmo_ctl = {cyc_siz, 3'b000, 1'b0, cfg_iom, 1'b1, 1'b1};
