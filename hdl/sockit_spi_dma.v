@@ -2,7 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
-//  DMA (direct memory access)                                                //
+//  DMA (direct memory access) interface                                      //
 //                                                                            //
 //  Copyright (C) 2011  Iztok Jeras                                           //
 //                                                                            //
@@ -89,7 +89,7 @@ wire           cmi_trn;  // transfer
 
 ////////////////////////////////////////////////////////////////////////////////
 // memory interface                                                           //
-//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 // write/read transfers
 assign dma_wtr = (~dma_wrq | dma_err) & dma_wen;
@@ -230,7 +230,7 @@ end endgenerate
 // transfer
 assign cmi_trn = cmi_req & cmi_grt;
 
-// trasfer grant
+// transfer grant
 assign cmi_grt = dma_wrd;
 
 endmodule

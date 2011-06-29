@@ -2,6 +2,8 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
+//  memory mapped configuration, control and status registers                 //
+//                                                                            //
 //  Copyright (C) 2008-2011  Iztok Jeras                                      //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,9 +89,7 @@ module sockit_spi_reg #(
   // DMA control/status interface
   output wire           dma_stb,  // DMA strobe
   output wire    [20:0] dma_ctl,  // DMA control
-  input  wire    [20:0] dma_sts,  // DMA status
-  // arbitration
-  output wire     [1:0] arb_sel   // arbiter select
+  input  wire    [20:0] dma_sts   // DMA status
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -99,7 +99,7 @@ module sockit_spi_reg #(
 // decoded register access signals
 wire  wen_spi, ren_spi;  // SPI control/status
 wire  wen_dat, ren_dat;  // SPI data
-wire  wen_dma, ren_dma;  // DMA control/staus
+wire  wen_dma, ren_dma;  // DMA control/status
 
 //
 wire    [31:0] spi_cfg;  // SPI configuration
@@ -124,7 +124,7 @@ reg            dat_rld;  // read  load
 // register write/read access signals
 assign {wen_spi, ren_spi} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd2) & ~reg_wrq}};  // SPI control/status
 assign {wen_dat, ren_dat} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd3) & ~reg_wrq}};  // SPI data
-assign {wen_dma, ren_dma} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd5) & ~reg_wrq}};  // DMA control/staus
+assign {wen_dma, ren_dma} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd5) & ~reg_wrq}};  // DMA control/status
 
 // read data
 always @ (*)
@@ -244,11 +244,5 @@ assign cmi_grt = ~dat_rld;
 
 assign dma_stb = wen_dma;
 assign dma_ctl = reg_wdt [20:0];
-
-////////////////////////////////////////////////////////////////////////////////
-// arbitration                                                                //
-////////////////////////////////////////////////////////////////////////////////
-
-assign arb_sel = |dma_sts[15:0] ? 2'b10 : 2'b00;
 
 endmodule

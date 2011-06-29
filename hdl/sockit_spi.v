@@ -27,7 +27,7 @@
 //                                                                            //
 //                                                                            //
 //  SYSTEM       BUS     INTERNAL  REPACKAGING   CLOCK     SERIALIZER         //
-//  BUSSES   INTERFACES   ARBITER                DOMAIN        DE-            //
+//  BUSES    INTERFACES   ARBITER                DOMAIN        DE-            //
 //                                               CROSSING  SERIALIZER         //
 //             -------     -----                                              //
 //   reg_* --> | REG | <=> |   |                                              //
@@ -50,10 +50,10 @@
 // - sockit_spi_reg  -  configuration, control, status registers              //
 // - sockit_spi_dma  -  DMA (Direct Memory Access) interface                  //
 // - sockit_spi_xip  -  XIP (eXecute In Place) interface                      //
-// - sockit_spi_rpo  -  repackageing output (command into queue protocol)     //
-// - sockit_spi_rpi  -  repackageing input  (queue into command protocol)     //
+// - sockit_spi_rpo  -  repackaging output (command into queue protocol)      //
+// - sockit_spi_rpi  -  repackaging input  (queue into command protocol)      //
 // - sockit_spi_cdc  -  asynchronous clock domain crossing FIFO               //
-// - sockit_spi_ser  -  data serializer/de-serializer, clave select, clocks   //
+// - sockit_spi_ser  -  data serializer/de-serializer, clave selects, clocks  //
 //                                                                            //
 // Internal protocols are used to transfer data, commands and status between  //
 // building blocks.                                                           //
@@ -72,7 +72,7 @@ module sockit_spi #(
   parameter ADR_ROF = 32'h00000000,  // address write offset
   parameter ADR_WOF = 32'h00000000,  // address read  offset
   //
-  parameter NOP     = 32'h00000000,  // no operation instuction for the given CPU
+  parameter NOP     = 32'h00000000,  // no operation instruction for the given CPU
   parameter XAW     =           24,  // XIP address width
   parameter DAW     =           32,  // DMA address width
   parameter SSW     =            8,  // slave select width
@@ -183,9 +183,6 @@ wire           dma_ctl_stb;  // DMA strobe
 wire    [20:0] dma_ctl_ctl;  // DMA control
 wire    [20:0] dma_ctl_sts;  // DMA status
 
-// arbitration
-wire     [1:0] arb_sel;
-
 // SPI clocks
 wire           spi_cko;  // output registers
 wire           spi_cki;  // input  registers
@@ -240,9 +237,7 @@ sockit_spi_reg #(
   // DMA control/status interface
   .dma_stb  (dma_ctl_stb),
   .dma_ctl  (dma_ctl_ctl),
-  .dma_sts  (dma_ctl_sts),
-  // arbitrstion
-  .arb_sel  (arb_sel)
+  .dma_sts  (dma_ctl_sts)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -325,13 +320,13 @@ sockit_spi_dma #(
 );
 
 ////////////////////////////////////////////////////////////////////////////////
-// arbiteration                                                               //
+// arbitration                                                                //
 ////////////////////////////////////////////////////////////////////////////////
 
 // TODO
 assign arb_dmo = dma_ctl_sts[0];
 assign arb_dmi = dma_ctl_sts[1];
-assign arb_xip = 1'b0;  // todo
+assign arb_xip = 1'b0;  // TODO
 
 // command output multiplexer
 assign cmo_req = arb_xip ? xip_cmo_req : arb_dmo ? dma_cmo_req : reg_cmo_req;
@@ -458,7 +453,7 @@ end else begin : syn
 end endgenerate
 
 ////////////////////////////////////////////////////////////////////////////////
-// serializer/deserializer instance                                           //
+// serializer/de-serializer instance                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_ser #(

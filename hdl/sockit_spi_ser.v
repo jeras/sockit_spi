@@ -2,6 +2,8 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
+//  data serializer/de-serializer, clave selects, clocks                      //
+//                                                                            //
 //  Copyright (C) 2008-2011  Iztok Jeras                                      //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -39,7 +41,7 @@ module sockit_spi_ser #(
   // SPI configuration
   input  wire           cfg_pol,  // clock polarity
   input  wire           cfg_pha,  // clock phase
-  input  wire           cfg_coe,  // closk output enable
+  input  wire           cfg_coe,  // clock output enable
   input  wire           cfg_sse,  // slave select output enable
   input  wire           cfg_m_s,  // mode (0 - slave, 1 - master)
   // output queue
@@ -123,7 +125,7 @@ assign spi_cko = (cfg_pol ^ cfg_pha) ^  spi_clk;  // output registers
 assign spi_cki = (cfg_pol ^ cfg_pha) ^ ~spi_clk;  // input  registers
 
 ////////////////////////////////////////////////////////////////////////////////
-// spi cycle timing                                                           //
+// SPI cycle timing                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 // flow control for queue output

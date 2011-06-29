@@ -2,6 +2,8 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
+//  repackaging output data (command protocol into queue protocol)            //
+//                                                                            //
 //  Copyright (C) 2008-2011  Iztok Jeras                                      //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,12 +23,50 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+// Handshaking protocol:                                                      //
+//                                                                            //
+// Both the command and the queue protocol employ the same handshaking mech-  //
+// anism. The data source sets the request signal (*_req) and the data drain  //
+// confirms the transfer by setting the grant signal (*_grt).                 //
+//                                                                            //
+//                       ----------   req    ----------                       //
+//                       )      S | ------>  | D      (                       //
+//                       (      R |          | R      )                       //
+//                       )      C | <------  | N      (                       //
+//                       ----------   grt    ----------                       //
+//                                                                            //
+// Command protocol:                                                          //
+//                                                                            //
+// The command protocol packet transfer contains CDW=32 data bits (same as    //
+// the CPU system bus) and CCO=11 control bits. Control word fields:          //
+// [10:6] - len  -  transfer length (in the range from 1 to CDW bits)         //
+// [ 5:0] -      -  this fields have the same meaning as in the queue proto.  //
+//                                                                            //
+// Queue protocol:                                                            //
+//                                                                            //
+// The queue protocol packet transfer contains QDW=4*SDW=4*8 data bits (num-  //
+// ber of SPI data bits times serializer length) and QCO=10 control bits.     //
+// Control word fields:                                                       //
+// [9:7] - len - transfer length (in the range from 1 to SDW bits)            //
+// [  6] - lst - last tran. segment (used to size the input side packet)      //
+// [5:4] - iom - SPI data IO mode (0 - 3-wire)                                //
+//             -                  (1 - SPI   )                                //
+//             -                  (2 - dual  )                                //
+//             -                  (3 - quad  )                                //
+// [  3] - die - SPI data input enable                                        //
+// [  2] - doe - SPI data output enable                                       //
+// [  1] - sso - SPI slave select enable                                      //
+// [  0] - cke - SPI clock enable                                             //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
 module sockit_spi_rpo #(
   // port widths
   parameter SDW     =            8,  // serial data register width
-  parameter SDL     =            3,  // serial data register width logarithm
+  parameter SDL     =  $clog2(SDW),  // serial data register width logarithm
   parameter CCO     =          5+6,  // command control output width
-  parameter CCI     =            4,  // command control  input width
   parameter CDW     =           32,  // command data width
   parameter QCO     =        SDL+7,  // queue control output width
   parameter QDW     =        4*SDW   // queue data width
@@ -59,8 +99,8 @@ wire [SDL-1:0] cyc_len;  // SPI transfer length
 reg            cyc_lst;  // last piece
 wire     [1:0] cyc_iom;  // SPI IO mode
 
-reg  [CCO-6:0] cyc_ctl;  // contol register
-reg  [CDW-1:0] cyc_dat;  // data   register
+reg  [CCO-6:0] cyc_ctl;  // control register
+reg  [CDW-1:0] cyc_dat;  // data    register
 
 wire           que_trn;  // queue transfer
 
@@ -82,7 +122,7 @@ begin
         rpk [2*SDW-1-i] = 1'b1;
         rpk [1*SDW-1-i] = dat [32-1-1*i];
       end
-      2'd1 : begin  // spi
+      2'd1 : begin  // SPI
         rpk [4*SDW-1-i] = 1'b1;
         rpk [3*SDW-1-i] = 1'b1;
         rpk [2*SDW-1-i] = 1'b1;

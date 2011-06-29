@@ -2,6 +2,8 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
+//  repackaging input data (queue protocol into command protocol)             //
+//                                                                            //
 //  Copyright (C) 2008-2011  Iztok Jeras                                      //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,11 +26,10 @@
 module sockit_spi_rpi #(
   // port widths
   parameter SDW     =            8,  // serial data register width
-  parameter SDL     =            3,  // serial data register width logarithm
-  parameter CCO     =          5+6,  // command control output width
-  parameter CCI     =            4,  // command control  input width
+  parameter SDL     =  $clog2(SDW),  // serial data register width logarithm
+  parameter CCI     =            4,  // command control input width
   parameter CDW     =           32,  // command data width
-  parameter QCI     =            4,  // queue control  input width
+  parameter QCI     =            4,  // queue control input width
   parameter QDW     =        4*SDW   // queue data width
 )(
   // system signals
@@ -75,7 +76,7 @@ begin
       2'd0 : begin  // 3-wire
         rpk [32-1-1*i] = dat [1*SDW-1-i];
       end
-      2'd1 : begin  // spi
+      2'd1 : begin  // SPI
         rpk [32-1-1*i] = dat [2*SDW-1-i];
       end
       2'd2 : begin  // dual

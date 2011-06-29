@@ -55,7 +55,7 @@ localparam CDC = 1'b1;
 reg clk_cpu, rst_cpu;
 reg clk_spi, rst_spi;
 
-// Avalon MM interfacie
+// Avalon MM interface
 reg            reg_wen;  // read enable
 reg            reg_ren;  // read enable
 reg  [AAW-1:0] reg_adr;  // address
@@ -118,7 +118,7 @@ reg  [64*8-1:0] test_name;
 
 integer i;
 
-// request for a dumpfile
+// request for a dump file
 initial begin
   $dumpfile("spi.fst");
   $dumpvars(0, spi_tb);
@@ -147,7 +147,7 @@ initial begin
   // put register interface into idle
   reg_wen <= 1'b0;
   reg_ren <= 1'b0;
-  // put xip interface into idle
+  // put XIP interface into idle
   xip_ren <= 1'b0;
   // reset generation
   rst_cpu  = 1'b1;
@@ -197,7 +197,7 @@ initial begin
   IOWR (3, 32'h02000000);  // write data    register
   IOWR (2, 32'h00001f17);  // write control register (32bit write)
   IOWR (5, 32'h00040010);  // request a DMA read, SPI write transfer
-  POLL (5, 32'h0000ffff);  // wait for dma to finish
+  POLL (5, 32'h0000ffff);  // wait for DMA to finish
   IOWR (2, 32'h00000010);  // write control register (cycle end)
 
   IDLE (16);               // few clock periods
@@ -206,7 +206,7 @@ initial begin
   IOWR (3, 32'h0b5a0000);  // write data    register
   IOWR (2, 32'h00001f17);  // write control register (32bit write)
   IOWR (5, 32'h00080010);  // request a SPI read, DMA write transfer
-  POLL (5, 32'h00000003);  // wait for dma to finish
+  POLL (5, 32'h00000003);  // wait for DMA to finish
   IOWR (2, 32'h00000010);  // write control register (cycle end)
 
   IDLE (200);              // few clock periods
@@ -259,7 +259,7 @@ initial begin
 //
 //  IOWR (1, 32'h00000001);  // enable XIP
 //
-//  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from xip port
+//  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from XIP port
 
   IDLE (16);               // few clock periods
 
@@ -276,7 +276,7 @@ end
 // register bus tasks                                                         //
 ////////////////////////////////////////////////////////////////////////////////
 
-// avalon cycle transfer cycle end status
+// Avalon MM cycle transfer cycle end status
 assign reg_trn = (reg_ren | reg_wen) & ~reg_wrq;
 
 task reg_cyc;
