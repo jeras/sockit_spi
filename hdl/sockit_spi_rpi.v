@@ -23,7 +23,41 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-module sockit_spi_rpi #(
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+// Handshaking protocol:                                                      //
+//                                                                            //
+// Both the command and the queue protocol employ the same handshaking mech-  //
+// anism. The data source sets the request signal (*_req) and the data drain  //
+// confirms the transfer by setting the grant signal (*_grt).                 //
+//                                                                            //
+//                       ----------   req    ----------                       //
+//                       )      S | ------>  | D      (                       //
+//                       (      R |          | R      )                       //
+//                       )      C | <------  | N      (                       //
+//                       ----------   grt    ----------                       //
+//                                                                            //
+// Command protocol:                                                          //
+//                                                                            //
+// The command protocol packet transfer contains CDW=32 data bits (same as    //
+// the CPU system bus) and CCI=4 control bits. Control word fields:           //
+// [3:0] - this fields have the same meaning as in the queue protocol         //
+//                                                                            //
+// Queue protocol:                                                            //
+//                                                                            //
+// The queue protocol packet transfer contains QDW=4*SDW=4*8 data bits (num-  //
+// ber of SPI data bits times serializer length) and QCI=4 control bits.      //
+// Control word fields:                                                       //
+// [  3] - new - new (first) data on input (used in slave mode)               //
+// [  2] - lst - last tran. segment (used to size the input side packet)      //
+// [1:0] - iom - SPI data IO mode (0 - 3-wire)                                //
+//             -                  (1 - SPI   )                                //
+//             -                  (2 - dual  )                                //
+//             -                  (3 - quad  )                                //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+mmodule sockit_spi_rpi #(
   // port widths
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =  $clog2(SDW),  // serial data register width logarithm
