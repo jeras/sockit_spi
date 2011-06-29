@@ -57,7 +57,7 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-mmodule sockit_spi_rpi #(
+module sockit_spi_rpi #(
   // port widths
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =  $clog2(SDW),  // serial data register width logarithm
