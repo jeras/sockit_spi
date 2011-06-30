@@ -55,8 +55,8 @@ module sockit_spi_dma #(
   input  wire    [31:0] adr_wof,  // address write offset
   // control/status
   input  wire           ctl_stb,  // DMA strobe
-  input  wire    [20:0] ctl_ctl,  // DMA control
-  output wire    [20:0] ctl_sts,  // DMA status
+  input  wire    [21:0] ctl_ctl,  // DMA control
+  output wire     [1:0] ctl_sts,  // DMA status
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
@@ -78,6 +78,8 @@ wire           dma_wtr, dma_rtr;  // write/read transfer
 wire           dma_wrd, dma_rrd;  // write/read ready
 wire           dma_wcy, dma_rcy;  // write/read cycle
 reg  [DAW-1:0] dma_wad, dma_rad;  // write/read address
+reg     [31:0] dma_rdr;           // read data register
+reg            dma_rds;           // read data status
 
 // cycle registers
 reg      [1:0] cyc_siz;           // transfer size
@@ -105,8 +107,8 @@ assign dma_wrd = (~dma_wen | dma_wtr);
 assign dma_rrd = (~dma_ren | dma_rtr);
 
 // write/read cycle
-assign dma_wcy = cyc_ien & cmi_req;
-assign dma_rcy = cyc_oen & cmo_grt;
+assign dma_wcy = cyc_ien &  cmi_req;
+assign dma_rcy = cyc_oen & (cmo_grt | ~dma_rds & ~dma_ren);
 
 // write/read control (write has priority over read)
 always @ (posedge clk, posedge rst)
@@ -139,6 +141,18 @@ assign dma_adr = dma_wcy ? dma_wad : dma_rad;
 // TODO proper alignment
 always @ (posedge clk)
 if (cmi_trn)  dma_wdt <= cmi_dat;
+
+// read data register
+always @ (posedge clk)
+if (dma_rtr)  dma_rdr <= dma_rdt;
+
+// read data status
+always @ (posedge clk, posedge rst)
+if (rst)             dma_rds <= 1'b0;
+else begin
+  if      (dma_rtr)  dma_rds <= 1'b1;
+  else if (cmo_trn)  dma_rds <= 1'b0;
+end
 
 ////////////////////////////////////////////////////////////////////////////////
 // cycle control                                                              //
@@ -202,7 +216,7 @@ assign ctl_sts = {~cyc_ifn, ~cyc_ofn};
 assign cmo_trn = cmo_req & cmo_grt;
 
 // transfer request
-assign cmo_req = dma_rtr;
+assign cmo_req = dma_rds;
 
 // control            siz,        lst,     iom,     die,     doe,  sso,  cke
 assign cmo_ctl = {cyc_siz, 3'd0, 1'b0, cyc_iom, cyc_ien, cyc_oen, 1'b1, 1'b1};
@@ -212,10 +226,10 @@ generate if (ENDIAN == "BIG") begin
 
 always @ (*) begin
   case (cyc_siz)
-    2'd0    : cmo_dat = (dma_rdt << ( 8*dma_adr[1:0])) ^ 32'h00xxxxxx;
-    2'd1    : cmo_dat = (dma_rdt << (16*dma_adr[1]  )) ^ 32'h0000xxxx;
-    2'd2    : cmo_dat = (dma_rdt << ( 8*dma_adr[1:0])) ^ 32'h000000xx;
-    default : cmo_dat =  dma_rdt;
+    2'd0    : cmo_dat = (dma_rdr << ( 8*dma_adr[1:0])) ^ 32'h00xxxxxx;
+    2'd1    : cmo_dat = (dma_rdr << (16*dma_adr[1]  )) ^ 32'h0000xxxx;
+    2'd2    : cmo_dat = (dma_rdr << ( 8*dma_adr[1:0])) ^ 32'h000000xx;
+    default : cmo_dat =  dma_rdr;
   endcase
 end
 
@@ -224,10 +238,10 @@ end else if (ENDIAN == "LITTLE") begin
 // TODO, think about it and than implement it
 always @ (*) begin
   case (cyc_siz)
-    2'd0    : cmo_dat = (dma_rdt << ( 8*dma_adr[1:0])) ^ 32'h00xxxxxx;
-    2'd1    : cmo_dat = (dma_rdt << (16*dma_adr[1]  )) ^ 32'h0000xxxx;
-    2'd2    : cmo_dat = (dma_rdt << ( 8*dma_adr[1:0])) ^ 32'h000000xx;
-    default : cmo_dat =  dma_rdt;
+    2'd0    : cmo_dat = (dma_rdr << ( 8*dma_adr[1:0])) ^ 32'h00xxxxxx;
+    2'd1    : cmo_dat = (dma_rdr << (16*dma_adr[1]  )) ^ 32'h0000xxxx;
+    2'd2    : cmo_dat = (dma_rdr << ( 8*dma_adr[1:0])) ^ 32'h000000xx;
+    default : cmo_dat =  dma_rdr;
   endcase
 end
 

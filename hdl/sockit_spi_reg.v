@@ -88,8 +88,8 @@ module sockit_spi_reg #(
   output wire           cmi_grt,  // grant
   // DMA control/status interface
   output wire           dma_stb,  // DMA strobe
-  output wire    [20:0] dma_ctl,  // DMA control
-  input  wire    [20:0] dma_sts   // DMA status
+  output wire    [21:0] dma_ctl,  // DMA control
+  input  wire     [1:0] dma_sts   // DMA status
 );
 
 ////////////////////////////////////////////////////////////////////////////////

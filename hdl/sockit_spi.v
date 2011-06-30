@@ -180,8 +180,8 @@ wire           qir_grt, qiw_grt;  // grant
 
 // DMA control/status interface
 wire           dma_ctl_stb;  // DMA strobe
-wire    [20:0] dma_ctl_ctl;  // DMA control
-wire    [20:0] dma_ctl_sts;  // DMA status
+wire    [21:0] dma_ctl_ctl;  // DMA control
+wire     [1:0] dma_ctl_sts;  // DMA status
 
 // SPI clocks
 wire           spi_cko;  // output registers
