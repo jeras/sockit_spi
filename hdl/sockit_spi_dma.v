@@ -25,13 +25,42 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+// Handshaking protocol:                                                      //
+//                                                                            //
+// The DMA task protocol employ a handshaking mechanism. The data source sets //
+// the request signal (tsk_req) and the data drain confirms the transfer by   //
+// setting the grant signal (tsk_grt).                                        //
+//                                                                            //
+//                       ----------   req    ----------                       //
+//                       )      S | ------>  | D      (                       //
+//                       (      R |          | R      )                       //
+//                       )      C | <------  | N      (                       //
+//                       ----------   grt    ----------                       //
+//                                                                            //
 // DMA task protocol:                                                         //
 //                                                                            //
-// The CPU over the REG module issues tasks to the DMA module. The protocol   //
-// is simple, there is no handshaking, the DMA                                                                            //
+// The protocol uses a control (tsk_ctl) and a status (tsk_sts) signal. The   //
+// control signal uses handshaking while the status signal does not. The      //
+// control signal is a command from REG to DMA to start a DMA sequence.       //
 //                                                                            //
+// Control signal fields:                                                     //
+// [21   ] - ien - command input  data enable                                 //
+// [   20] - oen - command output data enable                                 //
+// [19:18] - iom - SPI data IO mode (0 - 3-wire)                              //
+//               -                  (1 - SPI   )                              //
+//               -                  (2 - dual  )                              //
+//               -                  (3 - quad  )                              //
+// [17:16] - siz - DMA transfer size (n+1 Bytes)                              //
+// [15: 0] - len - DMA sequence length in Bytes                               //
 //                                                                            //
+// The status signal is primarily used to control the command arbiter. While  //
+// a DMA sequence is processing the DMA should have exclusive access to the   //
+// command bus. The status signal is also connected to REG, so that the CPU   //
+// can poll DMA status and interrupts can be generated.                       //
 //                                                                            //
+// Status signal fields:                                                      //
+// [1] - ist - command input  status                                          //
+// [0] - ost - command output status                                          //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
