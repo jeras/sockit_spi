@@ -243,6 +243,6 @@ assign cmi_grt = ~dat_rld;
 ////////////////////////////////////////////////////////////////////////////////
 
 assign dma_stb = wen_dma;
-assign dma_ctl = reg_wdt [20:0];
+assign dma_ctl = reg_wdt [21:0];
 
 endmodule

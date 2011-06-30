@@ -84,6 +84,7 @@ reg            dma_rds;           // read data status
 // cycle registers
 reg      [1:0] cyc_siz;           // transfer size
 reg      [1:0] cyc_iom;           // SPI IO mode
+reg            cyc_run;           // run cycle
 reg            cyc_oen, cyc_ien;  // output/input enable
 reg     [15:0] cyc_ocn, cyc_icn;  // output/input counter
 wire           cyc_ofn, cyc_ifn;  // output/input finish
@@ -168,15 +169,18 @@ end
 // control registers
 always @ (posedge clk, posedge rst)
 if (rst) begin
+  cyc_run <= 1'b0;
   cyc_oen <= 1'b0;
   cyc_ien <= 1'b0;
 end else begin
   if (ctl_stb) begin
-    cyc_oen <= ctl_ctl[20];
-    cyc_ien <= ctl_ctl[21];
+    cyc_run <= |ctl_ctl[21:20];
+    cyc_oen <=  ctl_ctl[   20];
+    cyc_ien <=  ctl_ctl[21   ];
   end else begin
-    if (cmo_trn) cyc_oen <= ~cyc_ofn;
-    if (cmi_trn) cyc_ien <= ~cyc_ifn;
+    if (cmo_trn)  cyc_run <= ~cyc_ofn;
+    if (cmo_trn)  cyc_oen <= ~cyc_ofn & cyc_oen;
+    if (cmi_trn)  cyc_ien <= ~cyc_ifn;
   end
 end
 
@@ -188,8 +192,8 @@ if (rst) begin
 end else if (cfg_m_s) begin
   // master operation
   if (ctl_stb) begin
-    if (ctl_ctl[20])  cyc_ocn <= ctl_ctl[15:0];
-    if (ctl_ctl[21])  cyc_icn <= ctl_ctl[15:0];
+    if (|ctl_ctl[21:20])  cyc_ocn <= ctl_ctl[15:0];
+    if ( ctl_ctl[21   ])  cyc_icn <= ctl_ctl[15:0];
   end else begin
     if (cmo_trn)  cyc_ocn <= cyc_ocn - ({14'd0, cyc_siz} + 16'd1);
     if (cmi_trn)  cyc_icn <= cyc_icn - ({14'd0, cyc_siz} + 16'd1);
@@ -206,7 +210,7 @@ assign cyc_ifn = ~|cyc_icn;
 // cycle status                                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign ctl_sts = {~cyc_ifn, ~cyc_ofn};
+assign ctl_sts = {cyc_icn, cyc_run};
 
 ////////////////////////////////////////////////////////////////////////////////
 // command output                                                             //
@@ -216,7 +220,7 @@ assign ctl_sts = {~cyc_ifn, ~cyc_ofn};
 assign cmo_trn = cmo_req & cmo_grt;
 
 // transfer request
-assign cmo_req = dma_rds;
+assign cmo_req = cyc_run & (~cyc_oen | dma_rds);
 
 // control            siz...siz,     iom,     die,     doe,  sso,  cke
 assign cmo_ctl = {cyc_siz, 3'd7, cyc_iom, cyc_ien, cyc_oen, 1'b1, 1'b1};
