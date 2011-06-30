@@ -191,8 +191,8 @@ end else if (cfg_m_s) begin
     if (ctl_ctl[20])  cyc_ocn <= ctl_ctl[15:0];
     if (ctl_ctl[21])  cyc_icn <= ctl_ctl[15:0];
   end else begin
-    if (cmo_trn)  cyc_ocn <= cyc_ocn - 16'd1;
-    if (cmi_trn)  cyc_icn <= cyc_icn - 16'd1;
+    if (cmo_trn)  cyc_ocn <= cyc_ocn - ({14'd0, cyc_siz} + 16'd1);
+    if (cmi_trn)  cyc_icn <= cyc_icn - ({14'd0, cyc_siz} + 16'd1);
   end
 end else begin
   // slave operation
@@ -218,8 +218,8 @@ assign cmo_trn = cmo_req & cmo_grt;
 // transfer request
 assign cmo_req = dma_rds;
 
-// control            siz,        lst,     iom,     die,     doe,  sso,  cke
-assign cmo_ctl = {cyc_siz, 3'd0, 1'b0, cyc_iom, cyc_ien, cyc_oen, 1'b1, 1'b1};
+// control            siz...siz,     iom,     die,     doe,  sso,  cke
+assign cmo_ctl = {cyc_siz, 3'd7, cyc_iom, cyc_ien, cyc_oen, 1'b1, 1'b1};
 
 // data
 generate if (ENDIAN == "BIG") begin

@@ -1,7 +1,7 @@
-[timestart] 5369600
+[timestart] 5987000
 [size] 1366 744
 [pos] -1 -1
-*-17.225300 5370000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.225300 5320000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 @820
@@ -75,7 +75,7 @@ spi_tb.sockit_spi.dma_ctl_sts[1:0]
 (1)spi_tb.sockit_spi.dma_ctl_sts[1:0]
 @1401200
 -group_end
-@29
+@28
 spi_tb.sockit_spi.dma.dma_rcy
 @22
 spi_tb.sockit_spi.dma.dma_rdr[31:0]
@@ -91,5 +91,67 @@ spi_tb.sockit_spi.dma.cmo_dat[31:0]
 spi_tb.sockit_spi.dma.cmo_grt
 spi_tb.sockit_spi.dma.cmo_req
 spi_tb.sockit_spi.dma.cmo_trn
+@800200
+-RPO
+@28
+spi_tb.sockit_spi.rpo.clk
+@c00023
+spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+@28
+(0)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(1)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(2)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(3)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(4)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(5)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(6)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(7)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(8)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(9)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+(10)spi_tb.sockit_spi.rpo.cmd_ctl[10:0]
+@1401201
+-group_end
+@22
+spi_tb.sockit_spi.rpo.cmd_dat[31:0]
+@28
+spi_tb.sockit_spi.rpo.cmd_grt
+spi_tb.sockit_spi.rpo.cmd_req
+spi_tb.sockit_spi.rpo.cmd_trn
+@22
+spi_tb.sockit_spi.rpo.cyc_cnt[4:0]
+spi_tb.sockit_spi.rpo.cyc_ctl[5:0]
+spi_tb.sockit_spi.rpo.cyc_dat[31:0]
+@28
+spi_tb.sockit_spi.rpo.cyc_iom[1:0]
+spi_tb.sockit_spi.rpo.cyc_len[2:0]
+spi_tb.sockit_spi.rpo.cyc_lst
+@22
+spi_tb.sockit_spi.rpo.cyc_nxt[4:0]
+@28
+spi_tb.sockit_spi.rpo.cyc_run
+@c00022
+spi_tb.sockit_spi.rpo.que_ctl[9:0]
+@28
+(0)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+(1)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+(2)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+(3)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+(4)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+(5)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+(6)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+(7)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+(8)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+(9)spi_tb.sockit_spi.rpo.que_ctl[9:0]
+@1401200
+-group_end
+@22
+spi_tb.sockit_spi.rpo.que_dat[31:0]
+@28
+spi_tb.sockit_spi.rpo.que_grt
+spi_tb.sockit_spi.rpo.que_req
+spi_tb.sockit_spi.rpo.que_trn
+spi_tb.sockit_spi.rpo.rst
+@1000200
+-RPO
 [pattern_trace] 1
 [pattern_trace] 0
