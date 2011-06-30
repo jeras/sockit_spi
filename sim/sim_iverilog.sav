@@ -58,7 +58,7 @@ spi_tb.sockit_spi.dma.dma_err
 -DMA
 @28
 spi_tb.sockit_spi.dma.cfg_m_s
-spi_tb.sockit_spi.dma.ctl_stb
+spi_tb.sockit_spi.dma.tsk_req
 @22
 spi_tb.sockit_spi.dma.cyc_ocn[15:0]
 spi_tb.sockit_spi.dma.cyc_icn[15:0]
@@ -69,10 +69,10 @@ spi_tb.sockit_spi.arb_xip
 spi_tb.sockit_spi.arb_dmo
 spi_tb.sockit_spi.arb_dmi
 @c00022
-spi_tb.sockit_spi.dma_ctl_sts[1:0]
+spi_tb.sockit_spi.tsk_sts[1:0]
 @28
-(0)spi_tb.sockit_spi.dma_ctl_sts[1:0]
-(1)spi_tb.sockit_spi.dma_ctl_sts[1:0]
+(0)spi_tb.sockit_spi.tsk_sts[1:0]
+(1)spi_tb.sockit_spi.tsk_sts[1:0]
 @1401200
 -group_end
 @28

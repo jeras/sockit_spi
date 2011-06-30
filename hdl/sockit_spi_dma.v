@@ -25,6 +25,14 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+// DMA task protocol:                                                         //
+//                                                                            //
+// The CPU over the REG module issues tasks to the DMA module. The protocol   //
+// is simple, there is no handshaking, the DMA                                                                            //
+//                                                                            //
+//                                                                            //
+//                                                                            //
+//                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_dma #(
@@ -53,10 +61,11 @@ module sockit_spi_dma #(
   input  wire     [7:0] cfg_dma,  // DMA configuration
   input  wire    [31:0] adr_rof,  // address read  offset
   input  wire    [31:0] adr_wof,  // address write offset
-  // control/status
-  input  wire           ctl_stb,  // DMA strobe
-  input  wire    [21:0] ctl_ctl,  // DMA control
-  output wire     [1:0] ctl_sts,  // DMA status
+  // DMA task interface
+  input  wire           tsk_req,  // request
+  input  wire    [21:0] tsk_ctl,  // control
+  output wire     [1:0] tsk_sts,  // status
+  output wire           tsk_grt,  // grant
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
@@ -72,6 +81,9 @@ module sockit_spi_dma #(
 ////////////////////////////////////////////////////////////////////////////////
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
+
+// DMA task interface
+wire           tsk_trn;  // transfer
 
 // memory interface
 wire           dma_wtr, dma_rtr;  // write/read transfer
@@ -127,7 +139,7 @@ dma_ben <= 4'hf;
 
 // write/read address register
 always @ (posedge clk)
-if (ctl_stb) begin
+if (tsk_trn) begin
   dma_wad <= adr_wof;
   dma_rad <= adr_rof;
 end else begin
@@ -161,9 +173,9 @@ end
 
 // control registers
 always @ (posedge clk)
-if (ctl_stb) begin
-  cyc_siz <= ctl_ctl[17:16];
-  cyc_iom <= ctl_ctl[19:18];
+if (tsk_trn) begin
+  cyc_siz <= tsk_ctl[17:16];
+  cyc_iom <= tsk_ctl[19:18];
 end
 
 // control registers
@@ -173,10 +185,10 @@ if (rst) begin
   cyc_oen <= 1'b0;
   cyc_ien <= 1'b0;
 end else begin
-  if (ctl_stb) begin
-    cyc_run <= |ctl_ctl[21:20];
-    cyc_oen <=  ctl_ctl[   20];
-    cyc_ien <=  ctl_ctl[21   ];
+  if (tsk_trn) begin
+    cyc_run <= |tsk_ctl[21:20];
+    cyc_oen <=  tsk_ctl[   20];
+    cyc_ien <=  tsk_ctl[21   ];
   end else begin
     if (cmo_trn)  cyc_run <= ~cyc_ofn;
     if (cmo_trn)  cyc_oen <= ~cyc_ofn & cyc_oen;
@@ -191,9 +203,9 @@ if (rst) begin
   cyc_icn <= 16'd0;
 end else if (cfg_m_s) begin
   // master operation
-  if (ctl_stb) begin
-    if (|ctl_ctl[21:20])  cyc_ocn <= ctl_ctl[15:0];
-    if ( ctl_ctl[21   ])  cyc_icn <= ctl_ctl[15:0];
+  if (tsk_trn) begin
+    if (|tsk_ctl[21:20])  cyc_ocn <= tsk_ctl[15:0];
+    if ( tsk_ctl[21   ])  cyc_icn <= tsk_ctl[15:0];
   end else begin
     if (cmo_trn)  cyc_ocn <= cyc_ocn - ({14'd0, cyc_siz} + 16'd1);
     if (cmi_trn)  cyc_icn <= cyc_icn - ({14'd0, cyc_siz} + 16'd1);
@@ -210,7 +222,11 @@ assign cyc_ifn = ~|cyc_icn;
 // cycle status                                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign ctl_sts = {cyc_icn, cyc_run};
+assign tsk_trn = tsk_req & tsk_grt;
+
+assign tsk_sts = {cyc_icn, cyc_run};
+
+assign tsk_grt = 1'b1;
 
 ////////////////////////////////////////////////////////////////////////////////
 // command output                                                             //

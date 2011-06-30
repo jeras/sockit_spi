@@ -86,10 +86,11 @@ module sockit_spi_reg #(
   input  wire [CCI-1:0] cmi_ctl,  // control
   input  wire [CDW-1:0] cmi_dat,  // data
   output wire           cmi_grt,  // grant
-  // DMA control/status interface
-  output wire           dma_stb,  // DMA strobe
-  output wire    [21:0] dma_ctl,  // DMA control
-  input  wire     [1:0] dma_sts   // DMA status
+  // DMA task interface
+  output wire           tsk_req,  // DMA request
+  output wire    [21:0] tsk_ctl,  // DMA control
+  input  wire     [1:0] tsk_sts,  // DMA status
+  input  wire           tsk_grt   // DMA grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -134,7 +135,7 @@ case (reg_adr)
   3'd2 : reg_rdt =         spi_sts ;  // SPI status
   3'd3 : reg_rdt =         spi_dat ;  // SPI data
   3'd4 : reg_rdt =    32'hxxxxxxxx ;  // SPI interrupts
-  3'd5 : reg_rdt = {11'b0, dma_sts};  // DMA status
+  3'd5 : reg_rdt = {11'b0, tsk_sts};  // DMA status
   3'd6 : reg_rdt =         adr_rof ;   // address read  offset
   3'd7 : reg_rdt =         adr_wof ;   // address write offset
 endcase
@@ -147,7 +148,7 @@ case (reg_adr)
   3'd2 : reg_wrq = reg_wen & ~cmo_grt;                   // SPI control
   3'd3 : reg_wrq = reg_wen & 1'b0 | reg_ren & ~dat_rld;  // SPI data
   3'd4 : reg_wrq = 1'b0;                                 // SPI interrupts
-  3'd5 : reg_wrq = 1'b0;                                 // DMA control/status
+  3'd5 : reg_wrq = ~tsk_grt;                             // DMA control/status
   3'd6 : reg_wrq = 1'b0;                                 // address read  offset
   3'd7 : reg_wrq = 1'b0;                                 // address write offset
 endcase
@@ -242,7 +243,7 @@ assign cmi_grt = ~dat_rld;
 // DMA control/status interface                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign dma_stb = wen_dma;
-assign dma_ctl = reg_wdt [21:0];
+assign tsk_stb = wen_dma;
+assign tsk_ctl = reg_wdt [21:0];
 
 endmodule

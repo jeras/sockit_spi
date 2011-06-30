@@ -57,7 +57,7 @@
 //                                                                            //
 // Internal protocols are used to transfer data, commands and status between  //
 // building blocks.                                                           //
-// - dma control     -  DMA control requests from a system CPU                //
+// - dma task        -  DMA task requests from a system CPU                   //
 // - command         -  32bit data packets + control bits                     //
 // - queue           -   8bit data packets + control bits (sized for serial.) //
 // The DMA related protocol is described inside sockit_spi_dma.v, command and //
@@ -178,10 +178,11 @@ wire [QCI-1:0] qir_ctl, qiw_ctl;  // control
 wire [QDW-1:0] qir_dat, qiw_dat;  // data
 wire           qir_grt, qiw_grt;  // grant
 
-// DMA control/status interface
-wire           dma_ctl_stb;  // DMA strobe
-wire    [21:0] dma_ctl_ctl;  // DMA control
-wire     [1:0] dma_ctl_sts;  // DMA status
+// DMA task interface
+wire           tsk_req;  // request
+wire    [21:0] tsk_ctl;  // control
+wire     [1:0] tsk_sts;  // status
+wire           tsk_grt;  // grant
 
 // SPI clocks
 wire           spi_cko;  // output registers
@@ -234,10 +235,11 @@ sockit_spi_reg #(
   .cmi_ctl  (reg_cmi_ctl),
   .cmi_dat  (reg_cmi_dat),
   .cmi_grt  (reg_cmi_grt),
-  // DMA control/status interface
-  .dma_stb  (dma_ctl_stb),
-  .dma_ctl  (dma_ctl_ctl),
-  .dma_sts  (dma_ctl_sts)
+  // DMA task interface
+  .tsk_req  (tsk_req),
+  .tsk_ctl  (tsk_ctl),
+  .tsk_sts  (tsk_sts),
+  .tsk_grt  (tsk_grt)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -303,10 +305,11 @@ sockit_spi_dma #(
   .cfg_dma  (cfg_dma),
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
-  // control/status
-  .ctl_stb  (dma_ctl_stb),
-  .ctl_ctl  (dma_ctl_ctl),
-  .ctl_sts  (dma_ctl_sts),
+  // DMA task
+  .tsk_req  (tsk_req),
+  .tsk_ctl  (tsk_ctl),
+  .tsk_sts  (tsk_sts),
+  .tsk_grt  (tsk_grt),
   // command output
   .cmo_req  (dma_cmo_req),
   .cmo_ctl  (dma_cmo_ctl),
@@ -324,8 +327,8 @@ sockit_spi_dma #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // TODO
-assign arb_dmo = dma_ctl_sts[0];
-assign arb_dmi = dma_ctl_sts[1];
+assign arb_dmo = tsk_sts[0];
+assign arb_dmi = tsk_sts[1];
 assign arb_xip = 1'b0;  // TODO
 
 // command output multiplexer
