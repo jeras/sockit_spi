@@ -405,17 +405,17 @@ generate if (CDC) begin : cdc
     // input port
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
-    .cdi_pli  (qow_req),
     .cdi_dat ({qow_ctl,
                qow_dat}),
-    .cdi_plo  (qow_grt),
+    .cdi_req  (qow_req),
+    .cdi_grt  (qow_grt),
     // output port
     .cdo_clk  (spi_cko),
     .cdo_rst  (rst_spi),
-    .cdo_plo  (qor_req),
     .cdo_dat ({qor_ctl,
                qor_dat}),
-    .cdo_pli  (qor_grt)
+    .cdo_req  (qor_req),
+    .cdo_grt  (qor_grt)
   );
 
   // data input
@@ -426,17 +426,17 @@ generate if (CDC) begin : cdc
     // input port
     .cdi_clk  (spi_cki),
     .cdi_rst  (rst_spi),
-    .cdi_pli  (qiw_req),
     .cdi_dat ({qiw_ctl,
                qiw_dat}),
-    .cdi_plo  (qiw_grt),
+    .cdi_req  (qiw_req),
+    .cdi_grt  (qiw_grt),
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
-    .cdo_plo  (qir_req),
     .cdo_dat ({qir_ctl,
                qir_dat}),
-    .cdo_pli  (qir_grt)
+    .cdo_req  (qir_req),
+    .cdo_grt  (qir_grt)
   );
 
 end else begin : syn

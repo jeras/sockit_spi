@@ -23,6 +23,12 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//                                                                            //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
 module sockit_spi_cdc #(
   parameter    CW = 1,   // counter width
   parameter    DW = 1    // data    width
@@ -31,14 +37,14 @@ module sockit_spi_cdc #(
   input  wire          cdi_clk,  // clock
   input  wire          cdi_rst,  // reset
   input  wire [DW-1:0] cdi_dat,  // data
-  input  wire          cdi_pli,  // pulse input
-  output reg           cdi_plo,  // pulse output
+  input  wire          cdi_req,  // request
+  output reg           cdi_grt,  // grant
   // output port
   input  wire          cdo_clk,  // clock
   input  wire          cdo_rst,  // reset
-  input  wire          cdo_pli,  // pulse input
-  output reg           cdo_plo,  // pulse output
-  output wire [DW-1:0] cdo_dat   // data
+  output wire [DW-1:0] cdo_dat,  // data
+  output reg           cdo_req,  // request
+  input  wire          cdo_grt   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -94,7 +100,7 @@ wire [CW-1:0] cdo_inc;  // gray increment
 ////////////////////////////////////////////////////////////////////////////////
 
 // transfer
-assign cdi_trn = cdi_pli & cdi_plo;
+assign cdi_trn = cdi_req & cdi_grt;
 
 // counter increment
 assign cdi_inc = gry_inc (cdi_cnt);
@@ -104,11 +110,11 @@ always @ (posedge cdi_clk, posedge cdi_rst)
 if (cdi_rst) begin
                 cdi_syn <= {CW{1'b0}};
                 cdi_cnt <= {CW{1'b0}};
-                cdi_plo <=     1'b1  ;
+                cdi_grt <=     1'b1  ;
 end else begin
                 cdi_syn <= cdo_cnt;
   if (cdi_trn)  cdi_cnt <= cdi_inc;
-                cdi_plo <= cdi_plo & ~cdi_trn | (cdi_syn != cdi_plo ? cdi_inc
+                cdi_grt <= cdi_grt & ~cdi_trn | (cdi_syn != cdi_grt ? cdi_inc
                                                                     : cdi_cnt);
 end
 
@@ -121,7 +127,7 @@ if (cdi_trn) cdc_mem [cdi_cnt] <= cdi_dat;
 ////////////////////////////////////////////////////////////////////////////////
 
 // transfer
-assign cdo_trn = cdo_plo & cdo_pli;
+assign cdo_trn = cdo_req & cdo_grt;
 
 // counter increment
 assign cdo_inc = gry_inc (cdo_cnt);
@@ -131,11 +137,11 @@ always @ (posedge cdo_clk, posedge cdo_rst)
 if (cdo_rst) begin
                 cdo_syn <= {CW{1'b0}};
                 cdo_cnt <= {CW{1'b0}};
-                cdo_plo <=     1'b0  ;
+                cdo_req <=     1'b0  ;
 end else begin
                 cdo_syn <= cdi_cnt;
   if (cdo_trn)  cdo_cnt <= cdo_inc;
-                cdo_plo <= cdo_plo & ~cdo_trn | (cdo_syn != cdo_plo ? cdo_inc
+                cdo_req <= cdo_req & ~cdo_trn | (cdo_syn != cdo_req ? cdo_inc
                                                                     : cdo_cnt);
 end
 
