@@ -27,7 +27,7 @@
 //                                                                            //
 // Handshaking protocol:                                                      //
 //                                                                            //
-// Both the nput and the output port employ the same handshaking mechanism.   //
+// Both the input and the output port employ the same handshaking mechanism.  //
 // The data source sets the request signal (*_req) and the data drain         //
 // confirms the transfer by setting the grant signal (*_grt).                 //
 //                                                                            //
