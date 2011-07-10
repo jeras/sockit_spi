@@ -25,6 +25,25 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+// Handshaking protocol:                                                      //
+//                                                                            //
+// Both the nput and the output port employ the same handshaking mechanism.   //
+// The data source sets the request signal (*_req) and the data drain         //
+// confirms the transfer by setting the grant signal (*_grt).                 //
+//                                                                            //
+//                       ----------   req    ----------                       //
+//                       )      S | ------>  | D      (                       //
+//                       (      R |          | R      )                       //
+//                       )      C | <------  | N      (                       //
+//                       ----------   grt    ----------                       //
+//                                                                            //
+// Clear signal:                                                              //
+//                                                                            //
+// The *_clr signal provides an optional synchronous clear of data counters.  //
+// To be precise by applying clear the counter of the applied side copies the //
+// counter value from the opposite side, thus causing the data still stored   //
+// inside the FIFO to be thrown out.                                          //
+//                                                                            //
 //                                                                            //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -36,12 +55,14 @@ module sockit_spi_cdc #(
   // input port
   input  wire          cdi_clk,  // clock
   input  wire          cdi_rst,  // reset
+  input  wire          cdi_clr,  // clear
   input  wire [DW-1:0] cdi_dat,  // data
   input  wire          cdi_req,  // request
   output reg           cdi_grt,  // grant
   // output port
   input  wire          cdo_clk,  // clock
   input  wire          cdo_rst,  // reset
+  input  wire          cdo_clr,  // clear
   output wire [DW-1:0] cdo_dat,  // data
   output reg           cdo_req,  // request
   input  wire          cdo_grt   // grant
@@ -108,14 +129,14 @@ assign cdi_inc = gry_inc (cdi_cnt);
 // synchronization and counter registers
 always @ (posedge cdi_clk, posedge cdi_rst)
 if (cdi_rst) begin
-                cdi_syn <= {CW{1'b0}};
-                cdi_cnt <= {CW{1'b0}};
-                cdi_grt <=     1'b1  ;
+                     cdi_syn <= {CW{1'b0}};
+                     cdi_cnt <= {CW{1'b0}};
+                     cdi_grt <=     1'b1  ;
 end else begin
-                cdi_syn <= cdo_cnt;
-  if (cdi_trn)  cdi_cnt <= cdi_inc;
-                cdi_grt <= cdi_grt & ~cdi_trn | (cdi_syn != cdi_grt ? cdi_inc
-                                                                    : cdi_cnt);
+                     cdi_syn <= cdo_cnt;
+  if      (cdi_clr)  cdi_cnt <= cdi_syn;
+  else if (cdi_trn)  cdi_cnt <= cdi_inc;
+                     cdi_grt <= cdi_grt & ~cdi_trn | (cdi_syn != cdi_grt ? cdi_inc : cdi_cnt);
 end
 
 // data memory
@@ -135,14 +156,14 @@ assign cdo_inc = gry_inc (cdo_cnt);
 // synchronization and counter registers
 always @ (posedge cdo_clk, posedge cdo_rst)
 if (cdo_rst) begin
-                cdo_syn <= {CW{1'b0}};
-                cdo_cnt <= {CW{1'b0}};
-                cdo_req <=     1'b0  ;
+                     cdo_syn <= {CW{1'b0}};
+                     cdo_cnt <= {CW{1'b0}};
+                     cdo_req <=     1'b0  ;
 end else begin
-                cdo_syn <= cdi_cnt;
-  if (cdo_trn)  cdo_cnt <= cdo_inc;
-                cdo_req <= cdo_req & ~cdo_trn | (cdo_syn != cdo_req ? cdo_inc
-                                                                    : cdo_cnt);
+                     cdo_syn <= cdi_cnt;
+  if      (cdo_clr)  cdo_cnt <= cdo_syn;
+  else if (cdo_trn)  cdo_cnt <= cdo_inc;
+                     cdo_req <= cdo_req & ~cdo_trn | (cdo_syn != cdo_req ? cdo_inc : cdo_cnt);
 end
 
 // asynchronous output data

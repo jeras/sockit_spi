@@ -405,6 +405,7 @@ generate if (CDC) begin : cdc
     // input port
     .cdi_clk  (clk_cpu),
     .cdi_rst  (rst_cpu),
+    .cdi_clr  (1'b0),
     .cdi_dat ({qow_ctl,
                qow_dat}),
     .cdi_req  (qow_req),
@@ -412,6 +413,7 @@ generate if (CDC) begin : cdc
     // output port
     .cdo_clk  (spi_cko),
     .cdo_rst  (rst_spi),
+    .cdo_clr  (1'b0),
     .cdo_dat ({qor_ctl,
                qor_dat}),
     .cdo_req  (qor_req),
@@ -426,6 +428,7 @@ generate if (CDC) begin : cdc
     // input port
     .cdi_clk  (spi_cki),
     .cdi_rst  (rst_spi),
+    .cdi_clr  (1'b0),
     .cdi_dat ({qiw_ctl,
                qiw_dat}),
     .cdi_req  (qiw_req),
@@ -433,6 +436,7 @@ generate if (CDC) begin : cdc
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
+    .cdo_clr  (1'b0),
     .cdo_dat ({qir_ctl,
                qir_dat}),
     .cdo_req  (qir_req),
