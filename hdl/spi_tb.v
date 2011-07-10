@@ -205,6 +205,7 @@ initial begin
 
   IOWR (3, 32'h0b5a0000);  // write data    register
   IOWR (2, 32'h00001f17);  // write control register (32bit write)
+  IOWR (2, 32'h00000713);  // write control register ( 8bit idle)
   IOWR (5, 32'h00240003);  // request a SPI read, DMA write transfer
   POLL (5, 32'h00000003);  // wait for DMA to finish
   IOWR (2, 32'h00000010);  // write control register (cycle end)
@@ -261,6 +262,7 @@ initial begin
 //
 //  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from XIP port
 
+  test_name = "END";
   IDLE (16);               // few clock periods
 
   $finish;  // end simulation

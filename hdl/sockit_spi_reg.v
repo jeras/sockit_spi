@@ -243,7 +243,7 @@ assign cmi_grt = ~dat_rld;
 // DMA control/status interface                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign tsk_stb = wen_dma;
+assign tsk_req = wen_dma;
 assign tsk_ctl = reg_wdt [21:0];
 
 endmodule

@@ -80,7 +80,7 @@ module sockit_spi_dma #(
   output reg            dma_wen,  // write enable
   output reg            dma_ren,  // read enable
   output wire [DAW-1:0] dma_adr,  // address
-  output reg      [3:0] dma_ben,  // byte enable
+  output wire     [3:0] dma_ben,  // byte enable
   output reg     [31:0] dma_wdt,  // write data
   input  wire    [31:0] dma_rdt,  // read data
   input  wire           dma_wrq,  // wait request
@@ -119,7 +119,10 @@ wire           dma_wtr, dma_rtr;  // write/read transfer
 wire           dma_wrd, dma_rrd;  // write/read ready
 wire           dma_wcy, dma_rcy;  // write/read cycle
 reg  [DAW-1:0] dma_wad, dma_rad;  // write/read address
+wire [DAW-1:0] dma_wai, dma_rai;  // write/read address increment
+reg      [3:0] dma_wbe;           // write byte enable
 reg     [31:0] dma_rdr;           // read data register
+reg      [1:0] dma_rdb;           // read data byte
 reg            dma_rds;           // read data status
 
 // cycle registers
@@ -150,7 +153,7 @@ assign dma_rrd = (~dma_ren | dma_rtr);
 
 // write/read cycle
 assign dma_wcy = cyc_ien &  cmi_req;
-assign dma_rcy = cyc_oen & (cmo_grt | ~dma_rds & ~dma_ren);
+assign dma_rcy = cyc_oen & ~(cyc_ofn & cmo_trn) & (cmo_grt | ~dma_rds & ~dma_ren);
 
 // write/read control (write has priority over read)
 always @ (posedge clk, posedge rst)
@@ -162,31 +165,55 @@ end else begin
   if (dma_rrd)  dma_ren <= dma_rcy & ~dma_wcy;
 end
 
-// transfer size
-always @ (posedge clk)
-dma_ben <= 4'hf;
-
 // write/read address register
 always @ (posedge clk)
 if (tsk_trn) begin
   dma_wad <= adr_wof;
   dma_rad <= adr_rof;
 end else begin
-  if (dma_wtr)  dma_wad <= dma_wad + ({14'd0, cyc_siz} + 16'd1);
-  if (dma_rtr)  dma_rad <= dma_rad + ({14'd0, cyc_siz} + 16'd1);
+  if (dma_wtr)  dma_wad <= dma_wai;
+  if (dma_rtr)  dma_rad <= dma_rai;
 end
 
+// write/read address increment
+assign dma_wai = dma_wad + ({14'd0, cyc_siz} + 16'd1);
+assign dma_rai = dma_rad + ({14'd0, cyc_siz} + 16'd1);
+
 // write/read address multiplexer
-assign dma_adr = dma_wcy ? dma_wad : dma_rad;
+assign dma_adr = dma_wen ? dma_wad : dma_rad;
+
+// write byte enable
+always @ (posedge clk)
+if (tsk_trn) begin
+  case (cyc_siz)
+    2'd0    : dma_wbe <= (ENDIAN == "BIG") ? 4'b1000 : 4'b0001;
+    2'd1    : dma_wbe <= (ENDIAN == "BIG") ? 4'b1100 : 4'b0011;
+    2'd2    : dma_wbe <= 4'b1111;
+    default : dma_wbe <= 4'b1111;
+  endcase
+end else if (dma_wrd) begin
+  case (cyc_siz)
+    2'd0    : dma_wbe <= (ENDIAN == "BIG") ? {dma_wbe[0:0], dma_wbe[2:1]} : {dma_wbe[2:0], dma_wbe[3:3]};
+    2'd1    : dma_wbe <= (ENDIAN == "BIG") ? {dma_wbe[1:0], dma_wbe[3:2]} : {dma_wbe[1:0], dma_wbe[3:2]};
+    2'd2    : dma_wbe <= 4'b1111;
+    default : dma_wbe <= 4'b1111;
+  endcase
+end
+
+// transfer size multiplexer
+assign dma_ben = dma_wen ? dma_wbe : 4'hf;
 
 // write data
 // TODO proper alignment
 always @ (posedge clk)
 if (cmi_trn)  dma_wdt <= cmi_dat;
 
-// read data register
+// read data register, byte
 always @ (posedge clk)
-if (dma_rtr)  dma_rdr <= dma_rdt;
+if (dma_rtr) begin
+  dma_rdr <= dma_rdt;
+  dma_rdb <= dma_rad [1:0];
+end
 
 // read data status
 always @ (posedge clk, posedge rst)
@@ -253,7 +280,7 @@ assign cyc_ifn = ~|cyc_icn;
 
 assign tsk_trn = tsk_req & tsk_grt;
 
-assign tsk_sts = {cyc_icn, cyc_run};
+assign tsk_sts = {cyc_ien, cyc_run};
 
 assign tsk_grt = 1'b1;
 
@@ -275,9 +302,9 @@ generate if (ENDIAN == "BIG") begin
 
 always @ (*) begin
   case (cyc_siz)
-    2'd0    : cmo_dat = (dma_rdr << ( 8*dma_adr[1:0])) ^ 32'h00xxxxxx;
-    2'd1    : cmo_dat = (dma_rdr << (16*dma_adr[1]  )) ^ 32'h0000xxxx;
-    2'd2    : cmo_dat = (dma_rdr << ( 8*dma_adr[1:0])) ^ 32'h000000xx;
+    2'd0    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h00xxxxxx;
+    2'd1    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h0000xxxx;
+    2'd2    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h000000xx;
     default : cmo_dat =  dma_rdr;
   endcase
 end
@@ -287,9 +314,9 @@ end else if (ENDIAN == "LITTLE") begin
 // TODO, think about it and than implement it
 always @ (*) begin
   case (cyc_siz)
-    2'd0    : cmo_dat = (dma_rdr << ( 8*dma_adr[1:0])) ^ 32'h00xxxxxx;
-    2'd1    : cmo_dat = (dma_rdr << (16*dma_adr[1]  )) ^ 32'h0000xxxx;
-    2'd2    : cmo_dat = (dma_rdr << ( 8*dma_adr[1:0])) ^ 32'h000000xx;
+    2'd0    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h00xxxxxx;
+    2'd1    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h0000xxxx;
+    2'd2    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h000000xx;
     default : cmo_dat =  dma_rdr;
   endcase
 end

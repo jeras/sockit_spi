@@ -341,8 +341,8 @@ assign dma_cmo_grt = cmo_grt & ~arb_xip &  arb_dmo;
 assign xip_cmo_grt = cmo_grt &  arb_xip;
 
 // command input demultiplexer
-assign reg_cmi_req = cmi_req & ~arb_xip & ~arb_dmo;
-assign dma_cmi_req = cmi_req & ~arb_xip &  arb_dmo;
+assign reg_cmi_req = cmi_req & ~arb_xip & ~arb_dmi;
+assign dma_cmi_req = cmi_req & ~arb_xip &  arb_dmi;
 assign xip_cmi_req = cmi_req &  arb_xip;
 assign {xip_cmi_ctl, dma_cmi_ctl, reg_cmi_ctl} = {3{cmi_ctl}};
 assign {xip_cmi_dat, dma_cmi_dat, reg_cmi_dat} = {3{cmi_dat}};
