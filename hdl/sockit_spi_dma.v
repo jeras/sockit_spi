@@ -191,9 +191,9 @@ if (tsk_trn) begin
     2'd2    : dma_wbe <= 4'b1111;
     default : dma_wbe <= 4'b1111;
   endcase
-end else if (dma_wrd) begin
+end else if (dma_wtr) begin
   case (cyc_siz)
-    2'd0    : dma_wbe <= (ENDIAN == "BIG") ? {dma_wbe[0:0], dma_wbe[2:1]} : {dma_wbe[2:0], dma_wbe[3:3]};
+    2'd0    : dma_wbe <= (ENDIAN == "BIG") ? {dma_wbe[0:0], dma_wbe[3:1]} : {dma_wbe[2:0], dma_wbe[3:3]};
     2'd1    : dma_wbe <= (ENDIAN == "BIG") ? {dma_wbe[1:0], dma_wbe[3:2]} : {dma_wbe[1:0], dma_wbe[3:2]};
     2'd2    : dma_wbe <= 4'b1111;
     default : dma_wbe <= 4'b1111;
@@ -206,7 +206,15 @@ assign dma_ben = dma_wen ? dma_wbe : 4'hf;
 // write data
 // TODO proper alignment
 always @ (posedge clk)
-if (cmi_trn)  dma_wdt <= cmi_dat;
+if (cmi_trn) begin
+  case (cyc_siz)
+    // TODO, the address is not always correct
+    2'd0    : dma_wdt <= (ENDIAN == "BIG") ? cmi_dat[ 7:0] << 8*(2'd3-dma_wad[1:0]) : cmi_dat[ 7:0] << 8*dma_wad[1:0];
+    2'd1    : dma_wdt <= (ENDIAN == "BIG") ? cmi_dat[15:0] << 8*(2'd3-dma_wad[1:0]) : cmi_dat[15:0] << 8*dma_wad[1:0];
+    2'd2    : dma_wdt <= cmi_dat;
+    default : dma_wdt <= cmi_dat;
+  endcase
+end
 
 // read data register, byte
 always @ (posedge clk)
