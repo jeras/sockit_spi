@@ -39,11 +39,7 @@ module sockit_spi_ser #(
   output wire           spi_cko,  // output registers
   output wire           spi_cki,  // input  registers
   // SPI configuration
-  input  wire           cfg_pol,  // clock polarity
-  input  wire           cfg_pha,  // clock phase
-  input  wire           cfg_coe,  // clock output enable
-  input  wire           cfg_sse,  // slave select output enable
-  input  wire           cfg_m_s,  // mode (0 - slave, 1 - master)
+  input  wire    [31:0] spi_cfg,  // SPI/XIP/DMA configuration
   // output queue
   input  wire           quo_req,  // request
   input  wire [QCO-1:0] quo_ctl,  // control
@@ -73,6 +69,15 @@ module sockit_spi_ser #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
+// SPI configuration
+wire [SSW-1:0] cfg_sss;  // slave select selector
+wire           cfg_m_s;  // SPI bus mode (0 - slave, 1 - master)
+wire           cfg_dir;  // shift direction (0 - LSB first, 1 - MSB first)
+wire           cfg_soe;  // slave select output enable
+wire           cfg_coe;  // clock output enable
+wire           cfg_pha;  // clock phase
+wire           cfg_pol;  // clock polarity
+
 // internal clocks, resets
 wire           spi_clk;
 wire           spi_rsi;
@@ -91,7 +96,6 @@ reg            cyc_lst;  // input last (signal for synchronization purposes)
 reg      [3:0] cyc_doe;  // data output enable
 reg            cyc_die;  // data input enable
 reg      [1:0] cyc_iom;  // data IO mode
-reg  [SSW-1:0] cyc_sse;  // slave select output enable
 reg  [SSW-1:0] cyc_sso;  // slave select outputs
 
 // input control signals
@@ -112,6 +116,18 @@ wire [SDW-1:0] spi_dti_3;
 wire [SDW-1:0] spi_dti_2;
 wire [SDW-1:0] spi_dti_1;
 wire [SDW-1:0] spi_dti_0;
+
+////////////////////////////////////////////////////////////////////////////////
+// configuration                                                              //
+////////////////////////////////////////////////////////////////////////////////
+
+assign cfg_sss = spi_cfg[24+:SSW];
+assign cfg_m_s = spi_cfg[7];
+assign cfg_dir = spi_cfg[6];
+assign cfg_soe = spi_cfg[3];
+assign cfg_coe = spi_cfg[2];
+assign cfg_pol = spi_cfg[1];
+assign cfg_pha = spi_cfg[0];
 
 ////////////////////////////////////////////////////////////////////////////////
 // master/slave mode                                                          //
@@ -162,7 +178,7 @@ if (rst) begin
   cyc_iom <=      2'd1  ;
   cyc_lst <=      1'b0  ;
 end else if (quo_trn) begin
-  cyc_sso <= {SSW{quo_ctl [1]}} & 'd1;  // TODO
+  cyc_sso <= {SSW{quo_ctl [1]}} & cfg_sss;
   case (quo_ctl [5:4])
     2'd0 : cyc_doe <= {4{quo_ctl [2]}} & 4'b0001;
     2'd1 : cyc_doe <= {4{quo_ctl [2]}} & 4'b0001;
@@ -196,7 +212,7 @@ assign spi_rsi = spi_ss_i [0];  // reset for output registers
 
 // slave select output, output enable
 assign spi_ss_o =      cyc_sso  ;
-assign spi_ss_e = {SSW{cfg_sse}};
+assign spi_ss_e = {SSW{cfg_soe}};
 
 
 // data output

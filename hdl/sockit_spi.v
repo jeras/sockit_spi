@@ -143,14 +143,7 @@ localparam QCI =            4;  // control  input width
 localparam QDW =        4*SDW;  // data width
 
 // SPI/XIP/DMA configuration
-wire           cfg_pol;  // clock polarity
-wire           cfg_pha;  // clock phase
-wire           cfg_coe;  // clock output enable
-wire           cfg_sse;  // slave select output enable
-wire           cfg_m_s;  // mode (0 - slave, 1 - master)
-wire           cfg_dir;  // shift direction (0 - lsb first, 1 - msb first)
-wire     [7:0] cfg_xip;  // XIP configuration
-wire     [7:0] cfg_dma;  // DMA configuration
+wire    [31:0] spi_cfg;
 
 // address offsets
 wire    [31:0] adr_rof;  // address read  offset
@@ -180,7 +173,7 @@ wire           qir_grt, qiw_grt;  // grant
 
 // DMA task interface
 wire           tsk_req;  // request
-wire    [21:0] tsk_ctl;  // control
+wire    [31:0] tsk_ctl;  // control
 wire     [1:0] tsk_sts;  // status
 wire           tsk_grt;  // grant
 
@@ -214,14 +207,7 @@ sockit_spi_reg #(
   .reg_err  (reg_err),
   .reg_irq  (reg_irq),
   // SPI/XIP/DMA configuration
-  .cfg_pol  (cfg_pol),
-  .cfg_pha  (cfg_pha),
-  .cfg_coe  (cfg_coe),
-  .cfg_sse  (cfg_sse),
-  .cfg_m_s  (cfg_m_s),
-  .cfg_dir  (cfg_dir),
-  .cfg_xip  (cfg_xip),
-  .cfg_dma  (cfg_dma),
+  .spi_cfg  (spi_cfg),
   // address offsets
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
@@ -265,7 +251,7 @@ sockit_spi_xip #(
   .xip_wrq  (xip_wrq),
   .xip_err  (xip_err),
   // configuration
-  .cfg_xip  (cfg_xip),
+  .spi_cfg  (spi_cfg),
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
   // command output
@@ -301,8 +287,7 @@ sockit_spi_dma #(
   .dma_wrq  (dma_wrq),
   .dma_err  (dma_err),
   // configuration
-  .cfg_m_s  (cfg_m_s),
-  .cfg_dma  (cfg_dma),
+  .spi_cfg  (spi_cfg),
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
   // DMA task
@@ -326,28 +311,33 @@ sockit_spi_dma #(
 // arbitration                                                                //
 ////////////////////////////////////////////////////////////////////////////////
 
+// arbitration
+wire  arb_cmo;  // command output multiplexer/decode
+wire  arb_cmi;  // command input demultiplexer/encoder
+wire  arb_xip;  // XIP access to the command interface
+
 // TODO
-assign arb_dmo = tsk_sts[0];
-assign arb_dmi = tsk_sts[1];
+assign arb_cmo = tsk_sts[0];
+assign arb_cmi = tsk_sts[1];
 assign arb_xip = 1'b0;  // TODO
 
 // command output multiplexer
-assign cmo_req = arb_xip ? xip_cmo_req : arb_dmo ? dma_cmo_req : reg_cmo_req;
-assign cmo_ctl = arb_xip ? xip_cmo_ctl : arb_dmo ? dma_cmo_ctl : reg_cmo_ctl;
-assign cmo_dat = arb_xip ? xip_cmo_dat : arb_dmo ? dma_cmo_dat : reg_cmo_dat;
+assign cmo_req = arb_xip ? xip_cmo_req : arb_cmo ? dma_cmo_req : reg_cmo_req;
+assign cmo_ctl = arb_xip ? xip_cmo_ctl : arb_cmo ? dma_cmo_ctl : reg_cmo_ctl;
+assign cmo_dat = arb_xip ? xip_cmo_dat : arb_cmo ? dma_cmo_dat : reg_cmo_dat;
 // command output decoder
-assign reg_cmo_grt = cmo_grt & ~arb_xip & ~arb_dmo;
-assign dma_cmo_grt = cmo_grt & ~arb_xip &  arb_dmo;
+assign reg_cmo_grt = cmo_grt & ~arb_xip & ~arb_cmo;
+assign dma_cmo_grt = cmo_grt & ~arb_xip &  arb_cmo;
 assign xip_cmo_grt = cmo_grt &  arb_xip;
 
 // command input demultiplexer
-assign reg_cmi_req = cmi_req & ~arb_xip & ~arb_dmi;
-assign dma_cmi_req = cmi_req & ~arb_xip &  arb_dmi;
+assign reg_cmi_req = cmi_req & ~arb_xip & ~arb_cmi;
+assign dma_cmi_req = cmi_req & ~arb_xip &  arb_cmi;
 assign xip_cmi_req = cmi_req &  arb_xip;
 assign {xip_cmi_ctl, dma_cmi_ctl, reg_cmi_ctl} = {3{cmi_ctl}};
 assign {xip_cmi_dat, dma_cmi_dat, reg_cmi_dat} = {3{cmi_dat}};
 // command input encoder
-assign cmi_grt = arb_xip ? xip_cmi_grt : arb_dmi ? dma_cmi_grt : reg_cmi_grt;
+assign cmi_grt = arb_xip ? xip_cmi_grt : arb_cmi ? dma_cmi_grt : reg_cmi_grt;
 
 ////////////////////////////////////////////////////////////////////////////////
 // repack                                                                     //
@@ -474,17 +464,13 @@ sockit_spi_ser #(
   .spi_cko  (spi_cko),
   .spi_cki  (spi_cki),
   // SPI configuration
-  .cfg_pol  (cfg_pol),
-  .cfg_pha  (cfg_pha),
-  .cfg_coe  (cfg_coe),
-  .cfg_sse  (cfg_sse),
-  .cfg_m_s  (cfg_m_s),
-  // output sequence
+  .spi_cfg  (spi_cfg),
+  // output queue
   .quo_req  (qor_req),
   .quo_ctl  (qor_ctl),
   .quo_dat  (qor_dat),
   .quo_grt  (qor_grt),
-  // input sequence
+  // input queue
   .qui_req  (qiw_req),
   .qui_ctl  (qiw_ctl),
   .qui_dat  (qiw_dat),

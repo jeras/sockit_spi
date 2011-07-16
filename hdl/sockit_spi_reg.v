@@ -40,6 +40,57 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+// Configuration register                                                     //
+//                                                                            //
+// Reset values of each bit in the configuration register are defined by the  //
+// CFG_RST[31:0] parameter, another parameter CFG_MSK[31:0] defines which     //
+// configuration field is read/ write (mask=0) and which are read only, fixed //
+// at the reset value (mask=0).                                               //
+//                                                                            //
+// Configuration register fields:                                             //
+// [31:24] - sss - slave select selector                                      //
+// [23:17] - sss - reserved (for configuring XIP for specific SPI devices)    //
+// [   16] - end - bus endianness (0 - little, 1 - big) for XIP, DMA          //
+// [15:11] - dly - SPI IO output to input switch delay (1 to 32 clk periods)  //
+// [   10] - prf - read prefetch (0 - single, 1 - double) for DMA slave mode  //
+// [ 9: 8] - bts - bus transfer size (0 - 1 byte  ) for DMA slave mode        //
+//               -                   (1 - 2 bytes )                           //
+//               -                   (2 - reserved)                           //
+//               -                   (3 - 4 bytes )                           //
+// [    7] - m_s - SPI bus mode (0 - slave, 1 - master)                       //
+// [    6] - dir - shift direction (0 - LSB first, 1 - MSB first)             //
+// [ 5: 4] - iom - SPI data IO mode (0 - 3-wire) for XIP, DMA, slave mode     //
+//               -                  (1 - SPI   )                              //
+//               -                  (2 - dual  )                              //
+//               -                  (3 - quad  )                              //
+// [    3] - soe - slave select output enable                                 //
+// [    2] - coe - clock output enable                                        //
+// [    1] - pol - clock polarity                                             //
+// [    0] - pha - clock phase                                                //
+//                                                                            //
+// Slave select selector fields enable the use of each of up to 8 slave       //
+// select signals, so that it is possible to enable more than one lave at the //
+// same time (broadcast mode).                                                //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+// Parameterization register:                                                 //
+//                                                                            //
+// The parameterization register holds parameters, which specify what         //
+// functionality is enabled in the module at compile time.                    //
+//                                                                            //
+// Parameterization register fields:                                          //
+// [ 7: 6] - ffo - clock domain crossing FIFO input  size                     //
+// [ 5: 4] - ffo - clock domain crossing FIFO output size                     //
+// [    3] - ??? - TODO                                                       //
+// [ 2: 0] - ssn - number of slave select ports (from 1 to 8 signals)         //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
 module sockit_spi_reg #(
   // configuration (register reset values and masks)
   parameter CFG_RST = 32'h00000000,  // configuration register reset value
@@ -65,14 +116,7 @@ module sockit_spi_reg #(
   output wire           reg_err,  // error response
   output wire           reg_irq,  // interrupt request
   // SPI/XIP/DMA configuration
-  output reg            cfg_pol,  // clock polarity
-  output reg            cfg_pha,  // clock phase
-  output reg            cfg_coe,  // clock output enable
-  output reg            cfg_sse,  // slave select output enable
-  output reg            cfg_m_s,  // mode (0 - slave, 1 - master)
-  output reg            cfg_dir,  // shift direction (0 - lsb first, 1 - msb first)
-  output reg      [7:0] cfg_xip,  // XIP configuration
-  output reg      [7:0] cfg_dma,  // DMA configuration
+  output reg     [31:0] spi_cfg,  // configuration register
   // address offsets
   output reg     [31:0] adr_rof,  // address read  offset
   output reg     [31:0] adr_wof,  // address write offset
@@ -88,7 +132,7 @@ module sockit_spi_reg #(
   output wire           cmi_grt,  // grant
   // DMA task interface
   output wire           tsk_req,  // DMA request
-  output wire    [21:0] tsk_ctl,  // DMA control
+  output wire    [31:0] tsk_ctl,  // DMA control
   input  wire     [1:0] tsk_sts,  // DMA status
   input  wire           tsk_grt   // DMA grant
 );
@@ -103,7 +147,6 @@ wire  wen_dat, ren_dat;  // SPI data
 wire  wen_dma, ren_dma;  // DMA control/status
 
 //
-wire    [31:0] spi_cfg;  // SPI configuration
 wire    [31:0] spi_par;  // SPI parameterization
 wire    [31:0] spi_sts;  // SPI status
 reg     [31:0] spi_dat;  // SPI data
@@ -136,8 +179,8 @@ case (reg_adr)
   3'd3 : reg_rdt =         spi_dat ;  // SPI data
   3'd4 : reg_rdt =    32'hxxxxxxxx ;  // SPI interrupts
   3'd5 : reg_rdt = {11'b0, tsk_sts};  // DMA status
-  3'd6 : reg_rdt =         adr_rof ;   // address read  offset
-  3'd7 : reg_rdt =         adr_wof ;   // address write offset
+  3'd6 : reg_rdt =         adr_rof ;  // address read  offset
+  3'd7 : reg_rdt =         adr_wof ;  // address write offset
 endcase
 
 // wait request
@@ -167,22 +210,19 @@ assign reg_irq = 1'b0; // TODO
 // configuration registers                                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
-// SPI configuration (read access)
-assign spi_cfg = {26'h0, cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha};
+// SPI configuration (write access)
+always @(posedge clk, posedge rst)
+if (rst) begin
+  spi_cfg <= CFG_RST;
+end else if (reg_wen & (reg_adr == 3'd0)) begin
+  spi_cfg <= CFG_RST & ~CFG_MSK | reg_wdt & CFG_MSK;
+end
 
 // SPI parameterization (read access)
 assign spi_par =  32'h0;
 
 // SPI status
 assign spi_sts =  32'h0; // TODO
-
-// SPI configuration (write access)
-always @(posedge clk, posedge rst)
-if (rst) begin
-  {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= CFG_RST [ 5: 0];
-end else if (reg_wen & (reg_adr == 3'd0)) begin
-  {cfg_dir, cfg_m_s, cfg_sse, cfg_coe, cfg_pol, cfg_pha} <= reg_wdt [ 5: 0];
-end
 
 // XIP/DMA address offsets
 always @(posedge clk, posedge rst)
@@ -244,6 +284,6 @@ assign cmi_grt = ~dat_rld;
 ////////////////////////////////////////////////////////////////////////////////
 
 assign tsk_req = wen_dma;
-assign tsk_ctl = reg_wdt [21:0];
+assign tsk_ctl = reg_wdt;
 
 endmodule
