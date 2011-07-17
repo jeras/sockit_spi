@@ -246,7 +246,7 @@ initial begin
 
   IOWR (3, 32'h02000000);  // write data    register
   IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (5, 32'h40000003);  // request a DMA read, SPI write transfer
+  IOWR (5, 32'h80000003);  // request a DMA read, SPI write transfer
   POLL (5, 32'h0000ffff);  // wait for DMA to finish
   IOWR (2, 32'h00000010);  // write control register (cycle end)
 
@@ -256,7 +256,7 @@ initial begin
   IOWR (3, 32'h0b5a0000);  // write data    register
   IOWR (2, 32'h00001f17);  // write control register (32bit write)
   IOWR (2, 32'h00000713);  // write control register ( 8bit idle)
-  IOWR (5, 32'h80000003);  // request a SPI read, DMA write transfer
+  IOWR (5, 32'h00000003);  // request a SPI read, DMA write transfer
   POLL (5, 32'h00000003);  // wait for DMA to finish
   IOWR (2, 32'h00000010);  // write control register (cycle end)
 

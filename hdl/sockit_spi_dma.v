@@ -44,9 +44,8 @@
 // control signal is a command from REG to DMA to start a DMA sequence.       //
 //                                                                            //
 // Control signal fields:                                                     //
-// [31   ] - ien - command input  data enable                                 //
-// [   30] - oen - command output data enable                                 //
-// [15: 0] - len - DMA sequence length in Bytes                               //
+// [31   ] - iod - command input/output direction (0 - input, 1 - output)     //
+// [30: 0] - len - DMA sequence length in Bytes                               //
 //                                                                            //
 // The status signal is primarily used to control the command arbiter. While  //
 // a DMA sequence is processing the DMA should have exclusive access to the   //
@@ -54,8 +53,7 @@
 // can poll DMA status and interrupts can be generated.                       //
 //                                                                            //
 // Status signal fields:                                                      //
-// [1] - ist - command input  status                                          //
-// [0] - ost - command output status                                          //
+// [30: 0] - ost - DMA sequence counter status                                //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -74,8 +72,8 @@ module sockit_spi_dma #(
   // memory bus interface
   output reg            dma_wen,  // write enable
   output reg            dma_ren,  // read enable
-  output wire [DAW-1:0] dma_adr,  // address
-  output wire     [3:0] dma_ben,  // byte enable
+  output reg  [DAW-1:0] dma_adr,  // address
+  output reg      [3:0] dma_ben,  // byte enable
   output reg     [31:0] dma_wdt,  // write data
   input  wire    [31:0] dma_rdt,  // read data
   input  wire           dma_wrq,  // wait request
@@ -106,7 +104,7 @@ module sockit_spi_dma #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // DMA counter width
-localparam DCW = (DAW>30) ? 30 : DAW;
+localparam DCW = (DAW>31) ? 31 : DAW;
 
 // configuration
 wire           cfg_end;  // bus endianness (0 - little, 1 - big)
@@ -119,20 +117,18 @@ wire     [1:0] cfg_iom;  // SPI data IO mode
 wire           tsk_trn;  // transfer
 
 // memory interface
-wire           dma_wtr, dma_rtr;  // write/read transfer
-wire           dma_wrd, dma_rrd;  // write/read ready
-wire           dma_wcy, dma_rcy;  // write/read cycle
-reg  [DAW-1:0] dma_wad, dma_rad;  // write/read address
-wire [DAW-1:0] dma_wai, dma_rai;  // write/read address increment
-reg      [3:0] dma_wbe;           // write byte enable
-reg     [31:0] dma_rdr;           // read data register
-reg      [1:0] dma_rdb;           // read data byte
-reg            dma_rds;           // read data status
+wire           dma_trn;  // bus transfer
+wire           dma_rdy;  // bus ready for new transfer
+reg     [31:0] dma_rdr;  // read data register
+reg      [1:0] dma_rdb;  // read data byte
+reg            dma_rds;  // read data status
 
 // cycle registers
-reg            cyc_run;           // run cycle
-reg            cyc_oen, cyc_ien;  // output/input enable
-reg  [DCW-1:0] cyc_ocn, cyc_icn;  // output/input counter
+reg            cyc_iod;  // command input/output direction
+reg            cyc_oen;  // command output enable
+reg            cyc_ien;  // command input  enable
+reg  [DCW-1:0] cyc_ocn;  // command output counter
+reg  [DCW-1:0] cyc_icn;  // command input  counter
 wire           cyc_ofn, cyc_ifn;  // output/input finish
 
 // command output
@@ -155,15 +151,13 @@ assign cfg_iom = spi_cfg[ 5: 4];
 // memory interface                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-// write/read transfers
-assign dma_wtr = (~dma_wrq | dma_err) & dma_wen;
-assign dma_rtr = (~dma_wrq | dma_err) & dma_ren;
+// bus transfer
+assign dma_trn = (~dma_wrq | dma_err) & (dma_wen | dma_ren);
 
-// write/read ready
-assign dma_wrd = (~dma_wen | dma_wtr);
-assign dma_rrd = (~dma_ren | dma_rtr);
+// bus ready
+assign dma_rdy = ~(dma_wen | dma_ren) | dma_trn;
 
-// write/read cycle
+// bus cycle
 assign dma_wcy = cyc_ien &  cmi_req;
 assign dma_rcy = cyc_oen & ~(cyc_ofn & cmo_trn) & (cmo_grt | ~dma_rds & ~dma_ren);
 
@@ -172,48 +166,37 @@ always @ (posedge clk, posedge rst)
 if (rst) begin
   dma_wen <= 1'b0;
   dma_ren <= 1'b0;
-end else begin
-  if (dma_wrd)  dma_wen <= dma_wcy;
-  if (dma_rrd)  dma_ren <= dma_rcy & ~dma_wcy;
+end else if (dma_rdy) begin
+  dma_wen <= cyc_ien & cmi_req;
+  dma_ren <= cyc_oen & ~cyc_iod;
 end
 
 // write/read address register
 always @ (posedge clk)
-if (tsk_trn) begin
-  dma_wad <= adr_wof;
-  dma_rad <= adr_rof;
-end else begin
-  if (dma_wtr)  dma_wad <= dma_wai;
-  if (dma_rtr)  dma_rad <= dma_rai;
-end
-
-// write/read address increment
-assign dma_wai = dma_wad + (cfg_bts + 'd1);
-assign dma_rai = dma_rad + (cfg_bts + 'd1);
-
-// write/read address multiplexer
-assign dma_adr = dma_wen ? dma_wad : dma_rad;
+if      (tsk_trn)  dma_adr <= tsk_ctl[31] ? adr_rof : adr_wof;
+else if (dma_trn)  dma_adr <= dma_adr + (cfg_bts + 'd1);
 
 // write byte enable
 always @ (posedge clk)
 if (tsk_trn) begin
-  case (cfg_bts)
-    2'd0    : dma_wbe <= (ENDIAN == "BIG") ? 4'b1000 : 4'b0001;
-    2'd1    : dma_wbe <= (ENDIAN == "BIG") ? 4'b1100 : 4'b0011;
-    2'd2    : dma_wbe <= 4'b1111;
-    default : dma_wbe <= 4'b1111;
-  endcase
-end else if (dma_wtr) begin
-  case (cfg_bts)
-    2'd0    : dma_wbe <= (ENDIAN == "BIG") ? {dma_wbe[0:0], dma_wbe[3:1]} : {dma_wbe[2:0], dma_wbe[3:3]};
-    2'd1    : dma_wbe <= (ENDIAN == "BIG") ? {dma_wbe[1:0], dma_wbe[3:2]} : {dma_wbe[1:0], dma_wbe[3:2]};
-    2'd2    : dma_wbe <= 4'b1111;
-    default : dma_wbe <= 4'b1111;
-  endcase
+  if (~tsk_ctl[31]) begin
+    case (cfg_bts)
+      2'd0    : dma_ben <= (ENDIAN == "BIG") ? 4'b1000 : 4'b0001;
+      2'd1    : dma_ben <= (ENDIAN == "BIG") ? 4'b1100 : 4'b0011;
+      2'd2    : dma_ben <= 4'b1111;
+      default : dma_ben <= 4'b1111;
+    endcase
+  end else      dma_ben <= 4'b1111;
+end else if (dma_trn) begin
+  if (~cyc_iod) begin
+    case (cfg_bts)
+      2'd0    : dma_ben <= (ENDIAN == "BIG") ? {dma_ben[0:0], dma_ben[3:1]} : {dma_ben[2:0], dma_ben[3:3]};
+      2'd1    : dma_ben <= (ENDIAN == "BIG") ? {dma_ben[1:0], dma_ben[3:2]} : {dma_ben[1:0], dma_ben[3:2]};
+      2'd2    : dma_ben <= 4'b1111;
+      default : dma_ben <= 4'b1111;
+    endcase
+  end
 end
-
-// transfer size multiplexer
-assign dma_ben = dma_wen ? dma_wbe : 4'hf;
 
 // write data
 // TODO proper alignment
@@ -221,8 +204,8 @@ always @ (posedge clk)
 if (cmi_trn) begin
   case (cfg_bts)
     // TODO, the address is not always correct
-    2'd0    : dma_wdt <= (ENDIAN == "BIG") ? cmi_dat[ 7:0] << 8*(2'd3-dma_wad[1:0]) : cmi_dat[ 7:0] << 8*dma_wad[1:0];
-    2'd1    : dma_wdt <= (ENDIAN == "BIG") ? cmi_dat[15:0] << 8*(2'd3-dma_wad[1:0]) : cmi_dat[15:0] << 8*dma_wad[1:0];
+    2'd0    : dma_wdt <= (ENDIAN == "BIG") ? cmi_dat[ 7:0] << 8*(2'd3-dma_adr[1:0]) : cmi_dat[ 7:0] << 8*dma_adr[1:0];
+    2'd1    : dma_wdt <= (ENDIAN == "BIG") ? cmi_dat[15:0] << 8*(2'd3-dma_adr[1:0]) : cmi_dat[15:0] << 8*dma_adr[1:0];
     2'd2    : dma_wdt <= cmi_dat;
     default : dma_wdt <= cmi_dat;
   endcase
@@ -230,17 +213,17 @@ end
 
 // read data register, byte
 always @ (posedge clk)
-if (dma_rtr) begin
+if (dma_ren & dma_trn) begin
   dma_rdr <= dma_rdt;
-  dma_rdb <= dma_rad [1:0];
+  dma_rdb <= dma_adr [1:0];
 end
 
 // read data status
 always @ (posedge clk, posedge rst)
-if (rst)             dma_rds <= 1'b0;
+if (rst)                  dma_rds <= 1'b0;
 else begin
-  if      (dma_rtr)  dma_rds <= 1'b1;
-  else if (cmo_trn)  dma_rds <= 1'b0;
+  if (dma_ren & dma_trn)  dma_rds <= 1'b1;
+  else if      (cmo_trn)  dma_rds <= 1'b0;
 end
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -250,17 +233,14 @@ end
 // control registers
 always @ (posedge clk, posedge rst)
 if (rst) begin
-  cyc_run <= 1'b0;
   cyc_oen <= 1'b0;
   cyc_ien <= 1'b0;
 end else begin
   if (tsk_trn) begin
-    cyc_run <= |tsk_ctl[31:30];
-    cyc_oen <=  tsk_ctl[   30];
-    cyc_ien <=  tsk_ctl[31   ];
+    cyc_iod <= 1'b1;
+    cyc_ien <= ~tsk_ctl[31];
   end else begin
-    if (cmo_trn)  cyc_run <= ~cyc_ofn;
-    if (cmo_trn)  cyc_oen <= ~cyc_ofn & cyc_oen;
+    if (cmo_trn)  cyc_oen <= ~cyc_ofn;
     if (cmi_trn)  cyc_ien <= ~cyc_ifn;
   end
 end
@@ -273,8 +253,8 @@ if (rst) begin
 end else if (cfg_m_s) begin
   // master operation
   if (tsk_trn) begin
-    if (|tsk_ctl[31:30])  cyc_ocn <= tsk_ctl[DCW-1:0];
-    if ( tsk_ctl[31   ])  cyc_icn <= tsk_ctl[DCW-1:0];
+    cyc_ocn <= tsk_ctl[DCW-1:0];
+    cyc_icn <= tsk_ctl[DCW-1:0];
   end else begin
     if (cmo_trn)  cyc_ocn <= cyc_ocn - (cfg_bts + 'd1);
     if (cmi_trn)  cyc_icn <= cyc_icn - (cfg_bts + 'd1);
@@ -293,7 +273,7 @@ assign cyc_ifn = ~|cyc_icn;
 
 assign tsk_trn = tsk_req & tsk_grt;
 
-assign tsk_sts = {cyc_ien, cyc_run};
+assign tsk_sts = cyc_iod ? cyc_ocn : cyc_icn;
 
 assign tsk_grt = 1'b1;
 
@@ -305,7 +285,7 @@ assign tsk_grt = 1'b1;
 assign cmo_trn = cmo_req & cmo_grt;
 
 // transfer request
-assign cmo_req = cyc_run & (~cyc_oen | dma_rds);
+assign cmo_req = cyc_oen; //  dma_rds;
 
 // control            siz...siz,     iom,     die,     doe,  sso,  cke
 assign cmo_ctl = {cfg_bts, 3'd7, cfg_iom, cyc_ien, cyc_oen, 1'b1, 1'b1};
@@ -344,6 +324,6 @@ end endgenerate
 assign cmi_trn = cmi_req & cmi_grt;
 
 // transfer grant
-assign cmi_grt = dma_wrd;
+assign cmi_grt = dma_rdy;
 
 endmodule
