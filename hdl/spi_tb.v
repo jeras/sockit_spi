@@ -51,6 +51,10 @@ localparam SSW = 8;
 
 localparam CDC = 1'b1;
 
+////////////////////////////////////////////////////////////////////////////////
+// master instance signals                                                    //
+////////////////////////////////////////////////////////////////////////////////
+
 // system signals
 reg clk_cpu, rst_cpu;
 reg clk_spi, rst_spi;
@@ -91,17 +95,6 @@ wire           dma_trn;  // transfer
 // DMA memory
 reg  [DDW-1:0] dma_mem [0:DMA_SIZ-1];
 
-// transfer data
-reg  [ADW-1:0] data;
-
-// SPI signals
-wire [SSW-1:0] spi_ss_n;
-wire           spi_sclk;
-wire           spi_mosi;
-wire           spi_miso;
-wire           spi_wp_n;
-wire           spi_hold_n;
-
 // IO buffer signals
 wire [SSW-1:0] spi_ss_i,
                spi_ss_o,
@@ -113,8 +106,59 @@ wire     [3:0] spi_sio_i,
                spi_sio_o,
                spi_sio_e;
 
+////////////////////////////////////////////////////////////////////////////////
+// slave instance signals                                                     //
+////////////////////////////////////////////////////////////////////////////////
+
+// system signals
+reg clk_slv, rst_slv;
+
+// DMA bus (slave instance)
+wire           slv_wen;  // read enable
+wire           slv_ren;  // read enable
+wire [DAW-1:0] slv_adr;  // address
+wire [DBW-1:0] slv_ben;  // byte enable
+wire [DDW-1:0] slv_wdt;  // write data
+wire [DDW-1:0] slv_rdt;  // read data
+wire           slv_wrq;  // wait request
+wire           slv_err;  // error response
+wire           slv_trn;  // transfer
+
+// DMA memory (slave instance)
+reg  [DDW-1:0] slv_mem [0:DMA_SIZ-1];
+
+// IO buffer signals
+wire           slv_ss_i,
+               slv_ss_o,
+               slv_ss_e;
+wire           slv_sclk_i,
+               slv_sclk_o,
+               slv_sclk_e;
+wire     [3:0] slv_sio_i,
+               slv_sio_o,
+               slv_sio_e;
+
+////////////////////////////////////////////////////////////////////////////////
+// SPI related signals                                                        //
+////////////////////////////////////////////////////////////////////////////////
+
+// SPI signals
+wire [SSW-1:0] spi_ss_n;
+wire           spi_sclk;
+wire           spi_mosi;
+wire           spi_miso;
+wire           spi_wp_n;
+wire           spi_hold_n;
+
+////////////////////////////////////////////////////////////////////////////////
+// testbench specific signals                                                 //
+////////////////////////////////////////////////////////////////////////////////
+
+// transfer data
+reg  [ADW-1:0] data;
+
 // testbench status descriptor
-reg  [64*8-1:0] test_name;
+reg [64*8-1:0] test_name;
 
 integer i;
 
@@ -130,13 +174,17 @@ end
 
 // TODO enable asynchronous clocking
 
-// clock generation
+// CPU clock generation
 initial    clk_cpu <= 1'b1;
 always  #5 clk_cpu <= ~clk_cpu;
 
-// clock generation
+// SPI master clock generation
 initial    clk_spi <= 1'b1;
 always  #5 clk_spi <= ~clk_spi;
+
+// slave clock generation
+initial    clk_slv <= 1'b1;
+always  #5 clk_slv <= ~clk_slv;
 
 ////////////////////////////////////////////////////////////////////////////////
 // testbench                                                                  //
@@ -152,9 +200,11 @@ initial begin
   // reset generation
   rst_cpu  = 1'b1;
   rst_spi  = 1'b1;
+  rst_slv  = 1'b1;
   repeat (2) @ (posedge clk_cpu); #1;
   rst_cpu  = 1'b0;
   rst_spi  = 1'b0;
+  rst_slv  = 1'b0;
 
   IDLE (4);                // few clock periods
 
@@ -396,17 +446,17 @@ endtask
 
 // write access
 always @ (posedge clk_cpu)
-begin
-  if (dma_wen & ~dma_wrq & dma_ben[3])  dma_mem[dma_adr[DAW-1:2]][8*3+:8] = dma_wdt[8*3+:8];
-  if (dma_wen & ~dma_wrq & dma_ben[2])  dma_mem[dma_adr[DAW-1:2]][8*2+:8] = dma_wdt[8*2+:8];
-  if (dma_wen & ~dma_wrq & dma_ben[1])  dma_mem[dma_adr[DAW-1:2]][8*1+:8] = dma_wdt[8*1+:8];
-  if (dma_wen & ~dma_wrq & dma_ben[0])  dma_mem[dma_adr[DAW-1:2]][8*0+:8] = dma_wdt[8*0+:8];
+if (dma_wen & ~dma_wrq) begin
+  if (dma_ben[3])  dma_mem[dma_adr[DAW-1:2]][8*3+:8] = dma_wdt[8*3+:8];
+  if (dma_ben[2])  dma_mem[dma_adr[DAW-1:2]][8*2+:8] = dma_wdt[8*2+:8];
+  if (dma_ben[1])  dma_mem[dma_adr[DAW-1:2]][8*1+:8] = dma_wdt[8*1+:8];
+  if (dma_ben[0])  dma_mem[dma_adr[DAW-1:2]][8*0+:8] = dma_wdt[8*0+:8];
 end
 
 // read access
 assign dma_rdt = (dma_ren & ~dma_wrq) ? dma_mem[dma_adr[DAW-1:2]] : 32'hxxxxxxxx;
 
-// timing
+// timing TODO randomization
 assign dma_wrq = 1'b0;
 
 // error response
@@ -416,7 +466,7 @@ assign dma_err = 1'b0;
 initial  $readmemh("dma_mem.hex", dma_mem);
 
 ////////////////////////////////////////////////////////////////////////////////
-// SPI controller instance                                                    //
+// SPI controller master instance                                             //
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi #(
@@ -470,20 +520,115 @@ sockit_spi #(
 );
 
 ////////////////////////////////////////////////////////////////////////////////
-// SPI tristate buffers                                                       //
+// SPI master tristate buffers                                                //
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock
-bufif1 buffer_sclk (spi_sclk, spi_sclk_o, spi_sclk_e);
+bufif1 spi_sclk_b  (spi_sclk, spi_sclk_o, spi_sclk_e);
 assign spi_sclk_i = spi_sclk;
 
 // data
-bufif1 buffer_sio [3:0] ({spi_hold_n, spi_wp_n, spi_miso, spi_mosi}, spi_sio_o, spi_sio_e);
-assign spi_sio_i =       {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
+bufif1 spi_sio_b [3:0] ({spi_hold_n, spi_wp_n, spi_miso, spi_mosi}, spi_sio_o, spi_sio_e);
+assign spi_sio_i =      {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
 
 // slave select (active low)
-bufif1 buffer_ss_n [SSW-1:0] (spi_ss_n, ~spi_ss_o, spi_ss_e);
-assign spi_ss_i =             spi_ss_n;
+bufif1 spi_ss_b [SSW-1:0] (spi_ss_n, ~spi_ss_o, spi_ss_e);
+assign spi_ss_i =          spi_ss_n;
+
+////////////////////////////////////////////////////////////////////////////////
+// SPI controller master instance                                             //
+////////////////////////////////////////////////////////////////////////////////
+
+sockit_spi #(
+  .XAW         (XAW),
+  .SSW         (1),
+  .CDC         (CDC)
+) sockit_spi_slv (
+  // system signals (used by the CPU bus interface)
+  .clk_cpu     (clk_slv),
+  .rst_cpu     (rst_slv),
+  .clk_spi     (clk_slv),
+  .rst_spi     (rst_slv),
+  // register interface
+  .reg_wen     ( 1'b0),
+  .reg_ren     ( 1'b0),
+  .reg_adr     ( 3'd0),
+  .reg_wdt     (32'd0),
+  .reg_rdt     (     ),
+  .reg_wrq     (     ),
+  .reg_err     (     ),
+  .reg_irq     (     ),
+  // XIP interface
+  .xip_ren     ( 1'b0),
+  .xip_adr     ( 1'b0),
+  .xip_ben     ( 3'd0),
+  .xip_wdt     (32'd0),
+  .xip_rdt     (     ),
+  .xip_wrq     (     ),
+  .xip_err     (     ),
+  // DMA interface
+  .dma_ren     (slv_ren),
+  .dma_adr     (slv_adr),
+  .dma_ben     (slv_ben),
+  .dma_wdt     (slv_wdt),
+  .dma_rdt     (slv_rdt),
+  .dma_wrq     (slv_wrq),
+  .dma_err     (slv_err),
+  // SPI signals (should be connected to tristate IO pads)
+  // serial clock
+  .spi_sclk_i  (slv_sclk_i),
+  .spi_sclk_o  (slv_sclk_o),
+  .spi_sclk_e  (slv_sclk_e),
+  // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
+  .spi_sio_i   (slv_sio_i),
+  .spi_sio_o   (slv_sio_o),
+  .spi_sio_e   (slv_sio_e),
+  // active low slave select signal
+  .spi_ss_i    (slv_ss_i),
+  .spi_ss_o    (slv_ss_o),
+  .spi_ss_e    (slv_ss_e)
+);
+
+////////////////////////////////////////////////////////////////////////////////
+// SPI slave tristate buffers                                                //
+////////////////////////////////////////////////////////////////////////////////
+
+// clock
+bufif1 slv_sclk_b  (spi_sclk, slv_sclk_o, slv_sclk_e);
+assign slv_sclk_i = spi_sclk;
+
+// data
+bufif1 slv_sio [3:0] ({spi_hold_n, spi_wp_n, spi_miso, spi_mosi}, slv_sio_o, slv_sio_e);
+assign slv_sio_i =    {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
+
+// slave select (active low)
+bufif1 slv_ss_b  (spi_ss_n[0], ~slv_ss_o, slv_ss_e);
+assign slv_ss_i = spi_ss_n[0];
+
+////////////////////////////////////////////////////////////////////////////////
+// DMA memory model                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+// write access
+always @ (posedge clk_slv)
+if (slv_wen & ~slv_wrq) begin
+  if (slv_ben[3])  slv_mem[slv_adr[DAW-1:2]][8*3+:8] = slv_wdt[8*3+:8];
+  if (slv_ben[2])  slv_mem[slv_adr[DAW-1:2]][8*2+:8] = slv_wdt[8*2+:8];
+  if (slv_ben[1])  slv_mem[slv_adr[DAW-1:2]][8*1+:8] = slv_wdt[8*1+:8];
+  if (slv_ben[0])  slv_mem[slv_adr[DAW-1:2]][8*0+:8] = slv_wdt[8*0+:8];
+end
+
+// read access
+assign slv_rdt = (slv_ren & ~slv_wrq) ? slv_mem[slv_adr[DAW-1:2]] : 32'hxxxxxxxx;
+
+// timing TODO randomization
+assign slv_wrq = 1'b0;
+
+// error response
+assign slv_err = 1'b0;
+
+// initializing memory contents
+initial  $readmemh("slv_mem.hex", slv_mem);
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI slave (serial Flash)                                                   //
