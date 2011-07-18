@@ -41,24 +41,24 @@
 //                                                                            //
 // The command protocol packet transfer contains CDW=32 data bits (same as    //
 // the CPU system bus) and CCO=11 control bits. Control word fields:          //
-// [10:6] - len  -  transfer length (in the range from 1 to CDW bits)         //
-// [ 5:0] -      -  this fields have the same meaning as in the queue proto.  //
+// [10: 6] - len - transfer length (in the range from 1 to CDW bits)          //
+// [ 5: 0] -     - this fields have the same meaning as in the queue protocol //
 //                                                                            //
 // Queue protocol:                                                            //
 //                                                                            //
 // The queue protocol packet transfer contains QDW=4*SDW=4*8 data bits (num-  //
 // ber of SPI data bits times serializer length) and QCO=10 control bits.     //
 // Control word fields:                                                       //
-// [9:7] - len - transfer length (in the range from 1 to SDW bits)            //
-// [  6] - lst - last tran. segment (used to size the input side packet)      //
-// [5:4] - iom - SPI data IO mode (0 - 3-wire)                                //
-//             -                  (1 - SPI   )                                //
-//             -                  (2 - dual  )                                //
-//             -                  (3 - quad  )                                //
-// [  3] - die - SPI data input enable                                        //
-// [  2] - doe - SPI data output enable                                       //
-// [  1] - sso - SPI slave select enable                                      //
-// [  0] - cke - SPI clock enable                                             //
+// [ 9: 7] - len - transfer length (in the range from 1 to SDW bits)          //
+// [    6] - lst - last tran. segment (used to size the input side packet)    //
+// [ 5: 4] - iom - SPI data IO mode (0 - 3-wire)                              //
+//               -                  (1 - SPI   )                              //
+//               -                  (2 - dual  )                              //
+//               -                  (3 - quad  )                              //
+// [    3] - die - SPI data input enable                                      //
+// [    2] - doe - SPI data output enable                                     //
+// [    1] - sso - SPI slave select enable                                    //
+// [    0] - cke - SPI clock enable                                           //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
