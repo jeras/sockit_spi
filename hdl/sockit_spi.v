@@ -149,6 +149,11 @@ wire    [31:0] spi_cfg;
 wire    [31:0] adr_rof;  // address read  offset
 wire    [31:0] adr_wof;  // address write offset
 
+// arbitration locks
+wire  arb_lko;  // command output multiplexer/decode
+wire  arb_lki;  // command input demultiplexer/encoder
+wire  arb_xip;  // XIP access to the command interface
+
 // command output
 wire           reg_cmo_req, xip_cmo_req, dma_cmo_req,  cmo_req;  // request
 wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl,  cmo_ctl;  // control
@@ -295,6 +300,9 @@ sockit_spi_dma #(
   .tsk_ctl  (tsk_ctl),
   .tsk_sts  (tsk_sts),
   .tsk_grt  (tsk_grt),
+  // arbiter locks
+  .arb_lko  (arb_lko),
+  .arb_lki  (arb_lki),
   // command output
   .cmo_req  (dma_cmo_req),
   .cmo_ctl  (dma_cmo_ctl),
@@ -311,33 +319,26 @@ sockit_spi_dma #(
 // arbitration                                                                //
 ////////////////////////////////////////////////////////////////////////////////
 
-// arbitration
-wire  arb_cmo;  // command output multiplexer/decode
-wire  arb_cmi;  // command input demultiplexer/encoder
-wire  arb_xip;  // XIP access to the command interface
-
 // TODO
-assign arb_cmo = tsk_sts[31];
-assign arb_cmi = tsk_sts[31];
 assign arb_xip = 1'b0;  // TODO
 
 // command output multiplexer
-assign cmo_req = arb_xip ? xip_cmo_req : arb_cmo ? dma_cmo_req : reg_cmo_req;
-assign cmo_ctl = arb_xip ? xip_cmo_ctl : arb_cmo ? dma_cmo_ctl : reg_cmo_ctl;
-assign cmo_dat = arb_xip ? xip_cmo_dat : arb_cmo ? dma_cmo_dat : reg_cmo_dat;
+assign cmo_req = arb_xip ? xip_cmo_req : arb_lko ? dma_cmo_req : reg_cmo_req;
+assign cmo_ctl = arb_xip ? xip_cmo_ctl : arb_lko ? dma_cmo_ctl : reg_cmo_ctl;
+assign cmo_dat = arb_xip ? xip_cmo_dat : arb_lko ? dma_cmo_dat : reg_cmo_dat;
 // command output decoder
-assign reg_cmo_grt = cmo_grt & ~arb_xip & ~arb_cmo;
-assign dma_cmo_grt = cmo_grt & ~arb_xip &  arb_cmo;
+assign reg_cmo_grt = cmo_grt & ~arb_xip & ~arb_lko;
+assign dma_cmo_grt = cmo_grt & ~arb_xip &  arb_lko;
 assign xip_cmo_grt = cmo_grt &  arb_xip;
 
 // command input demultiplexer
-assign reg_cmi_req = cmi_req & ~arb_xip & ~arb_cmi;
-assign dma_cmi_req = cmi_req & ~arb_xip &  arb_cmi;
+assign reg_cmi_req = cmi_req & ~arb_xip & ~arb_lki;
+assign dma_cmi_req = cmi_req & ~arb_xip &  arb_lki;
 assign xip_cmi_req = cmi_req &  arb_xip;
 assign {xip_cmi_ctl, dma_cmi_ctl, reg_cmi_ctl} = {3{cmi_ctl}};
 assign {xip_cmi_dat, dma_cmi_dat, reg_cmi_dat} = {3{cmi_dat}};
 // command input encoder
-assign cmi_grt = arb_xip ? xip_cmi_grt : arb_cmi ? dma_cmi_grt : reg_cmi_grt;
+assign cmi_grt = arb_xip ? xip_cmi_grt : arb_lki ? dma_cmi_grt : reg_cmi_grt;
 
 ////////////////////////////////////////////////////////////////////////////////
 // repack                                                                     //

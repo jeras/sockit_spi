@@ -87,6 +87,9 @@ module sockit_spi_dma #(
   input  wire    [31:0] tsk_ctl,  // control
   output wire    [31:0] tsk_sts,  // status
   output wire           tsk_grt,  // grant
+  // arbiter locks
+  output reg            arb_lko,  // command output lock
+  output reg            arb_lki,  // command input  lock
   // command output
   output wire           cmo_req,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
@@ -124,12 +127,14 @@ reg      [1:0] dma_rdb;  // read data byte
 reg            dma_rds;  // read data status
 
 // cycle registers
-reg            cyc_iod;  // command input/output direction
+reg            cyc_run;  // cycle run-status
+reg            cyc_iod;  // cycle input/output direction
 reg            cyc_oen;  // command output enable
 reg            cyc_ien;  // command input  enable
 reg  [DCW-1:0] cyc_ocn;  // command output counter
 reg  [DCW-1:0] cyc_icn;  // command input  counter
-wire           cyc_ofn, cyc_ifn;  // output/input finish
+wire           cyc_ofn;  // command output finish
+wire           cyc_ifn;  // command input  finish
 
 // command output
 wire           cmo_trn;  // transfer
@@ -233,15 +238,21 @@ end
 // control registers
 always @ (posedge clk, posedge rst)
 if (rst) begin
+  cyc_run <= 1'b0;
+  cyc_iod <= 1'b0;
   cyc_oen <= 1'b0;
   cyc_ien <= 1'b0;
-  cyc_iod <= 1'b0;
 end else begin
   if (tsk_trn) begin
+    cyc_run <=  1'b1;
+    cyc_iod <=  tsk_ctl[31];
     cyc_oen <=  1'b1;
     cyc_ien <= ~tsk_ctl[31];
-    cyc_iod <=  tsk_ctl[31];
   end else begin
+    if (cyc_iod) begin
+      if (cmo_trn)  cyc_run <= ~cyc_ofn;
+      if (cmi_trn)  cyc_run <= ~cyc_ifn;
+    end
     if (cmo_trn)  cyc_oen <= ~cyc_ofn;
     if (cmi_trn)  cyc_ien <= ~cyc_ifn;
   end
@@ -270,14 +281,25 @@ assign cyc_ofn = ~|cyc_ocn;
 assign cyc_ifn = ~|cyc_icn;
 
 ////////////////////////////////////////////////////////////////////////////////
-// cycle status                                                               //
+// task cycle status                                                          //
 ////////////////////////////////////////////////////////////////////////////////
 
 assign tsk_trn = tsk_req & tsk_grt;
 
-assign tsk_sts = {cyc_oen, {31-DCW{1'b0}}, cyc_iod ? cyc_ocn : cyc_icn};
+assign tsk_sts = {cyc_run, {31-DCW{1'b0}}, cyc_iod ? cyc_ocn : cyc_icn};
 
-assign tsk_grt = ~(cyc_oen | cyc_ien);
+assign tsk_grt = ~cyc_run;
+
+////////////////////////////////////////////////////////////////////////////////
+// arbiter locks                                                              //
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO implement real registers, with proper timing
+always @ (*)
+begin
+  arb_lko = cyc_run | ~cfg_m_s;
+  arb_lki = cyc_run | ~cfg_m_s;
+end
 
 ////////////////////////////////////////////////////////////////////////////////
 // command output                                                             //
