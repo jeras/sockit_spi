@@ -133,7 +133,7 @@ module sockit_spi_reg #(
   // DMA task interface
   output wire           tsk_req,  // DMA request
   output wire    [31:0] tsk_ctl,  // DMA control
-  input  wire     [1:0] tsk_sts,  // DMA status
+  input  wire    [31:0] tsk_sts,  // DMA status
   input  wire           tsk_grt   // DMA grant
 );
 
@@ -173,14 +173,14 @@ assign {wen_dma, ren_dma} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd5) & ~reg_wrq
 // read data
 always @ (*)
 case (reg_adr)
-  3'd0 : reg_rdt =         spi_cfg ;  // SPI configuration
-  3'd1 : reg_rdt =         spi_par ;  // SPI parameterization
-  3'd2 : reg_rdt =         spi_sts ;  // SPI status
-  3'd3 : reg_rdt =         spi_dat ;  // SPI data
-  3'd4 : reg_rdt =    32'hxxxxxxxx ;  // SPI interrupts
-  3'd5 : reg_rdt = {11'b0, tsk_sts};  // DMA status
-  3'd6 : reg_rdt =         adr_rof ;  // address read  offset
-  3'd7 : reg_rdt =         adr_wof ;  // address write offset
+  3'd0 : reg_rdt =      spi_cfg;  // SPI configuration
+  3'd1 : reg_rdt =      spi_par;  // SPI parameterization
+  3'd2 : reg_rdt =      spi_sts;  // SPI status
+  3'd3 : reg_rdt =      spi_dat;  // SPI data
+  3'd4 : reg_rdt = 32'hxxxxxxxx;  // SPI interrupts
+  3'd5 : reg_rdt =      tsk_sts;  // DMA status
+  3'd6 : reg_rdt =      adr_rof;  // address read  offset
+  3'd7 : reg_rdt =      adr_wof;  // address write offset
 endcase
 
 // wait request

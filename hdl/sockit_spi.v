@@ -174,7 +174,7 @@ wire           qir_grt, qiw_grt;  // grant
 // DMA task interface
 wire           tsk_req;  // request
 wire    [31:0] tsk_ctl;  // control
-wire     [1:0] tsk_sts;  // status
+wire    [31:0] tsk_sts;  // status
 wire           tsk_grt;  // grant
 
 // SPI clocks
@@ -317,8 +317,8 @@ wire  arb_cmi;  // command input demultiplexer/encoder
 wire  arb_xip;  // XIP access to the command interface
 
 // TODO
-assign arb_cmo = tsk_sts[0];
-assign arb_cmi = tsk_sts[1];
+assign arb_cmo = tsk_sts[31];
+assign arb_cmi = tsk_sts[31];
 assign arb_xip = 1'b0;  // TODO
 
 // command output multiplexer

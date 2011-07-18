@@ -85,7 +85,7 @@ module sockit_spi_dma #(
   // DMA task interface
   input  wire           tsk_req,  // request
   input  wire    [31:0] tsk_ctl,  // control
-  output wire     [1:0] tsk_sts,  // status
+  output wire    [31:0] tsk_sts,  // status
   output wire           tsk_grt,  // grant
   // command output
   output wire           cmo_req,  // request
@@ -157,9 +157,9 @@ assign dma_trn = (~dma_wrq | dma_err) & (dma_wen | dma_ren);
 // bus ready
 assign dma_rdy = ~(dma_wen | dma_ren) | dma_trn;
 
-// bus cycle
-assign dma_wcy = cyc_ien &  cmi_req;
-assign dma_rcy = cyc_oen & ~(cyc_ofn & cmo_trn) & (cmo_grt | ~dma_rds & ~dma_ren);
+// bus cycle TODO remove
+//assign dma_wcy = cyc_ien &  cmi_req;
+//assign dma_rcy = cyc_oen & ~(cyc_ofn & cmo_trn) & (cmo_grt | ~dma_rds & ~dma_ren);
 
 // write/read control (write has priority over read)
 always @ (posedge clk, posedge rst)
@@ -235,10 +235,12 @@ always @ (posedge clk, posedge rst)
 if (rst) begin
   cyc_oen <= 1'b0;
   cyc_ien <= 1'b0;
+  cyc_iod <= 1'b0;
 end else begin
   if (tsk_trn) begin
-    cyc_iod <= 1'b1;
+    cyc_oen <=  1'b1;
     cyc_ien <= ~tsk_ctl[31];
+    cyc_iod <=  tsk_ctl[31];
   end else begin
     if (cmo_trn)  cyc_oen <= ~cyc_ofn;
     if (cmi_trn)  cyc_ien <= ~cyc_ifn;
@@ -273,9 +275,9 @@ assign cyc_ifn = ~|cyc_icn;
 
 assign tsk_trn = tsk_req & tsk_grt;
 
-assign tsk_sts = cyc_iod ? cyc_ocn : cyc_icn;
+assign tsk_sts = {cyc_oen, {31-DCW{1'b0}}, cyc_iod ? cyc_ocn : cyc_icn};
 
-assign tsk_grt = 1'b1;
+assign tsk_grt = ~(cyc_oen | cyc_ien);
 
 ////////////////////////////////////////////////////////////////////////////////
 // command output                                                             //
