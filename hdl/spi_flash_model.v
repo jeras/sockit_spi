@@ -169,13 +169,13 @@ endcase
 
 // initialization from file
 `ifndef verilator
-integer f;  // file pointer
-integer s;  // file status
+integer file;  // file pointer
+integer stat;  // file status
 initial begin
-  f = $fopen(FBIN, "r");
-  s = $fread(mem, f);
-  s = $rewind(f);
-      $fclose(f);
+  file = $fopen(FBIN, "r");
+  stat = $fread(mem, file);
+  stat = $rewind(file);
+         $fclose(file);
 end
 `else
 initial begin
