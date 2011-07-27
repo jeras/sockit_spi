@@ -628,7 +628,7 @@ assign slv_wrq = 1'b0;
 assign slv_err = 1'b0;
 
 // initializing memory contents
-initial  $readmemh("slv_mem.hex", slv_mem);
+//initial  $readmemh("slv_mem.hex", slv_mem);
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI slave (serial Flash)                                                   //
