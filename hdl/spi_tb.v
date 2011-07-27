@@ -154,6 +154,13 @@ wire           spi_hold_n;
 // testbench specific signals                                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
+// error counter
+integer        err;
+
+// string (output/input) for testing
+reg [0:12*8-1] sto = "Hello world!";
+reg [0:12*8-1] sti;
+
 // transfer data
 reg  [ADW-1:0] data;
 
@@ -192,6 +199,9 @@ always  #5 clk_slv <= ~clk_slv;
 
 // test sequence
 initial begin
+  // initialize error counter
+  err = 0;
+
   // put register interface into idle
   reg_wen <= 1'b0;
   reg_ren <= 1'b0;
@@ -210,57 +220,88 @@ initial begin
 
   IOWR (0, 32'h010100cc);  // write configuration
 
-  IDLE (16);               // few clock periods
-  test_name = "write 12B";
+  // test write to flash
+  IDLE (16);  test_name = "write 12B";
 
-  // write data
-  IOWR (3, 32'h02000000);  // write data    register
-  IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (3, "HELL");        // write flash data
-  IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (3, "O WO");        // write flash data
-  IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (3, "RLD!");        // write flash data
-  IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (2, 32'h00000010);  // write control register (cycle end)
+    // write data
+    IOWR (3, 32'h02000000);  // write data    register
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (3, sto[0*32+:32]); // write flash data
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (3, sto[1*32+:32]); // write flash data
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (3, sto[2*32+:32]); // write flash data
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (2, 32'h00000010);  // write control register (cycle end)
 
-  IDLE (16);               // few clock periods
-  test_name = "read 12B";
+  // test read from flash
+  IDLE (16);  test_name = "read 12B";
 
-  // read data
-  IOWR (3, 32'h0b5a0000);  // write data    register
-  IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (2, 32'h00000713);  // write control register ( 8bit idle)
-  IOWR (2, 32'h00001f1b);  // write control register (32bit read)
-  IORD (3, data);          // read flash data
-  IOWR (2, 32'h00001f1b);  // write control register (32bit read)
-  IORD (3, data);          // read flash data
-  IOWR (2, 32'h00001f1b);  // write control register (32bit read)
-  IORD (3, data);          // read flash data
-  IOWR (2, 32'h00000010);  // write control register (cycle end)
+    // read data
+    IOWR (3, 32'h0b5a0000);  // write data    register
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (2, 32'h00000713);  // write control register ( 8bit idle)
+    IOWR (2, 32'h00001f1b);  // write control register (32bit read)
+    IOWR (2, 32'h00001f1b);  // write control register (32bit read)
+    IORD (3, sti[0*32+:32]); // read flash data
+    IOWR (2, 32'h00001f1b);  // write control register (32bit read)
+    IORD (3, sti[1*32+:32]); // read flash data
+    IOWR (2, 32'h00000010);  // write control register (cycle end)
+    IORD (3, sti[2*32+:32]); // read flash data
 
-  IDLE (200);              // few clock periods
+  // check if read data is same as written data
+  IDLE (16);  err = err + (sti != sto);
 
-  IDLE (16);               // few clock periods
-  test_name = "DMA -> SPI";
+  // extra idle time before next test
+  IDLE (100);
 
-  IOWR (3, 32'h02000000);  // write data    register
-  IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (5, 32'h80000003);  // request a DMA read, SPI write transfer
-  POLL (5, 32'h80000000);  // wait for DMA to finish
-  IOWR (2, 32'h00000010);  // write control register (cycle end)
+  // test clock modes
+  IDLE (16);  test_name = "clock mode";
+  
+    IOWR (0, 32'h010100cf);  // write configuration
 
-  IDLE (16);               // few clock periods
-  test_name = "SPI -> DMA";
+    data = "test";
+    // write data
+    IOWR (3, 32'h02000000);  // write data    register
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (3, data        );  // write flash data
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (2, 32'h00000010);  // write control register (cycle end)
+    // read data
+    IOWR (3, 32'h0b5a0000);  // write data    register
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (2, 32'h00000713);  // write control register ( 8bit idle)
+    IOWR (2, 32'h00001f1b);  // write control register (32bit read)
+    IOWR (2, 32'h00000010);  // write control register (cycle end)
+    IORD (3, data        );  // read flash data
 
-  IOWR (3, 32'h0b5a0000);  // write data    register
-  IOWR (2, 32'h00001f17);  // write control register (32bit write)
-  IOWR (2, 32'h00000713);  // write control register ( 8bit idle)
-  IOWR (5, 32'h00000003);  // request a SPI read, DMA write transfer
-  POLL (5, 32'h80000000);  // wait for DMA to finish
-  IOWR (2, 32'h00000010);  // write control register (cycle end)
+  // check if read data is same as written data
+  IDLE (16); err = err + (data != "test");
 
-  IDLE (200);              // few clock periods
+  // extra idle time before next test
+  IDLE (100);
+
+  // test write to SPI Flash
+  IDLE (16);  test_name = "DMA -> SPI";
+
+    IOWR (3, 32'h02000000);  // write data    register
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (5, 32'h80000003);  // request a DMA read, SPI write transfer
+    POLL (5, 32'h80000000);  // wait for DMA to finish
+    IOWR (2, 32'h00000010);  // write control register (cycle end)
+
+  // test read from SPI Flash
+  IDLE (16);  test_name = "SPI -> DMA";
+
+    IOWR (3, 32'h0b5a0000);  // write data    register
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (2, 32'h00000713);  // write control register ( 8bit idle)
+    IOWR (5, 32'h00000003);  // request a SPI read, DMA write transfer
+    POLL (5, 32'h80000000);  // wait for DMA to finish
+    IOWR (2, 32'h00000010);  // write control register (cycle end)
+
+  // extra idle time before next test
+  IDLE (100);
 
 //  IOWR (3, 32'h3b5a0000);  // write data    register (command fast read dual output)
 //  IOWR (2, 32'h00174007);  // write control register (enable a chip and start a 4 byte write)

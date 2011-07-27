@@ -203,7 +203,7 @@ assign qui_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
 ////////////////////////////////////////////////////////////////////////////////
 
 // serial clock output
-assign spi_sclk_o = cfg_pol ^ (cyc_cke & ~clk);
+assign spi_sclk_o = cfg_pol ^ (cyc_cke & ~(clk ^ cfg_pha));
 assign spi_sclk_e = cfg_coe;
 
 
