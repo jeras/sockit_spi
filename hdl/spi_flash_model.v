@@ -53,6 +53,7 @@ wire          rst;    // local reset
 
 // input stage
 reg     [7:0] i_dat;  // input data byte
+reg     [7:0] i_tmp;  // input data byte
 
 // internal machinery
 reg     [2:0] m_bit;  // bit (clock) counter
@@ -73,8 +74,7 @@ reg    [31:0] m_iad;  // input (write) address
 wire    [7:0] m_rdt;  // read  data
 
 // output, output enable
-wire    [7:0] o_dat;  // output data byte
-reg     [3:0] o_tmp;  // output data mixer
+reg     [3:0] o_dat;  // output data mixer
 reg     [3:0] o_ena;  // output enable
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,23 +89,27 @@ assign rst   =  ss_n;
 // data input                                                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
+// input data construct
+always @ (*)
+case (m_iow)
+  2'd0 :  i_dat = {i_tmp[7-1:0],                     mosi};  // 3-wire
+  2'd1 :  i_dat = {i_tmp[7-1:0],                     mosi};  // spi
+  2'd2 :  i_dat = {i_tmp[7-2:0],               miso, mosi};  // dual
+  2'd3 :  i_dat = {i_tmp[7-4:0], hold_n, wp_n, miso, mosi};  // quad
+endcase
+
 // input data register
 always @ (posedge i_clk, posedge rst)
-if (rst)  i_dat <= 8'hxx;
-else case (m_iow)
-  2'd0 :  i_dat <= {i_dat[7-1:0],                     mosi};  // 3-wire
-  2'd1 :  i_dat <= {i_dat[7-1:0],                     mosi};  // spi
-  2'd2 :  i_dat <= {i_dat[7-2:0],               miso, mosi};  // dual
-  2'd3 :  i_dat <= {i_dat[7-4:0], hold_n, wp_n, miso, mosi};  // quad
-endcase
+if (rst)  i_tmp <= 8'hxx;
+else      i_tmp <= i_dat;
 
 ////////////////////////////////////////////////////////////////////////////////
 // internals                                                                  //
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock period counter
-always @ (posedge o_clk, posedge rst)
-if (rst)  m_bit <= 3'b000;
+always @ (posedge i_clk, posedge rst)
+if (rst)  m_bit <=         3'd0;
 else case (m_iow)
   2'd0 :  m_bit <= m_bit + 3'd1;
   2'd1 :  m_bit <= m_bit + 3'd1;
@@ -123,19 +127,19 @@ case (m_iow)
 endcase
 
 // clock period counter
-always @ (posedge o_clk, posedge rst)
+always @ (posedge i_clk, posedge rst)
 if (rst)         m_cnt <= 0;
 else if (m_byt)  m_cnt <= m_cnt + 1;
 
 // command register
-always @ (posedge o_clk, posedge rst)
+always @ (posedge i_clk, posedge rst)
 if (rst)           m_cmd <= 8'h00;
 else if (m_byt) begin
   if (m_cnt == 0)  m_cmd <= i_dat;
 end
 
 // address register
-always @ (posedge o_clk, posedge rst)
+always @ (posedge i_clk, posedge rst)
 if (rst)           m_adr        <= 32'h00xxxxxx;
 else if (m_byt) begin
   if (m_cnt == 1)  m_adr[23:16] <= i_dat;
@@ -185,7 +189,7 @@ end
 `endif
 
 // write to memory
-always @ (posedge o_clk)
+always @ (posedge i_clk)
 if (m_ien & m_byt)  mem [m_iad] <= i_dat;
 
 // read from memory
@@ -195,31 +199,30 @@ assign m_rdt = mem [m_oad];
 // data output                                                                //
 ////////////////////////////////////////////////////////////////////////////////
 
-// output data byte
-assign o_dat = m_rdt;
-
 // output mixer
-always @ (*)
-case (m_iow)
-  2'd0 :  o_tmp = {3'bxxx,  o_dat[7-m_bit   ]};  // 3-wire
-  2'd1 :  o_tmp = {3'bxxx,  o_dat[7-m_bit   ]};  // spi
-  2'd2 :  o_tmp = {2'bxx ,  o_dat[6-m_bit+:2]};  // dual
-  2'd3 :  o_tmp = {         o_dat[4-m_bit+:4]};  // quad
+always @ (posedge o_clk, posedge rst)
+if (rst)  o_dat <=  4'bxxxx;
+else case (m_iow)
+  2'd0 :  o_dat <= {3'bxxx,  m_rdt[7-m_bit   ]};  // 3-wire
+  2'd1 :  o_dat <= {3'bxxx,  m_rdt[7-m_bit   ]};  // spi
+  2'd2 :  o_dat <= {2'bxx ,  m_rdt[6-m_bit+:2]};  // dual
+  2'd3 :  o_dat <= {         m_rdt[4-m_bit+:4]};  // quad
 endcase
 
 // output enable
-always @ (*)
-case (m_iow)
-  2'd0 :  o_ena = m_oen ? 4'b0001 : 4'b0000;  // 3-wire
-  2'd1 :  o_ena = m_oen ? 4'b0010 : 4'b0000;  // spi
-  2'd2 :  o_ena = m_oen ? 4'b0011 : 4'b0000;  // dual
-  2'd3 :  o_ena = m_oen ? 4'b1111 : 4'b0000;  // quad
+always @ (posedge o_clk, posedge rst)
+if (rst)  o_ena <=                   4'b0000;
+else case (m_iow)
+  2'd0 :  o_ena <= m_oen ? 4'b0001 : 4'b0000;  // 3-wire
+  2'd1 :  o_ena <= m_oen ? 4'b0010 : 4'b0000;  // spi
+  2'd2 :  o_ena <= m_oen ? 4'b0011 : 4'b0000;  // dual
+  2'd3 :  o_ena <= m_oen ? 4'b1111 : 4'b0000;  // quad
 endcase
 
 // output data
-assign mosi   = ~o_ena[0] ? 1'bz :                              o_tmp[0];
-assign miso   = ~o_ena[1] ? 1'bz : (m_iow == 2'd1) ? o_tmp[0] : o_tmp[1];
-assign wp_n   = ~o_ena[2] ? 1'bz :                              o_tmp[2];
-assign hold_n = ~o_ena[3] ? 1'bz :                              o_tmp[3];
+assign mosi   = ~o_ena[0] ? 1'bz :                              o_dat[0];
+assign miso   = ~o_ena[1] ? 1'bz : (m_iow == 2'd1) ? o_dat[0] : o_dat[1];
+assign wp_n   = ~o_ena[2] ? 1'bz :                              o_dat[2];
+assign hold_n = ~o_ena[3] ? 1'bz :                              o_dat[3];
 
 endmodule
