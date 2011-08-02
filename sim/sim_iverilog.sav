@@ -1,11 +1,16 @@
-[timestart] 406000
+[timestart] 3732000
 [size] 1920 1176
 [pos] -1 -1
-*-19.123697 3150000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.123697 5410000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 @820
-spi_tb.test_name[511:0]
+spi_tb.tst_nme[511:0]
+@22
+spi_tb.tst_wdt[31:0]
+spi_tb.tst_rdt[31:0]
+@23
+spi_tb.tst_err
 @28
 spi_tb.sockit_spi.clk_cpu
 spi_tb.sockit_spi.rst_cpu
@@ -119,11 +124,23 @@ spi_tb.spi_sclk
 -slave
 @22
 spi_tb.slave_spi.file
-@23
 spi_tb.slave_spi.stat
 @28
 spi_tb.slave_spi.i_clk
 @c00022
+spi_tb.slave_spi.i_dat[7:0]
+@28
+(0)spi_tb.slave_spi.i_dat[7:0]
+(1)spi_tb.slave_spi.i_dat[7:0]
+(2)spi_tb.slave_spi.i_dat[7:0]
+(3)spi_tb.slave_spi.i_dat[7:0]
+(4)spi_tb.slave_spi.i_dat[7:0]
+(5)spi_tb.slave_spi.i_dat[7:0]
+(6)spi_tb.slave_spi.i_dat[7:0]
+(7)spi_tb.slave_spi.i_dat[7:0]
+@1401200
+-group_end
+@c00820
 spi_tb.slave_spi.i_dat[7:0]
 @28
 (0)spi_tb.slave_spi.i_dat[7:0]
@@ -159,22 +176,24 @@ spi_tb.slave_spi.m_rdt[7:0]
 spi_tb.slave_spi.m_rdt[7:0]
 @28
 spi_tb.slave_spi.o_clk
-@c00022
+@800022
 spi_tb.slave_spi.o_ena[3:0]
 @28
 (0)spi_tb.slave_spi.o_ena[3:0]
 (1)spi_tb.slave_spi.o_ena[3:0]
 (2)spi_tb.slave_spi.o_ena[3:0]
 (3)spi_tb.slave_spi.o_ena[3:0]
-@1401200
+@1001200
 -group_end
-@c00022
-spi_tb.slave_spi.o_tmp[3:0]
+@800022
+spi_tb.slave_spi.o_dat[3:0]
 @28
-(0)spi_tb.slave_spi.o_tmp[3:0]
-(1)spi_tb.slave_spi.o_tmp[3:0]
-(2)spi_tb.slave_spi.o_tmp[3:0]
-(3)spi_tb.slave_spi.o_tmp[3:0]
+(0)spi_tb.slave_spi.o_dat[3:0]
+(1)spi_tb.slave_spi.o_dat[3:0]
+(2)spi_tb.slave_spi.o_dat[3:0]
+(3)spi_tb.slave_spi.o_dat[3:0]
+@1001200
+-group_end
 @1401200
 -group_end
 @28
@@ -185,7 +204,5 @@ spi_tb.slave_spi.mosi
 spi_tb.slave_spi.miso
 spi_tb.slave_spi.wp_n
 spi_tb.slave_spi.hold_n
-@1000200
--slave
 [pattern_trace] 1
 [pattern_trace] 0
