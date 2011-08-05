@@ -24,18 +24,20 @@
 `timescale 1us / 1ns
 
 module spi_slave_model #(
-  parameter DLY  = 8,            // data delay
-  parameter MODE_DAT = 2'd1,     // mode data (0-3wire, 1-SPI, 2-duo, 3-quad)
-  parameter MODE_CLK = 2'd0,     // mode clock {CPOL, CPHA}
-  parameter CPOL = MODE_CLK[1],  // clock polarity
-  parameter CPHA = MODE_CLK[0]   // clock phase
+  parameter BFL = 1024   // buffer length
 )(
-  input wire ss_n,   // slave select  (active low)
-  input wire sclk,   // serial clock
-  inout wire mosi,   // master output slave  input / SIO[0]
-  inout wire miso,   // maste   input slave output / SIO[1]
-  inout wire wp_n,   // write protect (active low) / SIO[2]
-  inout wire hold_n  // clock hold    (active low) / SIO[3]
+  // configuration
+  input wire [1:0] mod_clk,  // mode clock {CPOL, CPHA}
+  input wire [1:0] mod_dat,  // mode data (0-3wire, 1-SPI, 2-duo, 3-quad)
+  input wire       mod_oen,  // data output enable for half duplex modes
+  input wire       mod_dir,  // shift direction (0 - LSB first, 1 - MSB first)
+  // SPI signals
+  input wire       ss_n,     // slave select  (active low)
+  input wire       sclk,     // serial clock
+  inout wire       mosi,     // master output slave  input / SIO[0]
+  inout wire       miso,     // maste   input slave output / SIO[1]
+  inout wire       wp_n,     // write protect (active low) / SIO[2]
+  inout wire       hold_n    // clock hold    (active low) / SIO[3]
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -43,97 +45,87 @@ module spi_slave_model #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // system signals
-wire          clk;    // local clock
+wire          clk_i;  // local clock input
+wire          clk_o;  // local clock output
 wire          rst;    // local reset
 
-integer       cnt_c;  // clock period counter
+// IO signal vectors
+wire    [3:0] sig_i;  // inputs
+reg     [3:0] sig_o;  // outputs
+reg     [3:0] sig_e;  // enables
 
-// mode signals
-reg     [1:0] mode;   // mode data
+// clock period counters
+integer       cnt_i;  // bit counter input
+integer       cnt_o;  // bit counter output
 
-wire          oen_s;
-reg           oen_r;
-wire          oen;    // output enable
-
-// spi signals
-reg     [3:0] sig_i;  // input signal vector
-reg     [3:0] reg_i;  // input register
-reg [DLY-1:0] reg_d;  // data shift register
-reg     [3:0] reg_o;  // output register
-wire    [3:0] sig_o;  // output signal vector
-reg     [3:0] sio;    // serial input output
+// buffers
+reg [0:BFL-1] buf_i;  // data buffer input
+reg [0:BFL-1] buf_o;  // data buffer output
 
 ////////////////////////////////////////////////////////////////////////////////
-// mode control                                                               //
+// clock and reset                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 // local clock and reset
-assign clk = sclk ^ CPOL;
-assign rst = ss_n;
-
-// clock period counter
-always @ (negedge clk, posedge rst)
-if (rst)  cnt_c  <= 0;
-else      cnt_c  <= cnt_c + 1;
-
-// output enable signal
-assign oen_s = ~ss_n & (cnt_c >= DLY);
-
-// output enable register
-always @ (posedge clk, posedge rst)
-if (rst)  oen_r <= 1'b0;
-else      oen_r <= oen_s;
-
-//always @ (*)  mode = MODE_DAT[1] ? ((cnt_c > DLY) ? MODE_DAT : 2'd1) : MODE_DAT;
-initial mode = MODE_DAT;
+assign clk_i =  sclk ^ mod_clk[1] ^ mod_clk[0];
+assign clk_i = ~sclk ^ mod_clk[1] ^ mod_clk[0];
+assign rst   =  ss_n;
 
 ////////////////////////////////////////////////////////////////////////////////
-// spi data flow                                                              //
+// input write into buffer                                                    //
 ////////////////////////////////////////////////////////////////////////////////
+
+// input clock period counter
+always @ (posedge clk_i, posedge ss_n)
+if (ss_n)  cnt_i <= 0;
+else       cnt_i <= cnt_i + 1;
 
 // input signal vector
-always @ (*) case (mode)
-  2'd0 :  sig_i = {  1'bx, 1'bx, 1'bx, mosi};
-  2'd1 :  sig_i = {  1'bx, 1'bx, 1'bx, mosi};
-  2'd2 :  sig_i = {  1'bx, 1'bx, miso, mosi};
-  2'd3 :  sig_i = {hold_n, wp_n, miso, mosi};
+assign sig_i = {hold_n, wp_n, miso, mosi};
+
+// input buffer
+always @ (posedge clk_i)
+if (~ss_n) case (mod_dat)
+  2'd0 :  if (~mod_oen)  buf_i [  cnt_i   ] <= sig_i[  0];
+  2'd1 :                 buf_i [  cnt_i   ] <= sig_i[  0];
+  2'd2 :  if (~mod_oen)  buf_i [2*cnt_i+:2] <= sig_i[1:0];
+  2'd3 :  if (~mod_oen)  buf_i [4*cnt_i+:4] <= sig_i[3:0];
 endcase
 
-// input register
-always @ (posedge clk, posedge rst)
-if (rst)  reg_i  <= 4'bxxxx;
-else      reg_i  <= sig_i;
+////////////////////////////////////////////////////////////////////////////////
+// output read from buffer                                                    //
+////////////////////////////////////////////////////////////////////////////////
 
-// data shift register
-always @ (negedge clk, posedge rst)
-if (rst)  reg_d <= {DLY{1'bx}};
-else case (mode)
-  2'd0 :  reg_d <= {reg_d[DLY-1-1:0], CPHA ? sig_i [0:0] : reg_i [0:0]};
-  2'd1 :  reg_d <= {reg_d[DLY-1-1:0], CPHA ? sig_i [0:0] : reg_i [0:0]};
-  2'd2 :  reg_d <= {reg_d[DLY-2-1:0], CPHA ? sig_i [1:0] : reg_i [1:0]};
-  2'd3 :  reg_d <= {reg_d[DLY-4-1:0], CPHA ? sig_i [3:0] : reg_i [3:0]};
-endcase
-
-// output register
-always @ (posedge clk, posedge rst)
-if (rst)  reg_o  <= 4'bxxxx;
-else      reg_o  <= reg_d[DLY-4+:4];
+// clock period counter
+always @ (posedge clk_i, posedge ss_n)
+if (ss_n)  cnt_o <= 0;
+else       cnt_o <= cnt_o + |cnt_i;
 
 // output signal vector
-assign sig_o = CPHA ? reg_o : reg_d[DLY-4+:4];
-
-// output enable
-assign oen   = CPHA ? oen_r : oen_s;
-
-// output drivers
-always @ (*) case (mode)
-  2'd0 :  sio = oen ? {    1'bz,     1'bz,     1'bz, sig_o[3]} : 4'bzzzz;
-  2'd1 :  sio = oen ? {    1'bz,     1'bz, sig_o[3],     1'bz} : 4'bzzzz;
-  2'd2 :  sio = oen ? {    1'bz,     1'bz, sig_o[3], sig_o[2]} : 4'bzzzz;
-  2'd3 :  sio = oen ? {sig_o[3], sig_o[2], sig_o[1], sig_o[0]} : 4'bzzzz;
+always @ (*)
+if (rst)  sig_o = 4'bxxxx;
+else case (mod_dat)
+  2'd0 :  sig_o = {2'bxx, 1'bx, buf_o [  cnt_o   ]      };
+  2'd1 :  sig_o = {2'bxx,       buf_o [  cnt_o   ], 1'bx};
+  2'd2 :  sig_o = {2'bxx,       buf_o [2*cnt_o+:2]      };
+  2'd3 :  sig_o = {             buf_o [4*cnt_i+:4]      };
 endcase
 
-// output data
-assign {hold_n, wp_n, miso, mosi} = sio;
+// output enable signal vector
+always @ (*)
+if (rst)  sig_e = 4'b0000;
+else case (mod_dat)
+  2'd0 :  sig_e = {2'bxx, 1'bx, mod_oen      };
+  2'd1 :  sig_e = {2'bxx,       mod_oen, 1'bx};
+  2'd2 :  sig_e = {2'bxx,    {2{mod_oen}}    };
+  2'd3 :  sig_e = {          {4{mod_oen}}    };
+endcase
+
+
+// output drivers
+assign mosi   = sig_e [0] ? sig_o [0] : 1'bz;
+assign miso   = sig_e [1] ? sig_o [1] : 1'bz;
+assign wp_n   = sig_e [2] ? sig_o [2] : 1'bz;
+assign hold_n = sig_e [3] ? sig_o [3] : 1'bz;
 
 endmodule

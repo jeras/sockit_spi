@@ -1,7 +1,7 @@
-[timestart] 3732000
+[timestart] 1102000
 [size] 1920 1176
 [pos] -1 -1
-*-19.123697 5410000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-20.123697 5410000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 @820
@@ -122,87 +122,7 @@ spi_tb.sockit_spi.dma.cmo_ctl[10:0]
 spi_tb.spi_sclk
 @800200
 -slave
-@22
-spi_tb.slave_spi.file
-spi_tb.slave_spi.stat
-@28
-spi_tb.slave_spi.i_clk
-@c00022
-spi_tb.slave_spi.i_dat[7:0]
-@28
-(0)spi_tb.slave_spi.i_dat[7:0]
-(1)spi_tb.slave_spi.i_dat[7:0]
-(2)spi_tb.slave_spi.i_dat[7:0]
-(3)spi_tb.slave_spi.i_dat[7:0]
-(4)spi_tb.slave_spi.i_dat[7:0]
-(5)spi_tb.slave_spi.i_dat[7:0]
-(6)spi_tb.slave_spi.i_dat[7:0]
-(7)spi_tb.slave_spi.i_dat[7:0]
 @1401200
 -group_end
-@c00820
-spi_tb.slave_spi.i_dat[7:0]
-@28
-(0)spi_tb.slave_spi.i_dat[7:0]
-(1)spi_tb.slave_spi.i_dat[7:0]
-(2)spi_tb.slave_spi.i_dat[7:0]
-(3)spi_tb.slave_spi.i_dat[7:0]
-(4)spi_tb.slave_spi.i_dat[7:0]
-(5)spi_tb.slave_spi.i_dat[7:0]
-(6)spi_tb.slave_spi.i_dat[7:0]
-(7)spi_tb.slave_spi.i_dat[7:0]
-@1401200
--group_end
-@22
-spi_tb.slave_spi.m_adr[31:0]
-@30
-spi_tb.slave_spi.m_bit[2:0]
-@28
-spi_tb.slave_spi.m_byt
-@22
-spi_tb.slave_spi.m_cmd[7:0]
-spi_tb.slave_spi.m_cnt
-spi_tb.slave_spi.m_iad[31:0]
-@28
-spi_tb.slave_spi.m_ien
-spi_tb.slave_spi.m_iow[1:0]
-@22
-spi_tb.slave_spi.m_oad[31:0]
-@28
-spi_tb.slave_spi.m_oen
-@22
-spi_tb.slave_spi.m_rdt[7:0]
-@820
-spi_tb.slave_spi.m_rdt[7:0]
-@28
-spi_tb.slave_spi.o_clk
-@800022
-spi_tb.slave_spi.o_ena[3:0]
-@28
-(0)spi_tb.slave_spi.o_ena[3:0]
-(1)spi_tb.slave_spi.o_ena[3:0]
-(2)spi_tb.slave_spi.o_ena[3:0]
-(3)spi_tb.slave_spi.o_ena[3:0]
-@1001200
--group_end
-@800022
-spi_tb.slave_spi.o_dat[3:0]
-@28
-(0)spi_tb.slave_spi.o_dat[3:0]
-(1)spi_tb.slave_spi.o_dat[3:0]
-(2)spi_tb.slave_spi.o_dat[3:0]
-(3)spi_tb.slave_spi.o_dat[3:0]
-@1001200
--group_end
-@1401200
--group_end
-@28
-spi_tb.slave_spi.rst
-spi_tb.slave_spi.sclk
-spi_tb.slave_spi.ss_n
-spi_tb.slave_spi.mosi
-spi_tb.slave_spi.miso
-spi_tb.slave_spi.wp_n
-spi_tb.slave_spi.hold_n
 [pattern_trace] 1
 [pattern_trace] 0

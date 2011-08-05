@@ -48,8 +48,11 @@ localparam DMA_SIZ = 1024;
 
 // SPI parameters
 localparam SSW = 8;
-
+// clock domain crossing enable
 localparam CDC = 1'b1;
+
+// length of test string buffer
+localparam BFL = 8*256;
 
 ////////////////////////////////////////////////////////////////////////////////
 // master instance signals                                                    //
@@ -142,6 +145,12 @@ wire     [3:0] slv_sio_i,
 // SPI related signals                                                        //
 ////////////////////////////////////////////////////////////////////////////////
 
+// SPI slave model configuration
+reg      [1:0] mod_clk;  // mode clock {CPOL, CPHA}
+reg      [1:0] mod_dat;  // mode data (0-3wire, 1-SPI, 2-duo, 3-quad)
+reg            mod_oen;  // data output enable for half duplex modes
+reg            mod_dir;  // shift direction (0 - LSB first, 1 - MSB first)
+
 // SPI signals
 wire [SSW-1:0] spi_ss_n;
 wire           spi_sclk;
@@ -158,8 +167,8 @@ wire           spi_hold_n;
 integer        tst_err;
 
 // string (output/input) for testing
-reg [0:12*8-1] sto = "Hello world!";
-reg [0:12*8-1] sti;
+reg  [0:BFL-1] tst_bfo = "Hello world!";
+reg  [0:BFL-1] tst_bfi;
 
 // test write/read data
 reg  [ADW-1:0] tst_wdt;
@@ -219,7 +228,66 @@ initial begin
 
   IDLE (4);                // few clock periods
 
+  // test clock modes
+  test_clock_modes;
+  // test Flash access using register interface
+  test_flash_reg;
+  // test Flash access using DMA
+  test_flash_dma;
+
+  tst_nme = "END";
+  IDLE (16);               // few clock periods
+
+  $finish;  // end simulation
+end
+
+// end test on timeout
+initial begin
+  repeat (5000) @ (posedge clk_cpu);
+  $finish;  // end simulation
+end
+
+////////////////////////////////////////////////////////////////////////////////
+// test clock modes                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+task test_clock_modes;
+begin
   IOWR (0, 32'h010100cc);  // write configuration
+  for (i=0; i<4; i=i+1) begin
+    mod_clk = i[1:0];
+    // set test name
+    tst_nme = {"clock mode = ", "0" + mod_clk};
+  
+    IOWR (0, 32'h020100cf);  // write configuration
+
+    tst_wdt = "test";
+    // write data
+    IOWR (3, 32'h02000000);  // write data    register
+    IOWR (3, tst_wdt     );  // write flash data
+    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    IOWR (2, 32'h00000010);  // write control register (cycle end)
+    // read data
+    IOWR (3, 32'h0b5a0000);  // write data    register
+    IOWR (2, 32'h00001f1b);  // write control register (32bit read)
+    IOWR (2, 32'h00000010);  // write control register (cycle end)
+    IORD (3, tst_rdt     );  // read flash data
+
+    // check if read data is same as written data
+    IDLE (16); tst_err = tst_err + (tst_rdt != tst_wdt);
+  end
+end
+endtask
+
+////////////////////////////////////////////////////////////////////////////////
+// test Flash access using register interface                                 //
+////////////////////////////////////////////////////////////////////////////////
+
+task test_flash_reg;
+begin
+  // TODO, should be tested in clock mode 0 and 3
+
+  IOWR (0, 32'h040100cc);  // write configuration
 
   // test write to flash
   IDLE (16);  tst_nme = "write 12B";
@@ -227,12 +295,11 @@ initial begin
     // write data
     IOWR (3, 32'h02000000);  // write data    register
     IOWR (2, 32'h00001f17);  // write control register (32bit write)
-    IOWR (3, sto[0*32+:32]); // write flash data
+    for (i=0; i<3; i=i+1) begin
+    tst_wdt = tst_bfo[i*32+:32];
+    IOWR (3, tst_wdt     );  // write flash data
     IOWR (2, 32'h00001f17);  // write control register (32bit write)
-    IOWR (3, sto[1*32+:32]); // write flash data
-    IOWR (2, 32'h00001f17);  // write control register (32bit write)
-    IOWR (3, sto[2*32+:32]); // write flash data
-    IOWR (2, 32'h00001f17);  // write control register (32bit write)
+    end
     IOWR (2, 32'h00000010);  // write control register (cycle end)
 
   // test read from flash
@@ -243,44 +310,27 @@ initial begin
     IOWR (2, 32'h00001f17);  // write control register (32bit write)
     IOWR (2, 32'h00000713);  // write control register ( 8bit idle)
     IOWR (2, 32'h00001f1b);  // write control register (32bit read)
+    for (i=0; i<2; i=i+1) begin
     IOWR (2, 32'h00001f1b);  // write control register (32bit read)
-    IORD (3, sti[0*32+:32]); // read flash data
-    IOWR (2, 32'h00001f1b);  // write control register (32bit read)
-    IORD (3, sti[1*32+:32]); // read flash data
-    IOWR (2, 32'h00000010);  // write control register (cycle end)
-    IORD (3, sti[2*32+:32]); // read flash data
-
-  // check if read data is same as written data
-  IDLE (16);  tst_err = tst_err + (sti != sto);
-
-  // extra idle time before next test
-  IDLE (100);
-
-  // test clock modes
-  IDLE (16);  tst_nme = "clock mode";
-  
-    IOWR (0, 32'h010100cf);  // write configuration
-
-    tst_wdt = "test";
-    // write data
-    IOWR (3, 32'h02000000);  // write data    register
-    IOWR (2, 32'h00001f17);  // write control register (32bit write)
-    IOWR (3, tst_wdt     );  // write flash data
-    IOWR (2, 32'h00001f17);  // write control register (32bit write)
-    IOWR (2, 32'h00000010);  // write control register (cycle end)
-    // read data
-    IOWR (3, 32'h0b5a0000);  // write data    register
-    IOWR (2, 32'h00001f17);  // write control register (32bit write)
-    IOWR (2, 32'h00000713);  // write control register ( 8bit idle)
-    IOWR (2, 32'h00001f1b);  // write control register (32bit read)
+    IORD (3, tst_rdt     );  // read flash data
+    tst_bfi[i*32+:32] = tst_rdt;
+    end
     IOWR (2, 32'h00000010);  // write control register (cycle end)
     IORD (3, tst_rdt     );  // read flash data
+    tst_bfi[i*32+:32] = tst_rdt;
 
   // check if read data is same as written data
-  IDLE (16); tst_err = tst_err + (tst_rdt != tst_wdt);
+  IDLE (16);  tst_err = tst_err + (tst_bfi != tst_bfo);
+end
+endtask
 
-  // extra idle time before next test
-  IDLE (100);
+////////////////////////////////////////////////////////////////////////////////
+// test Flash access using register interface                                 //
+////////////////////////////////////////////////////////////////////////////////
+
+task test_flash_dma;
+begin
+  IOWR (0, 32'h040100cc);  // write configuration
 
   // test write to SPI Flash
   IDLE (16);  tst_nme = "DMA -> SPI";
@@ -303,6 +353,8 @@ initial begin
 
   // extra idle time before next test
   IDLE (100);
+end
+endtask
 
 //  IOWR (3, 32'h3b5a0000);  // write data    register (command fast read dual output)
 //  IOWR (2, 32'h00174007);  // write control register (enable a chip and start a 4 byte write)
@@ -353,18 +405,6 @@ initial begin
 //  IOWR (1, 32'h00000001);  // enable XIP
 //
 //  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from XIP port
-
-  tst_nme = "END";
-  IDLE (16);               // few clock periods
-
-  $finish;  // end simulation
-end
-
-// end test on timeout
-initial begin
-  repeat (5000) @ (posedge clk_cpu);
-  $finish;  // end simulation
-end
 
 ////////////////////////////////////////////////////////////////////////////////
 // register bus tasks                                                         //
@@ -677,14 +717,19 @@ assign slv_err = 1'b0;
 ////////////////////////////////////////////////////////////////////////////////
 
 // loopback for debug purposes
-//assign spi_miso = ~spi_ss_n[0] ? spi_mosi : 1'bz;
+assign spi_miso = ~spi_ss_n[0] ? spi_mosi : 1'bz;
 
 // SPI slave model
-spi_flash_model #(
-  .DIOM      (2'd1),
-  .MODE      (2'd0)
+spi_slave_model #(
+  .BFL       (1024)
 ) slave_spi (
-  .ss_n      (spi_ss_n[0]),
+  // configuration 
+  .mod_clk   (mod_clk),
+  .mod_dat   (mod_dat),
+  .mod_oen   (mod_oen),
+  .mod_dir   (mod_dir),
+  // SPI signals
+  .ss_n      (spi_ss_n[1]),
   .sclk      (spi_sclk),
   .mosi      (spi_mosi),
   .miso      (spi_miso),
@@ -692,13 +737,12 @@ spi_flash_model #(
   .hold_n    (spi_hold_n)
 );
 
-// SPI slave model
-spi_slave_model #(
-  .MODE_DAT  (2'd0),
-  .MODE_CLK  (2'd0),
-  .DLY       (32)
-) slave_3wire (
-  .ss_n      (spi_ss_n[1]),
+// SPI Flash model
+spi_flash_model #(
+  .DIOM      (2'd1),
+  .MODE      (2'd0)
+) slave_flash (
+  .ss_n      (spi_ss_n[2]),
   .sclk      (spi_sclk),
   .mosi      (spi_mosi),
   .miso      (spi_miso),
