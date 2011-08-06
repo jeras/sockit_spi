@@ -164,6 +164,7 @@ reg            tst_dir;  // shift direction (0 - LSB first, 1 - MSB first)
 ////////////////////////////////////////////////////////////////////////////////
 
 // error counter
+integer        tst_tmp;
 integer        tst_err;
 
 // string (output/input) for testing
@@ -232,7 +233,8 @@ initial begin
   // loop all clock modes
   for (i=0; i<4; i=i+1) begin
     for (j=0; j<4; j=j+1) begin
-      test_spi_half_duplex (i[1:0], j[1:0], 1'd1, 32, tst_err);
+      test_spi_half_duplex (i[1:0], j[1:0], 1'd1, 32, tst_tmp);
+      tst_err = tst_err + tst_tmp;
     end
   end
   // test Flash access using register interface
@@ -261,12 +263,13 @@ task test_spi_half_duplex (
   input    [1:0] cfg_ckm,  // clock mode {CPOL, CPHA}
   input    [1:0] cfg_iom,  // data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
   input    [1:0] cfg_dir,  // shift direction (0 - LSB first, 1 - MSB first)
-  input  integer cfg_len,  // transfer length in bits
+  input  integer cfg_num,  // transfer size in number in bits
   // error status
   output integer tst_err
 );
   // local variables
-  integer n;
+  reg      [4:0] cfg_len;  // transfer unit length
+  integer        n;
 begin
   // initialize error counter
   tst_err = 0;
@@ -289,20 +292,26 @@ begin
 
   // set write data
   tst_bfo [0:31] = "test";
-  for (n=cfg_len; n<BFL; n=n+1)  tst_bfo [n] = 1'bx;
+  for (n=cfg_num; n<BFL; n=n+1)  tst_bfo [n] = 1'bx;
 
   // disable slave output
   tst_oen = 1'b0;
 
-  n = cfg_len;
+  n = cfg_num;
+  case (cfg_iom)
+    2'd0 : cfg_len = cfg_num  -1;
+    2'd1 : cfg_len = cfg_num  -1;
+    2'd2 : cfg_len = cfg_num/2-1;
+    2'd3 : cfg_len = cfg_num/4-1;
+  endcase
   // write data
   tst_wdt = tst_bfo[0:31];
   IOWR (3, tst_wdt);
   // write command (output data transfer)
-  tst_wdt = 32'h00001f07 | cfg_iom << 4;
+  tst_wdt = 32'h00000007 | (cfg_len << 8) | (cfg_iom << 4);
   IOWR (2, tst_wdt);
   // write command (deassert slave select)
-  tst_wdt = 32'h00000000 | cfg_iom << 4;
+  tst_wdt = 32'h00000000                  | (cfg_iom << 4);
   IOWR (2, tst_wdt);
 
   IDLE (32);  // wait for write transfers to finish
@@ -312,6 +321,7 @@ begin
   for (n=0; n<BFL; n=n+1) begin
     tst_err = tst_err + (tst_bfo [n] !== slave_spi.buf_i [n]);
   end
+  IDLE (1);
 
   // set slave output buffer
   slave_spi.buf_o [0:31] = "test";
@@ -319,11 +329,18 @@ begin
   // enable slave output
   tst_oen = 1'b1;
 
+  n = cfg_num;
+  case (cfg_iom)
+    2'd0 : cfg_len = cfg_num  -1;
+    2'd1 : cfg_len = cfg_num  -1;
+    2'd2 : cfg_len = cfg_num/2-1;
+    2'd3 : cfg_len = cfg_num/4-1;
+  endcase
   // write command (input data transfer)
-  tst_wdt = 32'h00001f0b | cfg_iom << 4;
+  tst_wdt = 32'h0000000b | (cfg_len << 8) | (cfg_iom << 4);
   IOWR (2, tst_wdt);
   // write command (deassert slave select)
-  tst_wdt = 32'h00000000 | cfg_iom << 4;
+  tst_wdt = 32'h00000000                  | (cfg_iom << 4);
   IOWR (2, tst_wdt);
   // read flash data
   IORD (3, tst_rdt);
@@ -334,6 +351,7 @@ begin
   for (n=0; n<BFL; n=n+1) begin
     tst_err = tst_err + (tst_bfi [n] !== slave_spi.buf_o [n]);
   end
+  IDLE (1);
 end
 endtask
 
