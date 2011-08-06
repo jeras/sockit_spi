@@ -68,7 +68,7 @@ reg [0:BFL-1] buf_o;  // data buffer output
 
 // local clock and reset
 assign clk_i =  sclk ^ mod_clk[1] ^ mod_clk[0];
-assign clk_i = ~sclk ^ mod_clk[1] ^ mod_clk[0];
+assign clk_o = ~sclk ^ mod_clk[1] ^ mod_clk[0];
 assign rst   =  ss_n;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -97,7 +97,7 @@ endcase
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock period counter
-always @ (posedge clk_i, posedge ss_n)
+always @ (posedge clk_o, posedge ss_n)
 if (ss_n)  cnt_o <= 0;
 else       cnt_o <= cnt_o + |cnt_i;
 
@@ -115,12 +115,11 @@ endcase
 always @ (*)
 if (rst)  sig_e = 4'b0000;
 else case (mod_dat)
-  2'd0 :  sig_e = {2'bxx, 1'bx, mod_oen      };
-  2'd1 :  sig_e = {2'bxx,       mod_oen, 1'bx};
-  2'd2 :  sig_e = {2'bxx,    {2{mod_oen}}    };
-  2'd3 :  sig_e = {          {4{mod_oen}}    };
+  2'd0 :  sig_e = {2'b0, 1'b0, mod_oen      };
+  2'd1 :  sig_e = {2'b0,       mod_oen, 1'b0};
+  2'd2 :  sig_e = {2'b0,    {2{mod_oen}}    };
+  2'd3 :  sig_e = {         {4{mod_oen}}    };
 endcase
-
 
 // output drivers
 assign mosi   = sig_e [0] ? sig_o [0] : 1'bz;
