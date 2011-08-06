@@ -253,20 +253,41 @@ end
 
 task test_clock_modes;
 begin
-  IOWR (0, 32'h010100cc);  // write configuration
+  // cnfigure SPI slave
+  mod_dat = 2'd1;  // SPI mode (full duplex)
+  mod_oen = 1'b1;  // output enabled
+  mod_dir = 1'b1;  // MSB first
+
+  // loop all clock modes
   for (i=0; i<4; i=i+1) begin
     mod_clk = i[1:0];
+
     // set test name
     tst_nme = {"clock mode = ", "0" + mod_clk};
   
-    IOWR (0, 32'h020100cf);  // write configuration
+    // write configuration
+    IOWR (0, 32'h020100cc | mod_clk);
 
+    // clear slave buffers
+    slave_spi.buf_i = {BFL{1'bx}};
+    slave_spi.buf_o = {BFL{1'bx}};
+
+    // set write data
     tst_wdt = "test";
+
     // write data
     IOWR (3, 32'h02000000);  // write data    register
     IOWR (3, tst_wdt     );  // write flash data
     IOWR (2, 32'h00001f17);  // write control register (32bit write)
     IOWR (2, 32'h00000010);  // write control register (cycle end)
+    IDLE (32);               // wait for write transfers to finish
+
+    // check if read data is same as written data
+    IDLE (1); tst_err = tst_err + (tst_wdt !== slave_spi.buf_i [0:31]);
+
+    // set slave output buffer
+    slave_spi.buf_o [0:31] = "test";
+
     // read data
     IOWR (3, 32'h0b5a0000);  // write data    register
     IOWR (2, 32'h00001f1b);  // write control register (32bit read)
@@ -274,7 +295,7 @@ begin
     IORD (3, tst_rdt     );  // read flash data
 
     // check if read data is same as written data
-    IDLE (16); tst_err = tst_err + (tst_rdt != tst_wdt);
+    IDLE (1); tst_err = tst_err + (tst_rdt !== slave_spi.buf_o [0:31]);
   end
 end
 endtask
