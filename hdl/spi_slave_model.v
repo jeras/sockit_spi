@@ -106,7 +106,7 @@ else case (cfg_iom)
   2'd0 :  sig_o = {2'bxx, 1'bx, buf_o [  cnt_o   ]      };
   2'd1 :  sig_o = {2'bxx,       buf_o [  cnt_o   ], 1'bx};
   2'd2 :  sig_o = {2'bxx,       buf_o [2*cnt_o+:2]      };
-  2'd3 :  sig_o = {             buf_o [4*cnt_i+:4]      };
+  2'd3 :  sig_o = {             buf_o [4*cnt_o+:4]      };
 endcase
 
 // output enable signal vector
