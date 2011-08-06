@@ -27,10 +27,10 @@ module spi_slave_model #(
   parameter BFL = 1024   // buffer length
 )(
   // configuration
-  input wire [1:0] mod_clk,  // mode clock {CPOL, CPHA}
-  input wire [1:0] mod_dat,  // mode data (0-3wire, 1-SPI, 2-duo, 3-quad)
-  input wire       mod_oen,  // data output enable for half duplex modes
-  input wire       mod_dir,  // shift direction (0 - LSB first, 1 - MSB first)
+  input wire [1:0] cfg_ckm,  // clock mode {CPOL, CPHA}
+  input wire [1:0] cfg_iom,  // data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
+  input wire       cfg_oen,  // data output enable for half duplex modes
+  input wire       cfg_dir,  // shift direction (0 - LSB first, 1 - MSB first)
   // SPI signals
   input wire       ss_n,     // slave select  (active low)
   input wire       sclk,     // serial clock
@@ -45,8 +45,7 @@ module spi_slave_model #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // system signals
-wire          clk_i;  // local clock input
-wire          clk_o;  // local clock output
+wire          clk;    // local clock
 wire          rst;    // local reset
 
 // IO signal vectors
@@ -67,16 +66,15 @@ reg [0:BFL-1] buf_o;  // data buffer output
 ////////////////////////////////////////////////////////////////////////////////
 
 // local clock and reset
-assign clk_i =  sclk ^ mod_clk[1] ^ mod_clk[0];
-assign clk_o = ~sclk ^ mod_clk[1] ^ mod_clk[0];
-assign rst   =  ss_n;
+assign clk = sclk ^ cfg_ckm[1] ^ cfg_ckm[0];
+assign rst = ss_n;
 
 ////////////////////////////////////////////////////////////////////////////////
 // input write into buffer                                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
 // input clock period counter
-always @ (posedge clk_i, posedge ss_n)
+always @ (posedge clk, posedge rst)
 if (ss_n)  cnt_i <= 0;
 else       cnt_i <= cnt_i + 1;
 
@@ -84,12 +82,12 @@ else       cnt_i <= cnt_i + 1;
 assign sig_i = {hold_n, wp_n, miso, mosi};
 
 // input buffer
-always @ (posedge clk_i)
-if (~ss_n) case (mod_dat)
-  2'd0 :  if (~mod_oen)  buf_i [  cnt_i   ] <= sig_i[  0];
+always @ (posedge clk)
+if (~ss_n) case (cfg_iom)
+  2'd0 :  if (~cfg_oen)  buf_i [  cnt_i   ] <= sig_i[  0];
   2'd1 :                 buf_i [  cnt_i   ] <= sig_i[  0];
-  2'd2 :  if (~mod_oen)  buf_i [2*cnt_i+:2] <= sig_i[1:0];
-  2'd3 :  if (~mod_oen)  buf_i [4*cnt_i+:4] <= sig_i[3:0];
+  2'd2 :  if (~cfg_oen)  buf_i [2*cnt_i+:2] <= sig_i[1:0];
+  2'd3 :  if (~cfg_oen)  buf_i [4*cnt_i+:4] <= sig_i[3:0];
 endcase
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -97,14 +95,14 @@ endcase
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock period counter
-always @ (posedge clk_o, posedge ss_n)
+always @ (negedge clk, posedge rst)
 if (ss_n)  cnt_o <= 0;
 else       cnt_o <= cnt_o + |cnt_i;
 
 // output signal vector
 always @ (*)
 if (rst)  sig_o = 4'bxxxx;
-else case (mod_dat)
+else case (cfg_iom)
   2'd0 :  sig_o = {2'bxx, 1'bx, buf_o [  cnt_o   ]      };
   2'd1 :  sig_o = {2'bxx,       buf_o [  cnt_o   ], 1'bx};
   2'd2 :  sig_o = {2'bxx,       buf_o [2*cnt_o+:2]      };
@@ -114,11 +112,11 @@ endcase
 // output enable signal vector
 always @ (*)
 if (rst)  sig_e = 4'b0000;
-else case (mod_dat)
-  2'd0 :  sig_e = {2'b0, 1'b0, mod_oen      };
-  2'd1 :  sig_e = {2'b0,       mod_oen, 1'b0};
-  2'd2 :  sig_e = {2'b0,    {2{mod_oen}}    };
-  2'd3 :  sig_e = {         {4{mod_oen}}    };
+else case (cfg_iom)
+  2'd0 :  sig_e = {2'b0, 1'b0, cfg_oen      };
+  2'd1 :  sig_e = {2'b0,       cfg_oen, 1'b0};
+  2'd2 :  sig_e = {2'b0,    {2{cfg_oen}}    };
+  2'd3 :  sig_e = {         {4{cfg_oen}}    };
 endcase
 
 // output drivers
