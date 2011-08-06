@@ -134,11 +134,19 @@ assign cfg_pha = spi_cfg[0];
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock source
-assign spi_clk = cfg_m_s ? clk : spi_sclk_i;
+assign spi_clk = cfg_m_s ? clk : spi_sclk_i ^ (cfg_pol ^ cfg_pha);
 
 // register clocks
-assign spi_cko = (cfg_pol ^ cfg_pha) ^  spi_clk;  // output registers
-assign spi_cki = (cfg_pol ^ cfg_pha) ^ ~spi_clk;  // input  registers
+assign spi_cko =  spi_clk;  // output registers
+assign spi_cki = ~spi_clk;  // input  registers
+
+// slave select input
+assign spi_rsi = spi_ss_i [0];  // reset for output registers
+
+// new data cycle indicator
+always @(posedge spi_cko, posedge spi_rsi)
+if (spi_rsi)      cyc_new <= 1'b1;
+else if (qui_trn) cyc_new <= 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI cycle timing                                                           //
@@ -190,11 +198,6 @@ end else if (quo_trn) begin
   cyc_lst <= quo_ctl [  6];
 end
 
-// new data cycle indicator
-always @(posedge spi_cko, posedge spi_rsi)
-if (spi_rsi)      cyc_new <= 1'b1;
-else if (qui_trn) cyc_new <= 1'b0;
-
 assign qui_ctl = {cyc_new, cyc_lst, cyc_iom};
 assign qui_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
 
@@ -206,9 +209,6 @@ assign qui_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
 assign spi_sclk_o = cfg_pol ^ (cyc_cke & ~(clk ^ cfg_pha));
 assign spi_sclk_e = cfg_coe;
 
-
-// slave select input
-assign spi_rsi = spi_ss_i [0];  // reset for output registers
 
 // slave select output, output enable
 assign spi_ss_o =      cyc_sso  ;
