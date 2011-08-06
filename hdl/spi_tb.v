@@ -145,12 +145,6 @@ wire     [3:0] slv_sio_i,
 // SPI related signals                                                        //
 ////////////////////////////////////////////////////////////////////////////////
 
-// SPI slave model configuration
-reg      [1:0] mod_clk;  // mode clock {CPOL, CPHA}
-reg      [1:0] mod_dat;  // mode data (0-3wire, 1-SPI, 2-duo, 3-quad)
-reg            mod_oen;  // data output enable for half duplex modes
-reg            mod_dir;  // shift direction (0 - LSB first, 1 - MSB first)
-
 // SPI signals
 wire [SSW-1:0] spi_ss_n;
 wire           spi_sclk;
@@ -158,6 +152,12 @@ wire           spi_mosi;
 wire           spi_miso;
 wire           spi_wp_n;
 wire           spi_hold_n;
+
+// SPI slave model configuration
+reg      [1:0] tst_ckm;  // mode clock {CPOL, CPHA}
+reg      [1:0] tst_iom;  // mode data (0-3wire, 1-SPI, 2-duo, 3-quad)
+reg            tst_oen;  // data output enable for half duplex modes
+reg            tst_dir;  // shift direction (0 - LSB first, 1 - MSB first)
 
 ////////////////////////////////////////////////////////////////////////////////
 // testbench specific signals                                                 //
@@ -177,7 +177,8 @@ reg  [ADW-1:0] tst_rdt;
 // test name (status descriptor)
 reg [64*8-1:0] tst_nme;
 
-integer i;
+// for loop variables
+integer i, j, k;
 
 // request for a dump file
 initial begin
@@ -228,8 +229,12 @@ initial begin
 
   IDLE (4);                // few clock periods
 
-  // test clock modes
-  test_clock_modes;
+  // loop all clock modes
+  for (i=0; i<4; i=i+1) begin
+    for (j=0; j<4; j=j+1) begin
+      test_spi_half_duplex (i[1:0], j[1:0], 1'd1, 32, tst_err);
+    end
+  end
   // test Flash access using register interface
   test_flash_reg;
   // test Flash access using DMA
@@ -248,54 +253,86 @@ initial begin
 end
 
 ////////////////////////////////////////////////////////////////////////////////
-// test clock modes                                                           //
+// test SPI slave half duplex modes                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-task test_clock_modes;
+task test_spi_half_duplex (
+  // configuration
+  input    [1:0] cfg_ckm,  // clock mode {CPOL, CPHA}
+  input    [1:0] cfg_iom,  // data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
+  input    [1:0] cfg_dir,  // shift direction (0 - LSB first, 1 - MSB first)
+  input  integer cfg_len,  // transfer length in bits
+  // error status
+  output integer tst_err
+);
+  // local variables
+  integer n;
 begin
+  // initialize error counter
+  tst_err = 0;
+
   // cnfigure SPI slave
-  mod_dat = 2'd1;  // SPI mode (full duplex)
-  mod_oen = 1'b1;  // output enabled
-  mod_dir = 1'b1;  // MSB first
+  tst_ckm = cfg_ckm;
+  tst_iom = cfg_iom;
+  tst_dir = cfg_dir;
 
-  // loop all clock modes
-  for (i=0; i<4; i=i+1) begin
-    mod_clk = i[1:0];
+  // set test name
+  tst_nme = {"test half duplex:", " ckm=", "0" + cfg_ckm
+                                , " iom=", "0" + cfg_iom};
 
-    // set test name
-    tst_nme = {"clock mode = ", "0" + mod_clk};
-  
-    // write configuration
-    IOWR (0, 32'h020100cc | mod_clk);
+  // write configuration
+  IOWR (0, 32'h020100cc | cfg_ckm);
 
-    // clear slave buffers
-    slave_spi.buf_i = {BFL{1'bx}};
-    slave_spi.buf_o = {BFL{1'bx}};
+  // clear slave buffers
+  slave_spi.buf_i = {BFL{1'bx}};
+  slave_spi.buf_o = {BFL{1'bx}};
 
-    // set write data
-    tst_wdt = "test";
+  // set write data
+  tst_bfo [0:31] = "test";
+  for (n=cfg_len; n<BFL; n=n+1)  tst_bfo [n] = 1'bx;
 
-    // write data
-    IOWR (3, 32'h02000000);  // write data    register
-    IOWR (3, tst_wdt     );  // write flash data
-    IOWR (2, 32'h00001f17);  // write control register (32bit write)
-    IOWR (2, 32'h00000010);  // write control register (cycle end)
-    IDLE (32);               // wait for write transfers to finish
+  // disable slave output
+  tst_oen = 1'b0;
 
-    // check if read data is same as written data
-    IDLE (1); tst_err = tst_err + (tst_wdt !== slave_spi.buf_i [0:31]);
+  n = cfg_len;
+  // write data
+  tst_wdt = tst_bfo[0:31];
+  IOWR (3, tst_wdt);
+  // write command (output data transfer)
+  tst_wdt = 32'h00001f07 | cfg_iom << 4;
+  IOWR (2, tst_wdt);
+  // write command (deassert slave select)
+  tst_wdt = 32'h00000000 | cfg_iom << 4;
+  IOWR (2, tst_wdt);
 
-    // set slave output buffer
-    slave_spi.buf_o [0:31] = "test";
+  IDLE (32);  // wait for write transfers to finish
 
-    // read data
-    IOWR (3, 32'h0b5a0000);  // write data    register
-    IOWR (2, 32'h00001f1b);  // write control register (32bit read)
-    IOWR (2, 32'h00000010);  // write control register (cycle end)
-    IORD (3, tst_rdt     );  // read flash data
+  // check if read data is same as written data
+  IDLE (1);
+  for (n=0; n<BFL; n=n+1) begin
+    tst_err = tst_err + (tst_bfo [n] !== slave_spi.buf_i [n]);
+  end
 
-    // check if read data is same as written data
-    IDLE (1); tst_err = tst_err + (tst_rdt !== slave_spi.buf_o [0:31]);
+  // set slave output buffer
+  slave_spi.buf_o [0:31] = "test";
+
+  // enable slave output
+  tst_oen = 1'b1;
+
+  // write command (input data transfer)
+  tst_wdt = 32'h00001f0b | cfg_iom << 4;
+  IOWR (2, tst_wdt);
+  // write command (deassert slave select)
+  tst_wdt = 32'h00000000 | cfg_iom << 4;
+  IOWR (2, tst_wdt);
+  // read flash data
+  IORD (3, tst_rdt);
+  tst_bfi [0:31] = tst_rdt;
+
+  // check if read data is same as written data
+  IDLE (1);
+  for (n=0; n<BFL; n=n+1) begin
+    tst_err = tst_err + (tst_bfi [n] !== slave_spi.buf_o [n]);
   end
 end
 endtask
@@ -742,13 +779,13 @@ assign spi_miso = ~spi_ss_n[0] ? spi_mosi : 1'bz;
 
 // SPI slave model
 spi_slave_model #(
-  .BFL       (1024)
+  .BFL       (BFL)
 ) slave_spi (
   // configuration 
-  .mod_clk   (mod_clk),
-  .mod_dat   (mod_dat),
-  .mod_oen   (mod_oen),
-  .mod_dir   (mod_dir),
+  .cfg_ckm   (tst_ckm),
+  .cfg_iom   (tst_iom),
+  .cfg_oen   (tst_oen),
+  .cfg_dir   (tst_dir),
   // SPI signals
   .ss_n      (spi_ss_n[1]),
   .sclk      (spi_sclk),
