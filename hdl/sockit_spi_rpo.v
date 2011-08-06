@@ -186,7 +186,12 @@ if (cmd_trn) begin
   cyc_ctl <= cmd_ctl [5:0];
   cyc_dat <= cmd_dat;
 end else if (que_trn) begin
-  cyc_dat <= cyc_dat << SDW;
+  case (cyc_iom)
+    2'd0 : cyc_dat <= cyc_dat << 1*SDW;
+    2'd1 : cyc_dat <= cyc_dat << 1*SDW;
+    2'd2 : cyc_dat <= cyc_dat << 2*SDW;
+    2'd3 : cyc_dat <= cyc_dat << 4*SDW;
+  endcase
 end
 
 // queue control and data

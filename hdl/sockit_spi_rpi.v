@@ -114,8 +114,8 @@ begin
         rpk [32-1-1*i] = dat [2*SDW-1-i];
       end
       2'd2 : begin  // dual
-        rpk [32-1-2*i] = dat [4*SDW-1-i];
-        rpk [32-2-2*i] = dat [3*SDW-1-i];
+        rpk [32-1-2*i] = dat [2*SDW-1-i];
+        rpk [32-2-2*i] = dat [1*SDW-1-i];
       end
       2'd3 : begin  // quad
         rpk [32-1-4*i] = dat [4*SDW-1-i];
@@ -158,7 +158,12 @@ assign rpk_dat = rpk(que_dat, que_ctl [1:0]);
 // data registers
 always @(posedge clk)
 if (que_trn) begin
-  cyc_dat <= {cyc_dat [23: 0], rpk_dat [31:24]};
+  case (que_ctl [1:0])
+    2'd0 : cyc_dat <= {cyc_dat [23: 0], rpk_dat [31:24]};
+    2'd1 : cyc_dat <= {cyc_dat [23: 0], rpk_dat [31:24]};
+    2'd2 : cyc_dat <= {cyc_dat [15: 0], rpk_dat [31:16]};
+    2'd3 : cyc_dat <= {                 rpk_dat [31: 0]};
+  endcase
 end
 
 // command control, data
