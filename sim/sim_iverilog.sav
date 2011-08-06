@@ -1,7 +1,7 @@
 [timestart] 0
 [size] 1920 1176
 [pos] -1 -1
-*-18.123697 560000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-22.123697 12740000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 @820
@@ -9,6 +9,7 @@ spi_tb.tst_nme[511:0]
 @22
 spi_tb.tst_wdt[31:0]
 spi_tb.tst_rdt[31:0]
+@24
 spi_tb.tst_err
 @28
 spi_tb.sockit_spi.clk_cpu
@@ -119,15 +120,19 @@ spi_tb.sockit_spi.dma.cmo_ctl[10:0]
 -DMA CMI
 @800200
 -slave SPI
-@22
-spi_tb.slave_spi.buf_o[0:1023]
-spi_tb.slave_spi.buf_i[0:1023]
-@820
-spi_tb.slave_spi.buf_o[0:1023]
-spi_tb.slave_spi.buf_i[0:1023]
 @28
+spi_tb.slave_spi.cfg_ckm[1:0]
+spi_tb.slave_spi.cfg_iom[1:0]
+spi_tb.slave_spi.cfg_oen
+spi_tb.slave_spi.cfg_dir
 spi_tb.slave_spi.clk
 spi_tb.slave_spi.rst
+@22
+spi_tb.slave_spi.buf_i[0:2047]
+spi_tb.slave_spi.buf_o[0:2047]
+@820
+spi_tb.slave_spi.buf_i[0:2047]
+spi_tb.slave_spi.buf_o[0:2047]
 @22
 spi_tb.slave_spi.cnt_i
 spi_tb.slave_spi.cnt_o
@@ -137,18 +142,24 @@ spi_tb.slave_spi.sig_e[3:0]
 @28
 spi_tb.slave_spi.ss_n
 spi_tb.slave_spi.sclk
-@29
 spi_tb.slave_spi.mosi
-@28
 spi_tb.slave_spi.miso
 spi_tb.slave_spi.wp_n
 spi_tb.slave_spi.hold_n
 @1000200
 -slave SPI
+@22
+spi_tb.tst_bfo[0:2047]
+spi_tb.tst_bfi[0:2047]
+@820
+spi_tb.tst_bfo[0:2047]
+spi_tb.tst_bfi[0:2047]
 @28
 spi_tb.test_spi_half_duplex.cfg_ckm[1:0]
 spi_tb.test_spi_half_duplex.cfg_iom[1:0]
 @22
+spi_tb.test_spi_half_duplex.cfg_len[4:0]
+@24
 spi_tb.test_spi_half_duplex.tst_err
 @28
 spi_tb.sockit_spi.ser.cyc_iom[1:0]
