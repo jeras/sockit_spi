@@ -51,8 +51,9 @@ localparam SSW = 8;
 // clock domain crossing enable
 localparam CDC = 1'b1;
 
-// length of test string buffer
+// length of test buffer/string
 localparam BFL = 8*256;
+localparam STL =   256;
 
 ////////////////////////////////////////////////////////////////////////////////
 // master instance signals                                                    //
@@ -274,14 +275,16 @@ begin
   // initialize error counter
   tst_err = 0;
 
-  // cnfigure SPI slave
+  // configure SPI slave
   tst_ckm = cfg_ckm;
   tst_iom = cfg_iom;
   tst_dir = cfg_dir;
 
   // set test name
-  tst_nme = {"test half duplex:", " ckm=", "0" + cfg_ckm
-                                , " iom=", "0" + cfg_iom};
+  tst_nme = {"half duplex:", " ckm=", "0" + cfg_ckm
+                           , " iom=", "0" + cfg_iom
+                           , " dir=", "0" + cfg_dir
+                           , " num=", int2str(cfg_num)};
 
   // write configuration
   IOWR (0, 32'h020100cc | cfg_ckm);
@@ -318,9 +321,7 @@ begin
 
   // check if read data is same as written data
   IDLE (1);
-  for (n=0; n<BFL; n=n+1) begin
-    tst_err = tst_err + (tst_bfo [n] !== slave_spi.buf_i [n]);
-  end
+  tst_err = tst_err + buf_cmp (tst_bfo, slave_spi.buf_i, BFL);
   IDLE (1);
 
   // set slave output buffer
@@ -348,9 +349,7 @@ begin
 
   // check if read data is same as written data
   IDLE (1);
-  for (n=0; n<BFL; n=n+1) begin
-    tst_err = tst_err + (tst_bfi [n] !== slave_spi.buf_o [n]);
-  end
+  tst_err = tst_err + buf_cmp (tst_bfi, slave_spi.buf_o, BFL);
   IDLE (1);
 end
 endtask
@@ -481,6 +480,41 @@ endtask
 //  IOWR (1, 32'h00000001);  // enable XIP
 //
 //  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from XIP port
+
+////////////////////////////////////////////////////////////////////////////////
+// buffer/string manipulation                                                 //
+////////////////////////////////////////////////////////////////////////////////
+
+// conversion from integer to string
+function [0:3*8-1] int2str (input integer num);
+  integer n;
+begin
+  int2str [0*8+:8] = "0" + num / 100 % 10;
+  int2str [1*8+:8] = "0" + num /  10 % 10;
+  int2str [2*8+:8] = "0" + num /   1 % 10;
+end
+endfunction
+
+// array (buffer) bit by bit comparator
+function integer buf_cmp (
+  input [0:BFL-1] bf0,  // array 0
+  input [0:BFL-1] bf1,  // array 1
+  input integer   num   // number of bits to compare
+);
+  integer n;
+begin
+  buf_cmp = 0;
+  for (n=0; n<num; n=n+1)  buf_cmp = buf_cmp + (bf0 [n] !== bf1 [n]);
+end
+endfunction
+
+// function integer str_cmp (
+// )
+//   str_cmp = 0;
+//   for (n=0; n<BFL; n=n+1) begin
+//     buf_cmp = buf_cmp + (tst_bfi [n] !== slave_spi.buf_o [n]);
+//   end
+// endfunction
 
 ////////////////////////////////////////////////////////////////////////////////
 // register bus tasks                                                         //
