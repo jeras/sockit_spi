@@ -51,8 +51,8 @@ localparam SSW = 8;
 // clock domain crossing enable
 localparam CDC = 1'b1;
 
-// length of test buffer/string
-localparam BFL = 8*256;
+// length of test array/string
+localparam ARL = 8*256;
 localparam STL =   256;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -99,7 +99,7 @@ wire           dma_trn;  // transfer
 // DMA memory
 reg  [DDW-1:0] dma_mem [0:DMA_SIZ-1];
 
-// IO buffer signals
+// IO array signals
 wire [SSW-1:0] spi_ss_i,
                spi_ss_o,
                spi_ss_e;
@@ -131,7 +131,7 @@ wire           slv_trn;  // transfer
 // DMA memory (slave instance)
 reg  [DDW-1:0] slv_mem [0:DMA_SIZ-1];
 
-// IO buffer signals
+// IO array signals
 wire           slv_ss_i,
                slv_ss_o,
                slv_ss_e;
@@ -169,8 +169,8 @@ integer        tst_tmp;
 integer        tst_err;
 
 // string (output/input) for testing
-reg  [0:BFL-1] tst_bfo = "Hello world!";
-reg  [0:BFL-1] tst_bfi;
+reg  [0:ARL-1] tst_aro = "Hello world!";
+reg  [0:ARL-1] tst_ari;
 
 // test write/read data
 reg  [ADW-1:0] tst_wdt;
@@ -233,9 +233,13 @@ initial begin
 
   // loop all clock modes
   for (i=0; i<4; i=i+1) begin
+    // loop all IO modes
     for (j=0; j<4; j=j+1) begin
-      test_spi_half_duplex (i[1:0], j[1:0], 1'd1, 32, tst_tmp);
-      tst_err = tst_err + tst_tmp;
+      // loop some transfer lengths
+      for (k=1; k<=96; k=k+1) begin  // TODO, recode this to only test some, not all lengths in the interval
+        test_spi_half_duplex (i[1:0], j[1:0], 1'd1, k, tst_tmp);
+        tst_err = tst_err + tst_tmp;
+      end
     end
   end
   // test Flash access using register interface
@@ -269,8 +273,11 @@ task test_spi_half_duplex (
   output integer tst_err
 );
   // local variables
-  reg      [4:0] cfg_len;  // transfer unit length
-  integer        n;
+  reg      [4:0] cfg_len;  // transfer unit length (clock periods)
+  integer        var_num;  // running number of transfered bits
+  integer        var_len;  // transfer unit length (data bits)
+  integer        var_lst;  // last transfer
+  integer        var_tmp;  // temporal variable
 begin
   // initialize error counter
   tst_err = 0;
@@ -289,67 +296,83 @@ begin
   // write configuration
   IOWR (0, 32'h020100cc | cfg_ckm);
 
-  // clear slave buffers
-  slave_spi.buf_i = {BFL{1'bx}};
-  slave_spi.buf_o = {BFL{1'bx}};
+  // clear slave arrays
+  ary_clr (slave_spi.ary_i, ARL);
+  ary_clr (slave_spi.ary_o, ARL);
 
-  // set write data
-  tst_bfo [0:31] = "test";
-  for (n=cfg_num; n<BFL; n=n+1)  tst_bfo [n] = 1'bx;
+  // set master output array
+  // TODO, there is no data beeing transfered
+  ary_clr (tst_aro, ARL);
+  ary_cpy (tst_aro, "test", cfg_num);
 
   // disable slave output
   tst_oen = 1'b0;
 
-  n = cfg_num;
-  case (cfg_iom)
-    2'd0 : cfg_len = cfg_num  -1;
-    2'd1 : cfg_len = cfg_num  -1;
-    2'd2 : cfg_len = cfg_num/2-1;
-    2'd3 : cfg_len = cfg_num/4-1;
-  endcase
-  // write data
-  tst_wdt = tst_bfo[0:31];
-  IOWR (3, tst_wdt);
-  // write command (output data transfer)
-  tst_wdt = 32'h00000007 | (cfg_len << 8) | (cfg_iom << 4);
-  IOWR (2, tst_wdt);
+  for (var_num=0; var_num<cfg_num; var_num=var_num+32) begin
+    var_len = (cfg_num - var_num) > 32 ? 32 : (cfg_num - var_num);
+    case (cfg_iom)
+      2'd0 : cfg_len = var_len     - 1;
+      2'd1 : cfg_len = var_len     - 1;
+      2'd2 : cfg_len = var_len / 2 - 1;
+      2'd3 : cfg_len = var_len / 4 - 1;
+    endcase
+    // write data
+    tst_wdt = tst_aro[var_num+:32];
+    IOWR (3, tst_wdt);
+    // write command (output data transfer)
+    tst_wdt = 32'h00000007 | (cfg_len << 8) | (cfg_iom << 4);
+    IOWR (2, tst_wdt);
+  end
   // write command (deassert slave select)
-  tst_wdt = 32'h00000000                  | (cfg_iom << 4);
+  tst_wdt = 32'h00000000                    | (cfg_iom << 4);
   IOWR (2, tst_wdt);
 
   IDLE (32);  // wait for write transfers to finish
 
   // check if read data is same as written data
   IDLE (1);
-  tst_err = tst_err + buf_cmp (tst_bfo, slave_spi.buf_i, BFL);
+  tst_err = tst_err + ary_cmp (tst_aro, slave_spi.ary_i, ARL);
   IDLE (1);
 
-  // set slave output buffer
-  slave_spi.buf_o [0:31] = "test";
+  // clear master arrays
+  ary_clr (tst_ari, ARL);
+  ary_clr (tst_aro, ARL);
+
+  // set slave output array
+  // TODO, there is no data beeing transfered
+  ary_clr (slave_spi.ary_o, ARL);
+  ary_cpy (slave_spi.ary_o, "test", cfg_num);
 
   // enable slave output
   tst_oen = 1'b1;
 
-  n = cfg_num;
-  case (cfg_iom)
-    2'd0 : cfg_len = cfg_num  -1;
-    2'd1 : cfg_len = cfg_num  -1;
-    2'd2 : cfg_len = cfg_num/2-1;
-    2'd3 : cfg_len = cfg_num/4-1;
-  endcase
-  // write command (input data transfer)
-  tst_wdt = 32'h0000000b | (cfg_len << 8) | (cfg_iom << 4);
-  IOWR (2, tst_wdt);
-  // write command (deassert slave select)
-  tst_wdt = 32'h00000000                  | (cfg_iom << 4);
-  IOWR (2, tst_wdt);
-  // read flash data
-  IORD (3, tst_rdt);
-  tst_bfi [0:31] = tst_rdt;
+  for (var_num=0; var_num<cfg_num; var_num=var_num+32) begin
+    var_len = (cfg_num - var_num) > 32 ? 32 : (cfg_num - var_num);
+    var_lst = (cfg_num - var_num) <= 32;
+    case (cfg_iom)
+      2'd0 : cfg_len = cfg_num  -1;
+      2'd1 : cfg_len = cfg_num  -1;
+      2'd2 : cfg_len = cfg_num/2-1;
+      2'd3 : cfg_len = cfg_num/4-1;
+    endcase
+    // write command (input data transfer)
+    tst_wdt = 32'h0000000b | (cfg_len << 8) | (cfg_iom << 4);
+    IOWR (2, tst_wdt);
+    if (var_lst) begin
+    // write command (deassert slave select)
+    tst_wdt = 32'h00000000                  | (cfg_iom << 4);
+    IOWR (2, tst_wdt);
+    end
+    // read flash data
+    IORD (3, tst_rdt);
+    // TODO, find some more elegant code to do this
+    for (var_tmp=0; var_tmp<var_len; var_tmp=var_tmp+1)
+      tst_ari [var_num+var_tmp] = tst_rdt [var_len-1-var_tmp];
+  end
 
   // check if read data is same as written data
   IDLE (1);
-  tst_err = tst_err + buf_cmp (tst_bfi, slave_spi.buf_o, BFL);
+  tst_err = tst_err + ary_cmp (tst_ari, slave_spi.ary_o, ARL);
   IDLE (1);
 end
 endtask
@@ -371,7 +394,7 @@ begin
     IOWR (3, 32'h02000000);  // write data    register
     IOWR (2, 32'h00001f17);  // write control register (32bit write)
     for (i=0; i<3; i=i+1) begin
-    tst_wdt = tst_bfo[i*32+:32];
+    tst_wdt = tst_aro[i*32+:32];
     IOWR (3, tst_wdt     );  // write flash data
     IOWR (2, 32'h00001f17);  // write control register (32bit write)
     end
@@ -388,14 +411,14 @@ begin
     for (i=0; i<2; i=i+1) begin
     IOWR (2, 32'h00001f1b);  // write control register (32bit read)
     IORD (3, tst_rdt     );  // read flash data
-    tst_bfi[i*32+:32] = tst_rdt;
+    tst_ari[i*32+:32] = tst_rdt;
     end
     IOWR (2, 32'h00000010);  // write control register (cycle end)
     IORD (3, tst_rdt     );  // read flash data
-    tst_bfi[i*32+:32] = tst_rdt;
+    tst_ari[i*32+:32] = tst_rdt;
 
   // check if read data is same as written data
-  IDLE (16);  tst_err = tst_err + (tst_bfi != tst_bfo);
+  IDLE (16);  tst_err = tst_err + (tst_ari != tst_aro);
 end
 endtask
 
@@ -482,11 +505,11 @@ endtask
 //  xip_cyc (0, 24'h000000, 4'hf, 32'hxxxxxxxx, data);  // read data from XIP port
 
 ////////////////////////////////////////////////////////////////////////////////
-// buffer/string manipulation                                                 //
+// array/string manipulation                                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
 // conversion from integer to string
-function [0:3*8-1] int2str (input integer num);
+function automatic [0:3*8-1] int2str (input integer num);
   integer n;
 begin
   int2str [0*8+:8] = "0" + num / 100 % 10;
@@ -495,24 +518,47 @@ begin
 end
 endfunction
 
-// array (buffer) bit by bit comparator
-function integer buf_cmp (
-  input [0:BFL-1] bf0,  // array 0
-  input [0:BFL-1] bf1,  // array 1
+// array bit by bit comparator (returns number of differing bits)
+function automatic integer ary_cmp (
+  input [0:ARL-1] ar0,  // array 0
+  input [0:ARL-1] ar1,  // array 1
   input integer   num   // number of bits to compare
 );
   integer n;
 begin
-  buf_cmp = 0;
-  for (n=0; n<num; n=n+1)  buf_cmp = buf_cmp + (bf0 [n] !== bf1 [n]);
+  ary_cmp = 0;
+  for (n=0; n<num; n=n+1)  ary_cmp = ary_cmp + (ar0 [n] !== ar1 [n]);
 end
 endfunction
+
+// array clear (returns number of cleared bits)
+task automatic ary_clr (
+  inout [0:ARL-1] ary,  // array
+  input integer   num   // number of bits to clear
+);
+  integer n;
+begin
+  for (n=0; n<num; n=n+1)  ary [n] = 1'bx;
+end
+endtask
+
+// array copy (returns number of differing bits)
+task automatic ary_cpy (
+  inout [0:ARL-1] ard,  // array source
+  input [0:ARL-1] ars,  // array destination
+  input integer   num   // number of bits to copy
+);
+  integer n;
+begin
+  for (n=0; n<num; n=n+1)  ard [n] = ars [n];
+end
+endtask
 
 // function integer str_cmp (
 // )
 //   str_cmp = 0;
-//   for (n=0; n<BFL; n=n+1) begin
-//     buf_cmp = buf_cmp + (tst_bfi [n] !== slave_spi.buf_o [n]);
+//   for (n=0; n<ARL; n=n+1) begin
+//     ary_cmp = ary_cmp + (tst_ari [n] !== slave_spi.ary_o [n]);
 //   end
 // endfunction
 
@@ -712,7 +758,7 @@ sockit_spi #(
 );
 
 ////////////////////////////////////////////////////////////////////////////////
-// SPI master tristate buffers                                                //
+// SPI master tristate arrays                                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock
@@ -782,7 +828,7 @@ sockit_spi #(
 );
 
 ////////////////////////////////////////////////////////////////////////////////
-// SPI slave tristate buffers                                                //
+// SPI slave tristate arrays                                                  //
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock
@@ -831,7 +877,7 @@ assign spi_miso = ~spi_ss_n[0] ? spi_mosi : 1'bz;
 
 // SPI slave model
 spi_slave_model #(
-  .BFL       (BFL)
+  .ARL       (ARL)
 ) slave_spi (
   // configuration 
   .cfg_ckm   (tst_ckm),

@@ -24,7 +24,7 @@
 `timescale 1us / 1ns
 
 module spi_slave_model #(
-  parameter BFL = 1024   // buffer length
+  parameter ARL = 1024   // array length
 )(
   // configuration
   input wire [1:0] cfg_ckm,  // clock mode {CPOL, CPHA}
@@ -57,9 +57,9 @@ reg     [3:0] sig_e;  // enables
 integer       cnt_i;  // bit counter input
 integer       cnt_o;  // bit counter output
 
-// buffers
-reg [0:BFL-1] buf_i;  // data buffer input
-reg [0:BFL-1] buf_o;  // data buffer output
+// arrays
+reg [0:ARL-1] ary_i;  // data array input
+reg [0:ARL-1] ary_o;  // data array output
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock and reset                                                            //
@@ -70,7 +70,7 @@ assign clk = sclk ^ cfg_ckm[1] ^ cfg_ckm[0];
 assign rst = ss_n;
 
 ////////////////////////////////////////////////////////////////////////////////
-// input write into buffer                                                    //
+// input write into array                                                     //
 ////////////////////////////////////////////////////////////////////////////////
 
 // input clock period counter
@@ -81,17 +81,17 @@ else       cnt_i <= cnt_i + 1;
 // input signal vector
 assign sig_i = {hold_n, wp_n, miso, mosi};
 
-// input buffer
+// input array
 always @ (posedge clk)
 if (~ss_n) case (cfg_iom)
-  2'd0 :  if (~cfg_oen)  buf_i [  cnt_i   ] <= sig_i[  0];
-  2'd1 :                 buf_i [  cnt_i   ] <= sig_i[  0];
-  2'd2 :  if (~cfg_oen)  buf_i [2*cnt_i+:2] <= sig_i[1:0];
-  2'd3 :  if (~cfg_oen)  buf_i [4*cnt_i+:4] <= sig_i[3:0];
+  2'd0 :  if (~cfg_oen)  ary_i [  cnt_i   ] <= sig_i[  0];
+  2'd1 :                 ary_i [  cnt_i   ] <= sig_i[  0];
+  2'd2 :  if (~cfg_oen)  ary_i [2*cnt_i+:2] <= sig_i[1:0];
+  2'd3 :  if (~cfg_oen)  ary_i [4*cnt_i+:4] <= sig_i[3:0];
 endcase
 
 ////////////////////////////////////////////////////////////////////////////////
-// output read from buffer                                                    //
+// output read from array                                                     //
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock period counter
@@ -103,10 +103,10 @@ else       cnt_o <= cnt_o + |cnt_i;
 always @ (*)
 if (rst)  sig_o = 4'bxxxx;
 else case (cfg_iom)
-  2'd0 :  sig_o = {2'bxx, 1'bx, buf_o [  cnt_o   ]      };
-  2'd1 :  sig_o = {2'bxx,       buf_o [  cnt_o   ], 1'bx};
-  2'd2 :  sig_o = {2'bxx,       buf_o [2*cnt_o+:2]      };
-  2'd3 :  sig_o = {             buf_o [4*cnt_o+:4]      };
+  2'd0 :  sig_o = {2'bxx, 1'bx, ary_o [  cnt_o   ]      };
+  2'd1 :  sig_o = {2'bxx,       ary_o [  cnt_o   ], 1'bx};
+  2'd2 :  sig_o = {2'bxx,       ary_o [2*cnt_o+:2]      };
+  2'd3 :  sig_o = {             ary_o [4*cnt_o+:4]      };
 endcase
 
 // output enable signal vector
