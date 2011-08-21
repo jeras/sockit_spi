@@ -47,7 +47,8 @@ localparam DBW = XDW/8;
 localparam DMA_SIZ = 1024;
 
 // SPI parameters
-localparam SSW = 8;
+localparam SSW = 8;  // slave select width
+localparam SDW = 8;  // serial data register width
 // clock domain crossing enable
 localparam CDC = 1'b1;
 
@@ -169,7 +170,8 @@ integer        tst_tmp;
 integer        tst_err;
 
 // string (output/input) for testing
-reg  [0:ARL-1] tst_aro = "Hello world!";
+reg  [0:ARL-1] tst_txt = {"Hello world!", {ARL-8*12{1'bx}}};
+reg  [0:ARL-1] tst_aro;
 reg  [0:ARL-1] tst_ari;
 
 // test write/read data
@@ -180,7 +182,7 @@ reg  [ADW-1:0] tst_rdt;
 reg [64*8-1:0] tst_nme;
 
 // for loop variables
-integer i, j, k;
+integer i, j, k, l;
 
 // request for a dump file
 initial begin
@@ -231,17 +233,27 @@ initial begin
 
   IDLE (4);                // few clock periods
 
-  // loop all clock modes
-  for (i=0; i<4; i=i+1) begin
-    // loop all IO modes
-    for (j=0; j<4; j=j+1) begin
-      // loop some transfer lengths
-      for (k=1; k<=96; k=k+1) begin  // TODO, recode this to only test some, not all lengths in the interval
-        test_spi_half_duplex (i[1:0], j[1:0], 1'd1, k, tst_tmp);
+  // check bit sized transfers up to SDW limit
+  for (i=0; i<4; i=i+1) begin           // loop clock modes
+    for (j=0; j<4; j=j+1) begin         // loop IO modes
+      l = (j==3) ? 4 : (j==2) ? 2 : 1;  // number of transferred bits per clock period
+      for (k=1; k<=SDW; k=k+1) begin    // loop transfer size
+        test_spi_half_duplex (i[1:0], j[1:0], 1'd1, k*l, tst_tmp);
         tst_err = tst_err + tst_tmp;
       end
     end
   end
+
+  // check SDW sized transfers up to SDW limit
+  for (i=0; i<4; i=i+1) begin        // loop clock_modes
+    for (j=0; j<4; j=j+1) begin      // loop IO modes
+      for (k=1; k<=12; k=k+1) begin  // loop transfer size
+        test_spi_half_duplex (i[1:0], j[1:0], 1'd1, k*SDW, tst_tmp);
+        tst_err = tst_err + tst_tmp;
+      end
+    end
+  end
+
   // test Flash access using register interface
   test_flash_reg;
   // test Flash access using DMA
@@ -255,7 +267,7 @@ end
 
 // end test on timeout
 initial begin
-  repeat (5000) @ (posedge clk_cpu);
+  repeat (20000) @ (posedge clk_cpu);
   $finish;  // end simulation
 end
 
@@ -301,9 +313,8 @@ begin
   ary_clr (slave_spi.ary_o, ARL);
 
   // set master output array
-  // TODO, there is no data beeing transfered
   ary_clr (tst_aro, ARL);
-  ary_cpy (tst_aro, "test", cfg_num);
+  ary_cpy (tst_aro, tst_txt, cfg_num);
 
   // disable slave output
   tst_oen = 1'b0;
@@ -339,9 +350,8 @@ begin
   ary_clr (tst_aro, ARL);
 
   // set slave output array
-  // TODO, there is no data beeing transfered
   ary_clr (slave_spi.ary_o, ARL);
-  ary_cpy (slave_spi.ary_o, "test", cfg_num);
+  ary_cpy (slave_spi.ary_o, tst_txt, cfg_num);
 
   // enable slave output
   tst_oen = 1'b1;
@@ -710,6 +720,7 @@ initial  $readmemh("dma_mem.hex", dma_mem);
 sockit_spi #(
   .XAW         (XAW),
   .SSW         (SSW),
+  .SDW         (SDW),
   .CDC         (CDC)
 ) sockit_spi (
   // system signals (used by the CPU bus interface)
@@ -780,6 +791,7 @@ assign spi_ss_i =          spi_ss_n;
 sockit_spi #(
   .XAW         (XAW),
   .SSW         (1),
+  .SDW         (SDW),
   .CDC         (CDC)
 ) sockit_spi_slv (
   // system signals (used by the CPU bus interface)

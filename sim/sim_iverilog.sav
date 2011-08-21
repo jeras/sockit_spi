@@ -1,7 +1,7 @@
-[timestart] 0
+[timestart] 68071000
 [size] 1920 1176
 [pos] -1 -1
-*-23.123697 21740000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.820465 72460000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 @22
@@ -141,10 +141,8 @@ spi_tb.slave_spi.sig_e[3:0]
 @28
 spi_tb.slave_spi.ss_n
 spi_tb.slave_spi.sclk
-@29
 spi_tb.slave_spi.mosi
 spi_tb.slave_spi.miso
-@28
 spi_tb.slave_spi.wp_n
 spi_tb.slave_spi.hold_n
 @1000200
@@ -152,8 +150,12 @@ spi_tb.slave_spi.hold_n
 @28
 spi_tb.test_spi_half_duplex.cfg_ckm[1:0]
 spi_tb.test_spi_half_duplex.cfg_iom[1:0]
+spi_tb.test_spi_half_duplex.cfg_dir[1:0]
 @24
+spi_tb.test_spi_half_duplex.cfg_num
+spi_tb.test_spi_half_duplex.var_len
 spi_tb.test_spi_half_duplex.cfg_len[4:0]
+@25
 spi_tb.test_spi_half_duplex.tst_err
 @28
 spi_tb.sockit_spi.ser.cyc_iom[1:0]
