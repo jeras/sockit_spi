@@ -279,7 +279,7 @@ task test_spi_half_duplex (
   // configuration
   input    [1:0] cfg_ckm,  // clock mode {CPOL, CPHA}
   input    [1:0] cfg_iom,  // data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
-  input    [1:0] cfg_dir,  // shift direction (0 - LSB first, 1 - MSB first)
+  input          cfg_dir,  // shift direction (0 - LSB first, 1 - MSB first)
   input  integer cfg_num,  // transfer size in number in bits
   // error status
   output integer tst_err
@@ -288,6 +288,7 @@ task test_spi_half_duplex (
   reg      [4:0] cfg_len;  // transfer unit length (clock periods)
   integer        var_num;  // running number of transfered bits
   integer        var_len;  // transfer unit length (data bits)
+  integer        var_ln1;  // transfer unit length (data bits) TODO, should be removed after bugs are fixed
   integer        var_lst;  // last transfer
   integer        var_tmp;  // temporal variable
 begin
@@ -322,11 +323,12 @@ begin
   for (var_num=0; var_num<cfg_num; var_num=var_num+32) begin
     var_len = (cfg_num - var_num) > 32 ? 32 : (cfg_num - var_num);
     case (cfg_iom)
-      2'd0 : cfg_len = var_len     - 1;
-      2'd1 : cfg_len = var_len     - 1;
-      2'd2 : cfg_len = var_len / 2 - 1;
-      2'd3 : cfg_len = var_len / 4 - 1;
+      2'd0 : var_ln1 = var_len     - 1;
+      2'd1 : var_ln1 = var_len     - 1;
+      2'd2 : var_ln1 = var_len / 2 - 1;
+      2'd3 : var_ln1 = var_len / 4 - 1;
     endcase
+    cfg_len = var_ln1;
     // write data
     tst_wdt = tst_aro[var_num+:32];
     IOWR (3, tst_wdt);
@@ -360,11 +362,12 @@ begin
     var_len = (cfg_num - var_num) > 32 ? 32 : (cfg_num - var_num);
     var_lst = (cfg_num - var_num) <= 32;
     case (cfg_iom)
-      2'd0 : cfg_len = cfg_num  -1;
-      2'd1 : cfg_len = cfg_num  -1;
-      2'd2 : cfg_len = cfg_num/2-1;
-      2'd3 : cfg_len = cfg_num/4-1;
+      2'd0 : var_ln1 = var_len     - 1;
+      2'd1 : var_ln1 = var_len     - 1;
+      2'd2 : var_ln1 = var_len / 2 - 1;
+      2'd3 : var_ln1 = var_len / 4 - 1;
     endcase
+    cfg_len = var_ln1;
     // write command (input data transfer)
     tst_wdt = 32'h0000000b | (cfg_len << 8) | (cfg_iom << 4);
     IOWR (2, tst_wdt);

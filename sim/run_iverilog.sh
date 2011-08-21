@@ -48,4 +48,4 @@ vvp spi.out -fst
 # covered score -cdd spi.cdd -fst spi.fst -t sockit_spi -i spi_tb.sockit_spi
 
 # open the waveform and detach it
-gtkwave spi.fst sim_iverilog.sav &
+#gtkwave spi.fst sim_iverilog.sav &
