@@ -62,7 +62,7 @@ module sockit_spi_dma #(
   parameter ENDIAN  =        "BIG",  // endian options include "BIG", "LITTLE"
   // port widths
   parameter DAW     =           32,  // DMA address width
-  parameter CCO     =          5+6,  // command control output width
+  parameter CCO     =          5+7,  // command control output width
   parameter CCI     =            4,  // command control  input width
   parameter CDW     =           32   // command data width
 )(
@@ -114,6 +114,7 @@ wire           cfg_end;  // bus endianness (0 - little, 1 - big)
 wire           cfg_prf;  // read prefetch (0 - single, 1 - double)
 wire     [1:0] cfg_bts;  // bus transfer size (n+1 Bytes)
 wire           cfg_m_s;  // SPI bus mode (0 - slave, 1 - master)
+wire           cfg_pkm;  // packaging mode
 wire     [1:0] cfg_iom;  // SPI data IO mode
 
 // DMA task interface
@@ -311,8 +312,11 @@ assign cmo_trn = cmo_req & cmo_grt;
 // transfer request
 assign cmo_req = cyc_oen; //  dma_rds;
 
-// control            siz...siz,     iom,     die,     doe,  sso,  cke
-assign cmo_ctl = {cfg_bts, 3'd7, cfg_iom, cyc_ien, cyc_oen, 1'b1, 1'b1};
+// packaging mode
+assign cfg_pkm = 0;
+
+// control            siz...siz,     pkm,     iom,     die,     doe,  sso,  cke
+assign cmo_ctl = {cfg_bts, 3'd7, cfg_pkm, cfg_iom, cyc_ien, cyc_oen, 1'b1, 1'b1};
 
 // data
 generate if (ENDIAN == "BIG") begin

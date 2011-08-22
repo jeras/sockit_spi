@@ -99,7 +99,7 @@ module sockit_spi_reg #(
   parameter ADR_WOF = 32'h00000000,  // address read  offset
   // port widths
   parameter XAW     =           24,  // XIP address width
-  parameter CCO     =          5+6,  // command control output width
+  parameter CCO     =          5+7,  // command control output width
   parameter CCI     =            4,  // command control  input width
   parameter CDW     =           32   // command data width
 )(
@@ -255,7 +255,7 @@ end
 
 // command output
 assign cmo_req = wen_spi;
-assign cmo_ctl = {reg_wdt[12:8], reg_wdt[5:0]};
+assign cmo_ctl = {reg_wdt[12:8], reg_wdt[6:0]};
 
 ////////////////////////////////////////////////////////////////////////////////
 // command input register                                                     //

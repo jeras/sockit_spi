@@ -41,7 +41,8 @@
 //                                                                            //
 // The command protocol packet transfer contains CDW=32 data bits (same as    //
 // the CPU system bus) and CCO=11 control bits. Control word fields:          //
-// [10: 6] - len - transfer length (in the range from 1 to CDW bits)          //
+// [11: 7] - len - transfer length (in the range from 1 to CDW bits)          //
+// [    6] - pkm - packeting mode (0 - remainder last, 1 - remainder first)   //
 // [ 5: 0] -     - this fields have the same meaning as in the queue protocol //
 //                                                                            //
 // Queue protocol:                                                            //
@@ -66,7 +67,7 @@ module sockit_spi_rpo #(
   // port widths
   parameter SDW     =            8,  // serial data register width
   parameter SDL     =  $clog2(SDW),  // serial data register width logarithm
-  parameter CCO     =          5+6,  // command control output width
+  parameter CCO     =          5+7,  // command control output width
   parameter CDW     =           32,  // command data width
   parameter QCO     =        SDL+7,  // queue control output width
   parameter QDW     =        4*SDW   // queue data width
@@ -97,9 +98,10 @@ reg      [4:0] cyc_cnt;  // counter
 wire     [4:0] cyc_nxt;  // counter next
 wire [SDL-1:0] cyc_len;  // SPI transfer length
 reg            cyc_lst;  // last piece
+wire           cyc_pkm;  // packeting mode
 wire     [1:0] cyc_iom;  // SPI IO mode
 
-reg  [CCO-6:0] cyc_ctl;  // control register
+reg      [5:0] cyc_ctl;  // control register
 reg  [CDW-1:0] cyc_dat;  // data    register
 
 wire           que_trn;  // queue transfer
@@ -157,19 +159,22 @@ assign cmd_trn = cmd_req & cmd_grt;
 always @(posedge clk, posedge rst)
 if (rst) begin
   cyc_run <= 1'b0;
-  cyc_lst <= 1'b0;
   cyc_cnt <= 5'd0;
+  cyc_lst <= 1'b0;
 end else begin
   if (cmd_trn) begin
     cyc_run <= 1'b1;
-    cyc_lst <= cmd_ctl [6+:5] < SDW;
-    cyc_cnt <= cmd_ctl [6+:5];
+    cyc_cnt <= cmd_ctl [7+:5];
+    cyc_lst <= cmd_ctl [7+:5] < SDW;
   end else if (que_trn) begin
     cyc_run <= ~cyc_lst;
-    cyc_lst <= cyc_nxt < SDW;
     cyc_cnt <= cyc_nxt;
+    cyc_lst <= cyc_nxt < SDW;
   end
 end
+
+// packeting mode
+assign cyc_pkm = cmd_ctl [6];
 
 // counter next
 assign cyc_nxt = cyc_lst ? 5'd0 : cyc_cnt - SDW;
