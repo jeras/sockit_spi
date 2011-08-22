@@ -237,7 +237,7 @@ initial begin
   for (i=0; i<4; i=i+1) begin           // loop clock modes
     for (j=0; j<4; j=j+1) begin         // loop IO modes
       l = (j==3) ? 4 : (j==2) ? 2 : 1;  // number of transferred bits per clock period
-      for (k=1; k<=SDW; k=k+1) begin    // loop transfer size
+      for (k=1; k<32; k=k+1) begin      // loop transfer size
         test_spi_half_duplex (i[1:0], j[1:0], 1'd1, k*l, tst_tmp);
         tst_err = tst_err + tst_tmp;
       end
@@ -369,7 +369,7 @@ begin
     endcase
     cfg_len = var_ln1;
     // write command (input data transfer)
-    tst_wdt = 32'h0000000b | (cfg_len << 8) | (cfg_iom << 4);
+    tst_wdt = 32'h0000004b | (cfg_len << 8) | (cfg_iom << 4);
     IOWR (2, tst_wdt);
     if (var_lst) begin
     // write command (deassert slave select)

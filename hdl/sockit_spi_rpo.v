@@ -101,7 +101,7 @@ reg            cyc_lst;  // last piece
 wire           cyc_pkm;  // packeting mode
 wire     [1:0] cyc_iom;  // SPI IO mode
 
-reg      [5:0] cyc_ctl;  // control register
+reg      [6:0] cyc_ctl;  // control register
 reg  [CDW-1:0] cyc_dat;  // data    register
 
 wire           que_trn;  // queue transfer
@@ -174,13 +174,13 @@ end else begin
 end
 
 // packeting mode
-assign cyc_pkm = cmd_ctl [6];
+assign cyc_pkm = cyc_ctl [6];
 
 // counter next
-assign cyc_nxt = cyc_lst ? 5'd0 : cyc_cnt - SDW;
+assign cyc_nxt = cyc_lst ? 5'd0 : cyc_cnt - cyc_len - 5'd1;
 
 // SPI transfer length
-assign cyc_len = cyc_lst ? cyc_cnt [SDL-1:0] : {SDL{1'b1}};
+assign cyc_len = cyc_lst | cyc_pkm ? cyc_cnt [SDL-1:0] : {SDL{1'b1}};
 
 // SPI IO mode
 assign cyc_iom = cyc_ctl [5:4];
@@ -188,7 +188,7 @@ assign cyc_iom = cyc_ctl [5:4];
 // control and data registers
 always @(posedge clk)
 if (cmd_trn) begin
-  cyc_ctl <= cmd_ctl [5:0];
+  cyc_ctl <= cmd_ctl [6:0];
   cyc_dat <= cmd_dat;
 end else if (que_trn) begin
   case (cyc_iom)
@@ -200,7 +200,7 @@ end else if (que_trn) begin
 end
 
 // queue control and data
-assign que_ctl = {cyc_len, cyc_lst, cyc_ctl};
+assign que_ctl = {cyc_len, cyc_lst, cyc_ctl[5:0]};
 assign que_dat = rpk (cyc_dat, cyc_iom);
 
 // queue flow control
