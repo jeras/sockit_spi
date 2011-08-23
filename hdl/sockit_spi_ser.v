@@ -79,6 +79,7 @@ wire           cfg_pha;  // clock phase
 wire           cfg_pol;  // clock polarity
 
 // internal clocks, resets
+wire           spi_sclk;
 wire           spi_clk;
 wire           spi_rsi;
 
@@ -133,6 +134,9 @@ assign cfg_pha = spi_cfg[0];
 // master/slave mode                                                          //
 ////////////////////////////////////////////////////////////////////////////////
 
+// clock driver source
+assign spi_sclk = clk ^ cfg_pha;
+
 // clock source
 assign spi_clk = cfg_m_s ? clk : spi_sclk_i ^ (cfg_pol ^ cfg_pha);
 
@@ -162,20 +166,21 @@ assign qui_trn = qui_req & qui_grt;
 
 // transfer length counter
 always @(posedge spi_cko, posedge rst)
-if (rst) begin
-  cyc_cke <=      1'b0  ;
-  cyc_cnt <= {SDL{1'b0}};
-end else begin
-  if (quo_trn) begin
-    cyc_cke <= quo_ctl [0     ];
-    cyc_cnt <= quo_ctl [7+:SDL];
-  end else begin
-    if (~cyc_end)  cyc_cnt <= cyc_cnt - 'd1;
-    if ( quo_grt)  cyc_cke <= 1'b0;
-  end
+if (rst)              cyc_cnt <= {SDL{1'b0}};
+else begin
+  if       (quo_trn)  cyc_cnt <= quo_ctl [7+:SDL];
+  else if (~cyc_end)  cyc_cnt <= cyc_cnt - 'd1;
 end
 
 assign cyc_end = ~|cyc_cnt;
+
+// clock enable
+always @(posedge spi_sclk, posedge rst)
+if (rst)             cyc_cke <= 1'b0;
+else begin
+  if      (quo_trn)  cyc_cke <= quo_ctl [0];
+  else if (quo_grt)  cyc_cke <= 1'b0;
+end
 
 // IO control registers
 always @(posedge spi_cko, posedge rst)
@@ -206,7 +211,7 @@ assign qui_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
 ////////////////////////////////////////////////////////////////////////////////
 
 // serial clock output
-assign spi_sclk_o = cfg_pol ^ (cyc_cke & ~(clk ^ cfg_pha));
+assign spi_sclk_o = cfg_pol ^ (cyc_cke & ~(spi_sclk));
 assign spi_sclk_e = cfg_coe;
 
 

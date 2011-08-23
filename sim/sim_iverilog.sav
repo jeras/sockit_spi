@@ -1,7 +1,7 @@
-[timestart] 0
+[timestart] 281932000
 [size] 1920 1176
 [pos] -1 -1
-*-24.820465 145760000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-14.820465 282030000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_tb.
 [treeopen] spi_tb.sockit_spi.
 [treeopen] spi_tb.sockit_spi.rpi.
@@ -12,9 +12,8 @@ spi_tb.tst_nme[511:0]
 @22
 spi_tb.tst_wdt[31:0]
 spi_tb.tst_rdt[31:0]
-@25
-spi_tb.i
 @24
+spi_tb.i
 spi_tb.j
 spi_tb.k
 spi_tb.tst_err
@@ -132,9 +131,10 @@ spi_tb.slave_spi.cfg_oen
 spi_tb.slave_spi.cfg_dir
 spi_tb.slave_spi.clk
 spi_tb.slave_spi.rst
-@22
+@25
 spi_tb.slave_spi.cnt_i
 spi_tb.slave_spi.cnt_o
+@22
 spi_tb.slave_spi.sig_i[3:0]
 spi_tb.slave_spi.sig_o[3:0]
 spi_tb.slave_spi.sig_e[3:0]
@@ -162,7 +162,7 @@ spi_tb.test_spi_half_duplex.tst_err
 spi_tb.sockit_spi.ser.cyc_iom[1:0]
 @22
 spi_tb.tst_ari[0:2047]
-@800200
+@c00200
 -RPO
 @28
 spi_tb.sockit_spi.rpo.clk
@@ -195,7 +195,7 @@ spi_tb.sockit_spi.rpo.que_grt
 spi_tb.sockit_spi.rpo.que_req
 spi_tb.sockit_spi.rpo.que_trn
 spi_tb.sockit_spi.rpo.rst
-@1000200
+@1401200
 -RPO
 @c00200
 -RPI
@@ -234,5 +234,8 @@ spi_tb.sockit_spi.rpi.rpk.i
 spi_tb.sockit_spi.rpi.rpk.mod[1:0]
 @22
 spi_tb.sockit_spi.rpi.rpk.rpk[31:0]
+@28
+spi_tb.sockit_spi.ser.spi_cko
+spi_tb.sockit_spi.ser.cyc_cke
 [pattern_trace] 1
 [pattern_trace] 0
