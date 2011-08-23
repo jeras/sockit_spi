@@ -75,15 +75,15 @@ assign rst = ss_n;
 
 // input clock period counter
 always @ (posedge clk, posedge rst)
-if (ss_n)  cnt_i <= 0;
-else       cnt_i <= cnt_i + 1;
+if (rst)  cnt_i <= 0;
+else      cnt_i <= cnt_i + 1;
 
 // input signal vector
 assign sig_i = {hold_n, wp_n, miso, mosi};
 
 // input array
 always @ (posedge clk)
-if (~ss_n) case (cfg_iom)
+if (~rst) case (cfg_iom)
   2'd0 :  if (~cfg_oen)  ary_i [  cnt_i   ] <= sig_i[  0];
   2'd1 :                 ary_i [  cnt_i   ] <= sig_i[  0];
   2'd2 :  if (~cfg_oen)  ary_i [2*cnt_i+:2] <= sig_i[1:0];
@@ -96,8 +96,8 @@ endcase
 
 // clock period counter
 always @ (negedge clk, posedge rst)
-if (ss_n)  cnt_o <= 0;
-else       cnt_o <= cnt_o + |cnt_i;
+if (rst)  cnt_o <= 0;
+else      cnt_o <= cnt_o + |cnt_i;
 
 // output signal vector
 always @ (*)
