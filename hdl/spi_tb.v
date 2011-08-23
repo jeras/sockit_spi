@@ -237,8 +237,8 @@ initial begin
   for (i=0; i<4; i=i+1) begin           // loop clock modes
     for (j=0; j<4; j=j+1) begin         // loop IO modes
       l = (j==3) ? 4 : (j==2) ? 2 : 1;  // number of transferred bits per clock period
-      for (k=1; k<32; k=k+1) begin      // loop transfer size
-        test_spi_half_duplex (i[1:0], j[1:0], 1'd1, k*l, tst_tmp);
+      for (k=l; k<32; k=k+l) begin      // loop transfer size
+        test_spi_half_duplex (i[1:0], j[1:0], 1'd1, k, tst_tmp);
         tst_err = tst_err + tst_tmp;
       end
     end
@@ -267,7 +267,7 @@ end
 
 // end test on timeout
 initial begin
-  repeat (20000) @ (posedge clk_cpu);
+  repeat (50000) @ (posedge clk_cpu);
   $finish;  // end simulation
 end
 
