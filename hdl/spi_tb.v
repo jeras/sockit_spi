@@ -233,6 +233,7 @@ initial begin
 
   IDLE (4);                // few clock periods
 
+///*
   // check bit sized transfers up to SDW limit
   for (i=0; i<4; i=i+1) begin           // loop clock modes
     for (j=0; j<4; j=j+1) begin         // loop IO modes
@@ -258,6 +259,12 @@ initial begin
   test_flash_reg;
   // test Flash access using DMA
   test_flash_dma;
+
+//*/
+
+  // TODO
+  test_spi_half_duplex (0, 0, 1'd1, 64, tst_tmp);
+  tst_err = tst_err + tst_tmp;
 
   tst_nme = "END";
   IDLE (16);               // few clock periods
@@ -285,12 +292,12 @@ task test_spi_half_duplex (
   output integer tst_err
 );
   // local variables
-  reg      [4:0] cfg_len;  // transfer unit length (clock periods)
-  integer        var_num;  // running number of transfered bits
-  integer        var_len;  // transfer unit length (data bits)
-  integer        var_ln1;  // transfer unit length (data bits) TODO, should be removed after bugs are fixed
-  integer        var_lst;  // last transfer
-  integer        var_tmp;  // temporal variable
+  reg      [4:0] cfg_len;          // transfer unit length (clock periods)
+  integer        var_tmp;          // temporal variable
+  integer        var_num [0:255];  // transfer unit length table (data bits)
+  integer        var_len [0:255];  // transfer unit length table (clock periods)
+  integer        var_trn;          // transfer unit number (table size)
+  integer        var_cnt;          // transfer unit counter
 begin
   // initialize error counter
   tst_err = 0;
@@ -306,6 +313,17 @@ begin
                            , " dir=", "0" + cfg_dir
                            , " num=", int2str(cfg_num)};
 
+  // create a table of transfer lengths
+  for (var_trn=0; var_trn*32<cfg_num; var_trn=var_trn+1) begin
+    var_num [var_trn] = (cfg_num - var_trn*32) > 32 ? 32 : (cfg_num - var_trn*32);
+    case (cfg_iom)
+      2'd0 : var_len [var_trn] = var_num [var_trn]     - 1;
+      2'd1 : var_len [var_trn] = var_num [var_trn]     - 1;
+      2'd2 : var_len [var_trn] = var_num [var_trn] / 2 - 1;
+      2'd3 : var_len [var_trn] = var_num [var_trn] / 4 - 1;
+    endcase
+  end
+  
   // write configuration
   IOWR (0, 32'h020100cc | cfg_ckm);
 
@@ -320,17 +338,10 @@ begin
   // disable slave output
   tst_oen = 1'b0;
 
-  for (var_num=0; var_num<cfg_num; var_num=var_num+32) begin
-    var_len = (cfg_num - var_num) > 32 ? 32 : (cfg_num - var_num);
-    case (cfg_iom)
-      2'd0 : var_ln1 = var_len     - 1;
-      2'd1 : var_ln1 = var_len     - 1;
-      2'd2 : var_ln1 = var_len / 2 - 1;
-      2'd3 : var_ln1 = var_len / 4 - 1;
-    endcase
-    cfg_len = var_ln1;
+  for (var_cnt=0; var_cnt<var_trn; var_cnt=var_cnt+1) begin
+    cfg_len = var_len [var_cnt] [4:0];
     // write data
-    tst_wdt = tst_aro[var_num+:32];
+    tst_wdt = tst_aro[32*var_cnt+:32];
     IOWR (3, tst_wdt);
     // write command (output data transfer)
     tst_wdt = 32'h00000007 | (cfg_len << 8) | (cfg_iom << 4);
@@ -358,20 +369,12 @@ begin
   // enable slave output
   tst_oen = 1'b1;
 
-  for (var_num=0; var_num<cfg_num; var_num=var_num+32) begin
-    var_len = (cfg_num - var_num) > 32 ? 32 : (cfg_num - var_num);
-    var_lst = (cfg_num - var_num) <= 32;
-    case (cfg_iom)
-      2'd0 : var_ln1 = var_len     - 1;
-      2'd1 : var_ln1 = var_len     - 1;
-      2'd2 : var_ln1 = var_len / 2 - 1;
-      2'd3 : var_ln1 = var_len / 4 - 1;
-    endcase
-    cfg_len = var_ln1;
+  for (var_cnt=0; var_cnt<var_trn; var_cnt=var_cnt+1) begin
+    cfg_len = var_len [var_cnt] [4:0];
     // write command (input data transfer)
     tst_wdt = 32'h0000004b | (cfg_len << 8) | (cfg_iom << 4);
     IOWR (2, tst_wdt);
-    if (var_lst) begin
+    if (var_cnt == var_trn - 1) begin
     // write command (deassert slave select)
     tst_wdt = 32'h00000000                  | (cfg_iom << 4);
     IOWR (2, tst_wdt);
@@ -379,8 +382,8 @@ begin
     // read flash data
     IORD (3, tst_rdt);
     // TODO, find some more elegant code to do this
-    for (var_tmp=0; var_tmp<var_len; var_tmp=var_tmp+1)
-      tst_ari [var_num+var_tmp] = tst_rdt [var_len-1-var_tmp];
+    for (var_tmp=0; var_tmp<var_num[var_cnt]; var_tmp=var_tmp+1)
+      tst_ari [32*var_cnt+var_tmp] = tst_rdt [var_num[var_cnt]-1-var_tmp];
   end
 
   // check if read data is same as written data
