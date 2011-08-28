@@ -233,12 +233,21 @@ initial begin
 
   IDLE (4);                // few clock periods
 
+`define SPI_TB_DEBUG
+`ifdef SPI_TB_DEBUG
+
+  // TODO
+  test_spi_half_duplex (1'b1, 0, 0, 64, 5, tst_tmp);
+  tst_err = tst_err + tst_tmp;
+
+`else
+
   // check bit sized transfers up to SDW limit
   for (i=0; i<4; i=i+1) begin           // loop clock modes
     for (j=0; j<4; j=j+1) begin         // loop IO modes
       l = (j==3) ? 4 : (j==2) ? 2 : 1;  // number of transferred bits per clock period
       for (k=l; k<32; k=k+l) begin      // loop transfer size
-        test_spi_half_duplex (i[1:0], j[1:0], 1'd1, k, tst_tmp);
+        test_spi_half_duplex (1'b1, i[1:0], j[1:0], k, 0, tst_tmp);
         tst_err = tst_err + tst_tmp;
       end
     end
@@ -248,7 +257,7 @@ initial begin
   for (i=0; i<4; i=i+1) begin        // loop clock_modes
     for (j=0; j<4; j=j+1) begin      // loop IO modes
       for (k=1; k<=12; k=k+1) begin  // loop transfer size
-        test_spi_half_duplex (i[1:0], j[1:0], 1'd1, k*SDW, tst_tmp);
+        test_spi_half_duplex (1'b1, i[1:0], j[1:0], k*SDW, 0, tst_tmp);
         tst_err = tst_err + tst_tmp;
       end
     end
@@ -259,11 +268,7 @@ initial begin
   // test Flash access using DMA
   test_flash_dma;
 
-/*
-  // TODO
-  test_spi_half_duplex (0, 0, 1'd1, 64, tst_tmp);
-  tst_err = tst_err + tst_tmp;
-*/
+`endif
 
   tst_nme = "END";
   IDLE (16);               // few clock periods
@@ -283,10 +288,11 @@ end
 
 task test_spi_half_duplex (
   // configuration
+  input          cfg_dir,  // shift direction (0 - LSB first, 1 - MSB first)
   input    [1:0] cfg_ckm,  // clock mode {CPOL, CPHA}
   input    [1:0] cfg_iom,  // data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
-  input          cfg_dir,  // shift direction (0 - LSB first, 1 - MSB first)
   input  integer cfg_num,  // transfer size in number in bits
+  input  integer cfg_idl,  // idle time before/betwee/after transfer units
   // error status
   output integer tst_err
 );
@@ -308,9 +314,10 @@ begin
   tst_dir = cfg_dir;
 
   // set test name
-  tst_nme = {"half duplex:", " ckm=", "0" + cfg_ckm
+  tst_nme = {"half duplex:", " dir=", "0" + cfg_dir
+                           , " ckm=", "0" + cfg_ckm
                            , " iom=", "0" + cfg_iom
-                           , " dir=", "0" + cfg_dir
+                           , " idl=", "0" + cfg_idl
                            , " num=", int2str(cfg_num)};
 
   // create a table of transfer lengths
@@ -339,15 +346,17 @@ begin
   tst_oen = 1'b0;
 
   for (var_cnw=0; var_cnw<var_trn; var_cnw=var_cnw+1) begin
-    // configure transfer unit size
-    cfg_len = var_len [var_cnw] [4:0];
     // write data
     tst_wdt = tst_aro[32*var_cnw+:32];
     IOWR (3, tst_wdt);
+    iowr_cmd_idl (cfg_iom, cfg_idl);
+    // configure transfer unit size
+    cfg_len = var_len [var_cnw] [4:0];
     // write command (output data transfer)
     tst_wdt = 32'h00000007 | (cfg_len << 8) | (cfg_iom << 4);
     IOWR (2, tst_wdt);
   end
+  iowr_cmd_idl (cfg_iom, cfg_idl);
   // write command (deassert slave select)
   tst_wdt = 32'h00000000                    | (cfg_iom << 4);
   IOWR (2, tst_wdt);
@@ -405,6 +414,21 @@ begin
   IDLE (1);
   tst_err = tst_err + ary_cmp (tst_ari, slave_spi.ary_o, ARL);
   IDLE (1);
+end
+endtask
+
+// write command (idle time)
+task iowr_cmd_idl (
+  // configuration
+  input    [1:0] cfg_iom,  // data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
+  input  integer cfg_num   // transfer size in number in bits
+);
+  integer        var_tmp;  // temporal variable
+begin
+  if (cfg_num) begin
+    var_tmp = cfg_num - 1;
+    IOWR (2, 32'h00000002 | (var_tmp[4:0] << 8) | (cfg_iom << 4));
+  end
 end
 endtask
 
