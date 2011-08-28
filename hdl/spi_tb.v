@@ -233,7 +233,6 @@ initial begin
 
   IDLE (4);                // few clock periods
 
-///*
   // check bit sized transfers up to SDW limit
   for (i=0; i<4; i=i+1) begin           // loop clock modes
     for (j=0; j<4; j=j+1) begin         // loop IO modes
@@ -260,11 +259,11 @@ initial begin
   // test Flash access using DMA
   test_flash_dma;
 
-//*/
-
+/*
   // TODO
   test_spi_half_duplex (0, 0, 1'd1, 64, tst_tmp);
   tst_err = tst_err + tst_tmp;
+*/
 
   tst_nme = "END";
   IDLE (16);               // few clock periods
@@ -297,7 +296,8 @@ task test_spi_half_duplex (
   integer        var_num [0:255];  // transfer unit length table (data bits)
   integer        var_len [0:255];  // transfer unit length table (clock periods)
   integer        var_trn;          // transfer unit number (table size)
-  integer        var_cnt;          // transfer unit counter
+  integer        var_cnw;          // transfer unit counter (writes)
+  integer        var_cnr;          // transfer unit counter (reads)
 begin
   // initialize error counter
   tst_err = 0;
@@ -338,10 +338,11 @@ begin
   // disable slave output
   tst_oen = 1'b0;
 
-  for (var_cnt=0; var_cnt<var_trn; var_cnt=var_cnt+1) begin
-    cfg_len = var_len [var_cnt] [4:0];
+  for (var_cnw=0; var_cnw<var_trn; var_cnw=var_cnw+1) begin
+    // configure transfer unit size
+    cfg_len = var_len [var_cnw] [4:0];
     // write data
-    tst_wdt = tst_aro[32*var_cnt+:32];
+    tst_wdt = tst_aro[32*var_cnw+:32];
     IOWR (3, tst_wdt);
     // write command (output data transfer)
     tst_wdt = 32'h00000007 | (cfg_len << 8) | (cfg_iom << 4);
@@ -369,21 +370,35 @@ begin
   // enable slave output
   tst_oen = 1'b1;
 
-  for (var_cnt=0; var_cnt<var_trn; var_cnt=var_cnt+1) begin
-    cfg_len = var_len [var_cnt] [4:0];
-    // write command (input data transfer)
-    tst_wdt = 32'h0000004b | (cfg_len << 8) | (cfg_iom << 4);
-    IOWR (2, tst_wdt);
-    if (var_cnt == var_trn - 1) begin
-    // write command (deassert slave select)
-    tst_wdt = 32'h00000000                  | (cfg_iom << 4);
-    IOWR (2, tst_wdt);
+  var_cnw = 0;
+  for (var_cnr=0; var_cnr<var_trn; var_cnr=var_cnr+1) begin
+    if (var_cnw == 0) begin
+      // configure transfer unit size
+      cfg_len = var_len [var_cnw] [4:0];
+      // write command (input data transfer)
+      tst_wdt = 32'h0000004b | (cfg_len << 8) | (cfg_iom << 4);
+      IOWR (2, tst_wdt);
+      // increment write counter
+      var_cnw=var_cnw+1;
+    end
+    if (var_cnr < var_trn-1) begin
+      // configure transfer unit size
+      cfg_len = var_len [var_cnw] [4:0];
+      // write command (input data transfer)
+      tst_wdt = 32'h0000004b | (cfg_len << 8) | (cfg_iom << 4);
+      IOWR (2, tst_wdt);
+      // increment write counter
+      var_cnw=var_cnw+1;
+    end else begin
+      // write command (deassert slave select)
+      tst_wdt = 32'h00000000                  | (cfg_iom << 4);
+      IOWR (2, tst_wdt);
     end
     // read flash data
     IORD (3, tst_rdt);
     // TODO, find some more elegant code to do this
-    for (var_tmp=0; var_tmp<var_num[var_cnt]; var_tmp=var_tmp+1)
-      tst_ari [32*var_cnt+var_tmp] = tst_rdt [var_num[var_cnt]-1-var_tmp];
+    for (var_tmp=0; var_tmp<var_num[var_cnr]; var_tmp=var_tmp+1)
+      tst_ari [32*var_cnr+var_tmp] = tst_rdt [var_num[var_cnr]-1-var_tmp];
   end
 
   // check if read data is same as written data
