@@ -233,11 +233,11 @@ initial begin
 
   IDLE (4);                // few clock periods
 
-`define SPI_TB_DEBUG
+//`define SPI_TB_DEBUG
 `ifdef SPI_TB_DEBUG
 
   // TODO
-  test_spi_half_duplex (1'b1, 0, 0, 64, 5, tst_tmp);
+  test_spi_half_duplex (1'b1, 0, 0, 64, 5, 7, tst_tmp);
   tst_err = tst_err + tst_tmp;
 
 `else
@@ -247,7 +247,7 @@ initial begin
     for (j=0; j<4; j=j+1) begin         // loop IO modes
       l = (j==3) ? 4 : (j==2) ? 2 : 1;  // number of transferred bits per clock period
       for (k=l; k<32; k=k+l) begin      // loop transfer size
-        test_spi_half_duplex (1'b1, i[1:0], j[1:0], k, 0, tst_tmp);
+        test_spi_half_duplex (1'b1, i[1:0], j[1:0], k, 0, 1, tst_tmp);
         tst_err = tst_err + tst_tmp;
       end
     end
@@ -257,7 +257,7 @@ initial begin
   for (i=0; i<4; i=i+1) begin        // loop clock_modes
     for (j=0; j<4; j=j+1) begin      // loop IO modes
       for (k=1; k<=12; k=k+1) begin  // loop transfer size
-        test_spi_half_duplex (1'b1, i[1:0], j[1:0], k*SDW, 0, tst_tmp);
+        test_spi_half_duplex (1'b1, i[1:0], j[1:0], k*SDW, 0, 1, tst_tmp);
         tst_err = tst_err + tst_tmp;
       end
     end
@@ -292,7 +292,8 @@ task test_spi_half_duplex (
   input    [1:0] cfg_ckm,  // clock mode {CPOL, CPHA}
   input    [1:0] cfg_iom,  // data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
   input  integer cfg_num,  // transfer size in number in bits
-  input  integer cfg_idl,  // idle time before/betwee/after transfer units
+  input  integer cfg_dly,  // delay time before/betwee/after transfer units
+  input  integer cfg_idl,  // idle time between slave selects
   // error status
   output integer tst_err
 );
@@ -300,7 +301,6 @@ task test_spi_half_duplex (
   reg      [4:0] cfg_len;          // transfer unit length (clock periods)
   integer        var_tmp;          // temporal variable
   integer        var_num [0:255];  // transfer unit length table (data bits)
-  integer        var_len [0:255];  // transfer unit length table (clock periods)
   integer        var_trn;          // transfer unit number (table size)
   integer        var_cnw;          // transfer unit counter (writes)
   integer        var_cnr;          // transfer unit counter (reads)
@@ -323,12 +323,6 @@ begin
   // create a table of transfer lengths
   for (var_trn=0; var_trn*32<cfg_num; var_trn=var_trn+1) begin
     var_num [var_trn] = (cfg_num - var_trn*32) > 32 ? 32 : (cfg_num - var_trn*32);
-    case (cfg_iom)
-      2'd0 : var_len [var_trn] = var_num [var_trn]     - 1;
-      2'd1 : var_len [var_trn] = var_num [var_trn]     - 1;
-      2'd2 : var_len [var_trn] = var_num [var_trn] / 2 - 1;
-      2'd3 : var_len [var_trn] = var_num [var_trn] / 4 - 1;
-    endcase
   end
   
   // write configuration
@@ -349,17 +343,13 @@ begin
     // write data
     tst_wdt = tst_aro[32*var_cnw+:32];
     IOWR (3, tst_wdt);
-    iowr_cmd_idl (cfg_iom, cfg_idl);
-    // configure transfer unit size
-    cfg_len = var_len [var_cnw] [4:0];
-    // write command (output data transfer)
-    tst_wdt = 32'h00000007 | (cfg_len << 8) | (cfg_iom << 4);
-    IOWR (2, tst_wdt);
+    if (cfg_dly)
+    IOWR (2, iowr_cmd_dly (cfg_dly));
+    IOWR (2, iowr_cmd_dto (var_num[var_cnw], cfg_iom));
   end
-  iowr_cmd_idl (cfg_iom, cfg_idl);
-  // write command (deassert slave select)
-  tst_wdt = 32'h00000000                    | (cfg_iom << 4);
-  IOWR (2, tst_wdt);
+  if (cfg_dly)
+  IOWR (2, iowr_cmd_dly (cfg_dly));
+  IOWR (2, iowr_cmd_idl (cfg_idl));
 
   IDLE (32);  // wait for write transfers to finish
 
@@ -382,26 +372,14 @@ begin
   var_cnw = 0;
   for (var_cnr=0; var_cnr<var_trn; var_cnr=var_cnr+1) begin
     if (var_cnw == 0) begin
-      // configure transfer unit size
-      cfg_len = var_len [var_cnw] [4:0];
-      // write command (input data transfer)
-      tst_wdt = 32'h0000004b | (cfg_len << 8) | (cfg_iom << 4);
-      IOWR (2, tst_wdt);
-      // increment write counter
+      IOWR (2, iowr_cmd_dti (var_num[var_cnw], cfg_iom));
       var_cnw=var_cnw+1;
     end
     if (var_cnr < var_trn-1) begin
-      // configure transfer unit size
-      cfg_len = var_len [var_cnw] [4:0];
-      // write command (input data transfer)
-      tst_wdt = 32'h0000004b | (cfg_len << 8) | (cfg_iom << 4);
-      IOWR (2, tst_wdt);
-      // increment write counter
+      IOWR (2, iowr_cmd_dti (var_num[var_cnw], cfg_iom));
       var_cnw=var_cnw+1;
     end else begin
-      // write command (deassert slave select)
-      tst_wdt = 32'h00000000                  | (cfg_iom << 4);
-      IOWR (2, tst_wdt);
+      IOWR (2, iowr_cmd_idl (cfg_idl));
     end
     // read flash data
     IORD (3, tst_rdt);
@@ -417,20 +395,73 @@ begin
 end
 endtask
 
-// write command (idle time)
-task iowr_cmd_idl (
-  // configuration
-  input    [1:0] cfg_iom,  // data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
-  input  integer cfg_num   // transfer size in number in bits
+// convert number of bits into transfer length
+function [4:0] num2len (
+  input integer num,
+  input   [1:0] iom
 );
-  integer        var_tmp;  // temporal variable
+  integer       tmp;
 begin
-  if (cfg_num) begin
-    var_tmp = cfg_num - 1;
-    IOWR (2, 32'h00000002 | (var_tmp[4:0] << 8) | (cfg_iom << 4));
-  end
+  case (iom)
+    2'd0 : tmp = num     - 1;  // 3-wire
+    2'd1 : tmp = num     - 1;  // SPI   
+    2'd2 : tmp = num / 2 - 1;  // dual  
+    2'd3 : tmp = num / 4 - 1;  // quad  
+  endcase
+  num2len = tmp[4:0];
 end
-endtask
+endfunction
+
+// command
+function [31:0] iowr_cmd (
+  input   [4:0] len,  // transfer length (in the range from 1 to SDW bits)
+  input         pkm,  // packeting mode (0 - remainder last, 1 - remainder first)
+  input   [1:0] iom,  // SPI data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
+  input         die,  // SPI data input enable
+  input         doe,  // SPI data output enable
+  input         sso,  // SPI slave select enable
+  input         cke   // SPI clock enable
+);
+  iowr_cmd = {20'hxxxxx, len, 1'b0, pkm, iom, die, doe, sso, cke};
+endfunction
+
+// command (idle with slave select inactive)
+function [31:0] iowr_cmd_idl (
+  input integer num   // clock periods
+);  //                         len,           pkm, iom, die, doe, sso, cke
+  iowr_cmd_idl = iowr_cmd (num2len(num, 'd1), 'b0, 'd1, 'b0, 'b0, 'b0, 'b0);
+endfunction
+
+// command (delay with slave select active)
+function [31:0] iowr_cmd_dly (
+  input integer num   // clock periods
+);  //                         len          , pkm, iom, die, doe, sso, cke
+  iowr_cmd_dly = iowr_cmd (num2len(num, 'd1), 'b0, 'd1, 'b0, 'b0, 'b1, 'b0);
+endfunction
+
+// command (data transfer output)
+function [31:0] iowr_cmd_dto (
+  input integer num,  // transfer size in number in bits
+  input   [1:0] iom   // SPI data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
+);  //                         len          , pkm, iom, die, doe, sso, cke
+  iowr_cmd_dto = iowr_cmd (num2len(num, iom), 'b0, iom, 'b0, 'b1, 'b1, 'b1);
+endfunction
+
+// command (data transfer output)
+function [31:0] iowr_cmd_dti (
+  input integer num,  // transfer size in number in bits
+  input   [1:0] iom   // SPI data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
+);  //                         len          , pkm, iom, die, doe, sso, cke
+  iowr_cmd_dti = iowr_cmd (num2len(num, iom), 'b1, iom, 'b1, 'b0, 'b1, 'b1);
+endfunction
+
+// command (data transfer duplex)
+function [31:0] iowr_cmd_dtd (
+  input integer num,  // transfer size in number in bits
+  input         pkm   // packeting mode (0 - remainder last, 1 - remainder first)
+);  //                         len          , pkm, iom, die, doe, sso, cke
+  iowr_cmd_dtd = iowr_cmd (num2len(num, 'd1), pkm, 'd1, 'b1, 'b1, 'b1, 'b1);
+endfunction
 
 ////////////////////////////////////////////////////////////////////////////////
 // test Flash access using register interface                                 //
