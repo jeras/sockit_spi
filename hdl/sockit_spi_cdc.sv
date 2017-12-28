@@ -53,19 +53,19 @@ module sockit_spi_cdc #(
   parameter    DW = 1    // data    width
 )(
   // input port
-  input  wire          cdi_clk,  // clock
-  input  wire          cdi_rst,  // reset
-  input  wire          cdi_clr,  // clear
-  input  wire [DW-1:0] cdi_dat,  // data
-  input  wire          cdi_vld,  // valid
-  output reg           cdi_rdy,  // ready
+  input  logic          cdi_clk,  // clock
+  input  logic          cdi_rst,  // reset
+  input  logic          cdi_clr,  // clear
+  input  logic [DW-1:0] cdi_dat,  // data
+  input  logic          cdi_vld,  // valid
+  output logic          cdi_rdy,  // ready
   // output port
-  input  wire          cdo_clk,  // clock
-  input  wire          cdo_rst,  // reset
-  input  wire          cdo_clr,  // clear
-  output wire [DW-1:0] cdo_dat,  // data
-  output reg           cdo_vld,  // valid
-  input  wire          cdo_rdy   // ready
+  input  logic          cdo_clk,  // clock
+  input  logic          cdo_rst,  // reset
+  input  logic          cdo_clr,  // clear
+  output logic [DW-1:0] cdo_dat,  // data
+  output logic          cdo_vld,  // valid
+  input  logic          cdo_rdy   // ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,19 +102,19 @@ endfunction
 ////////////////////////////////////////////////////////////////////////////////
 
 // input port
-wire          cdi_trn;  // transfer
-reg  [CW-1:0] cdi_syn;  // synchronization
-reg  [CW-1:0] cdi_cnt;  // gray counter
-wire [CW-1:0] cdi_inc;  // gray increment
+logic          cdi_trn;  // transfer
+logic [CW-1:0] cdi_syn;  // synchronization
+logic [CW-1:0] cdi_cnt;  // gray counter
+logic [CW-1:0] cdi_inc;  // gray increment
 
 // CDC FIFO memory
-reg  [DW-1:0] cdc_mem [0:2**CW-1];
+logic [DW-1:0] cdc_mem [0:2**CW-1];
 
 // output port
-wire          cdo_trn;  // transfer
-reg  [CW-1:0] cdo_syn;  // synchronization
-reg  [CW-1:0] cdo_cnt;  // gray counter
-wire [CW-1:0] cdo_inc;  // gray increment
+logic          cdo_trn;  // transfer
+logic [CW-1:0] cdo_syn;  // synchronization
+logic [CW-1:0] cdo_cnt;  // gray counter
+logic [CW-1:0] cdo_inc;  // gray increment
 
 ////////////////////////////////////////////////////////////////////////////////
 // input port                                                                 //
@@ -127,7 +127,7 @@ assign cdi_trn = cdi_vld & cdi_rdy;
 assign cdi_inc = gry_inc (cdi_cnt);
 
 // synchronization and counter registers
-always @ (posedge cdi_clk, posedge cdi_rst)
+always_ff @ (posedge cdi_clk, posedge cdi_rst)
 if (cdi_rst) begin
                      cdi_syn <= {CW{1'b0}};
                      cdi_cnt <= {CW{1'b0}};
@@ -140,7 +140,7 @@ end else begin
 end
 
 // data memory
-always @ (posedge cdi_clk)
+always_ff @ (posedge cdi_clk)
 if (cdi_trn) cdc_mem [cdi_cnt] <= cdi_dat;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -154,7 +154,7 @@ assign cdo_trn = cdo_vld & cdo_rdy;
 assign cdo_inc = gry_inc (cdo_cnt);
 
 // synchronization and counter registers
-always @ (posedge cdo_clk, posedge cdo_rst)
+always_ff @ (posedge cdo_clk, posedge cdo_rst)
 if (cdo_rst) begin
                      cdo_syn <= {CW{1'b0}};
                      cdo_cnt <= {CW{1'b0}};
@@ -169,4 +169,4 @@ end
 // asynchronous output data
 assign cdo_dat = cdc_mem [cdo_cnt];
 
-endmodule
+endmodule: sockit_spi_cdc

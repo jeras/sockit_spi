@@ -67,39 +67,39 @@ module sockit_spi_dma #(
   parameter CDW     =           32   // command data width
 )(
   // system signals
-  input  wire           clk,      // clock
-  input  wire           rst,      // reset
+  input  logic           clk,      // clock
+  input  logic           rst,      // reset
   // memory bus interface
-  output reg            dma_wen,  // write enable
-  output reg            dma_ren,  // read enable
-  output reg  [DAW-1:0] dma_adr,  // address
-  output reg      [3:0] dma_ben,  // byte enable
-  output reg     [31:0] dma_wdt,  // write data
-  input  wire    [31:0] dma_rdt,  // read data
-  input  wire           dma_wrq,  // wait request
-  input  wire           dma_err,  // error response
+  output logic           dma_wen,  // write enable
+  output logic           dma_ren,  // read enable
+  output logic [DAW-1:0] dma_adr,  // address
+  output logic     [3:0] dma_ben,  // byte enable
+  output logic    [31:0] dma_wdt,  // write data
+  input  logic    [31:0] dma_rdt,  // read data
+  input  logic           dma_wrq,  // wait request
+  input  logic           dma_err,  // error response
   // configuration
-  input  wire    [31:0] spi_cfg,  // DMA configuration
-  input  wire    [31:0] adr_rof,  // address read  offset
-  input  wire    [31:0] adr_wof,  // address write offset
+  input  logic    [31:0] spi_cfg,  // DMA configuration
+  input  logic    [31:0] adr_rof,  // address read  offset
+  input  logic    [31:0] adr_wof,  // address write offset
   // DMA task interface
-  input  wire           tsk_vld,  // valid
-  input  wire    [31:0] tsk_ctl,  // control
-  output wire    [31:0] tsk_sts,  // status
-  output wire           tsk_rdy,  // ready
+  input  logic           tsk_vld,  // valid
+  input  logic    [31:0] tsk_ctl,  // control
+  output logic    [31:0] tsk_sts,  // status
+  output logic           tsk_rdy,  // ready
   // arbiter locks
-  output reg            arb_lko,  // command output lock
-  output reg            arb_lki,  // command input  lock
+  output logic           arb_lko,  // command output lock
+  output logic           arb_lki,  // command input  lock
   // command output
-  output wire           cmo_vld,  // valid
-  output wire [CCO-1:0] cmo_ctl,  // control
-  output reg  [CDW-1:0] cmo_dat,  // data
-  input  wire           cmo_rdy,  // ready
+  output logic           cmo_vld,  // valid
+  output logic [CCO-1:0] cmo_ctl,  // control
+  output logic [CDW-1:0] cmo_dat,  // data
+  input  logic           cmo_rdy,  // ready
   // command input
-  input  wire           cmi_vld,  // valid
-  input  wire [CCI-1:0] cmi_ctl,  // control
-  input  wire [CDW-1:0] cmi_dat,  // data
-  output wire           cmi_rdy   // ready
+  input  logic           cmi_vld,  // valid
+  input  logic [CCI-1:0] cmi_ctl,  // control
+  input  logic [CDW-1:0] cmi_dat,  // data
+  output logic           cmi_rdy   // ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -110,38 +110,38 @@ module sockit_spi_dma #(
 localparam DCW = (DAW>31) ? 31 : DAW;
 
 // configuration
-wire           cfg_end;  // bus endianness (0 - little, 1 - big)
-wire           cfg_prf;  // read prefetch (0 - single, 1 - double)
-wire     [1:0] cfg_bts;  // bus transfer size (n+1 Bytes)
-wire           cfg_m_s;  // SPI bus mode (0 - slave, 1 - master)
-wire           cfg_pkm;  // packaging mode
-wire     [1:0] cfg_iom;  // SPI data IO mode
+logic           cfg_end;  // bus endianness (0 - little, 1 - big)
+logic           cfg_prf;  // read prefetch (0 - single, 1 - double)
+logic     [1:0] cfg_bts;  // bus transfer size (n+1 Bytes)
+logic           cfg_m_s;  // SPI bus mode (0 - slave, 1 - master)
+logic           cfg_pkm;  // packaging mode
+logic     [1:0] cfg_iom;  // SPI data IO mode
 
 // DMA task interface
-wire           tsk_trn;  // transfer
+logic           tsk_trn;  // transfer
 
 // memory interface
-wire           dma_trn;  // bus transfer
-wire           dma_rdy;  // bus ready for new transfer
-reg     [31:0] dma_rdr;  // read data register
-reg      [1:0] dma_rdb;  // read data byte
-reg            dma_rds;  // read data status
+logic           dma_trn;  // bus transfer
+logic           dma_rdy;  // bus ready for new transfer
+logic    [31:0] dma_rdr;  // read data register
+logic     [1:0] dma_rdb;  // read data byte
+logic           dma_rds;  // read data status
 
 // cycle registers
-reg            cyc_run;  // cycle run-status
-reg            cyc_iod;  // cycle input/output direction
-reg            cyc_oen;  // command output enable
-reg            cyc_ien;  // command input  enable
-reg  [DCW-1:0] cyc_ocn;  // command output counter
-reg  [DCW-1:0] cyc_icn;  // command input  counter
-wire           cyc_ofn;  // command output finish
-wire           cyc_ifn;  // command input  finish
+logic           cyc_run;  // cycle run-status
+logic           cyc_iod;  // cycle input/output direction
+logic           cyc_oen;  // command output enable
+logic           cyc_ien;  // command input  enable
+logic [DCW-1:0] cyc_ocn;  // command output counter
+logic [DCW-1:0] cyc_icn;  // command input  counter
+logic           cyc_ofn;  // command output finish
+logic           cyc_ifn;  // command input  finish
 
 // command output
-wire           cmo_trn;  // transfer
+logic           cmo_trn;  // transfer
 
 // command input
-wire           cmi_trn;  // transfer
+logic           cmi_trn;  // transfer
 
 ////////////////////////////////////////////////////////////////////////////////
 // configuration                                                              //
@@ -168,7 +168,7 @@ assign dma_rdy = ~(dma_wen | dma_ren) | dma_trn;
 //assign dma_rcy = cyc_oen & ~(cyc_ofn & cmo_trn) & (cmo_rdy | ~dma_rds & ~dma_ren);
 
 // write/read control (write has priority over read)
-always @ (posedge clk, posedge rst)
+always_ff @ (posedge clk, posedge rst)
 if (rst) begin
   dma_wen <= 1'b0;
   dma_ren <= 1'b0;
@@ -178,12 +178,12 @@ end else if (dma_rdy) begin
 end
 
 // write/read address register
-always @ (posedge clk)
+always_ff @ (posedge clk)
 if      (tsk_trn)  dma_adr <= tsk_ctl[31] ? adr_rof : adr_wof;
 else if (dma_trn)  dma_adr <= dma_adr + (cfg_bts + 'd1);
 
 // write byte enable
-always @ (posedge clk)
+always_ff @ (posedge clk)
 if (tsk_trn) begin
   if (~tsk_ctl[31]) begin
     case (cfg_bts)
@@ -206,7 +206,7 @@ end
 
 // write data
 // TODO proper alignment
-always @ (posedge clk)
+always_ff @ (posedge clk)
 if (cmi_trn) begin
   case (cfg_bts)
     // TODO, the address is not always correct
@@ -218,14 +218,14 @@ if (cmi_trn) begin
 end
 
 // read data register, byte
-always @ (posedge clk)
+always_ff @ (posedge clk)
 if (dma_ren & dma_trn) begin
   dma_rdr <= dma_rdt;
   dma_rdb <= dma_adr [1:0];
 end
 
 // read data status
-always @ (posedge clk, posedge rst)
+always_ff @ (posedge clk, posedge rst)
 if (rst)                  dma_rds <= 1'b0;
 else begin
   if (dma_ren & dma_trn)  dma_rds <= 1'b1;
@@ -237,7 +237,7 @@ end
 ////////////////////////////////////////////////////////////////////////////////
 
 // control registers
-always @ (posedge clk, posedge rst)
+always_ff @ (posedge clk, posedge rst)
 if (rst) begin
   cyc_run <= 1'b0;
   cyc_iod <= 1'b0;
@@ -260,7 +260,7 @@ end else begin
 end
 
 // transfer counter
-always @ (posedge clk, posedge rst)
+always_ff @ (posedge clk, posedge rst)
 if (rst) begin
   cyc_ocn <= 'd0;
   cyc_icn <= 'd0;
@@ -296,7 +296,7 @@ assign tsk_rdy = ~cyc_run;
 ////////////////////////////////////////////////////////////////////////////////
 
 // TODO implement real registers, with proper timing
-always @ (*)
+always_comb
 begin
   arb_lko = cyc_run | ~cfg_m_s;
   arb_lki = cyc_run | ~cfg_m_s;
@@ -321,7 +321,7 @@ assign cmo_ctl = {cfg_bts, 3'd7, cfg_pkm, cfg_iom, cyc_ien, cyc_oen, 1'b1, 1'b1}
 // data
 generate if (ENDIAN == "BIG") begin
 
-always @ (*) begin
+always_comb begin
   case (cfg_bts)
     2'd0    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h00xxxxxx;
     2'd1    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h0000xxxx;
@@ -333,7 +333,7 @@ end
 end else if (ENDIAN == "LITTLE") begin
 
 // TODO, think about it and than implement it
-always @ (*) begin
+always_comb begin
   case (cfg_bts)
     2'd0    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h00xxxxxx;
     2'd1    : cmo_dat = (dma_rdr << (8*dma_rdb)) ^ 32'h0000xxxx;
@@ -354,4 +354,4 @@ assign cmi_trn = cmi_vld & cmi_rdy;
 // transfer ready
 assign cmi_rdy = dma_rdy;
 
-endmodule
+endmodule: sockit_spi_dma

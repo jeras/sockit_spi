@@ -34,31 +34,31 @@ module sockit_spi_xip #(
   parameter CDW     =           32   // command data width
 )(
   // system signals
-  input  wire           clk,      // clock
-  input  wire           rst,      // reset
+  input  logic           clk,      // clock
+  input  logic           rst,      // reset
   // input bus (XIP requests)
-  input  wire           xip_wen,  // write enable
-  input  wire           xip_ren,  // read enable
-  input  wire [XAW-1:0] xip_adr,  // address
-  input  wire     [3:0] xip_ben,  // byte enable
-  input  wire    [31:0] xip_wdt,  // write data
-  output wire    [31:0] xip_rdt,  // read data
-  output wire           xip_wrq,  // wait request
-  output wire           xip_err,  // error response
+  input  logic           xip_wen,  // write enable
+  input  logic           xip_ren,  // read enable
+  input  logic [XAW-1:0] xip_adr,  // address
+  input  logic     [3:0] xip_ben,  // byte enable
+  input  logic    [31:0] xip_wdt,  // write data
+  output logic    [31:0] xip_rdt,  // read data
+  output logic           xip_wrq,  // wait request
+  output logic           xip_err,  // error response
   // configuration
-  input  wire    [31:0] spi_cfg,  // SPI/XIP/DMA configuration
-  input  wire    [31:0] adr_rof,  // address read  offset
-  input  wire    [31:0] adr_wof,  // address write offset
+  input  logic    [31:0] spi_cfg,  // SPI/XIP/DMA configuration
+  input  logic    [31:0] adr_rof,  // address read  offset
+  input  logic    [31:0] adr_wof,  // address write offset
   // command output
-  output wire           cmo_vld,  // valid
-  output wire [CCO-1:0] cmo_ctl,  // control
-  output wire [CDW-1:0] cmo_dat,  // data
-  input  wire           cmo_rdy,  // ready
+  output logic           cmo_vld,  // valid
+  output logic [CCO-1:0] cmo_ctl,  // control
+  output logic [CDW-1:0] cmo_dat,  // data
+  input  logic           cmo_rdy,  // ready
   // command input
-  input  wire           cmi_vld,  // valid
-  input  wire [CCI-1:0] cmi_ctl,  // control
-  input  wire [CDW-1:0] cmi_dat,  // data
-  output wire           cmi_rdy   // ready
+  input  logic           cmi_vld,  // valid
+  input  logic [CCI-1:0] cmi_ctl,  // control
+  input  logic [CDW-1:0] cmi_dat,  // data
+  output logic           cmi_rdy   // ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -83,22 +83,22 @@ localparam DAT_RDT = 7'b 0_0_0_0_11?;  // data read (read buffer)
 
 /*
 // XIP state machine status
-reg      [6:0] fsm_sts;  // current state
-reg      [6:0] fsm_nxt;  // next state
+logic     [6:0] fsm_sts;  // current state
+logic     [6:0] fsm_nxt;  // next state
 */
 // address adder
-// reg  [XAW-1:0] adr_reg;  // input address register
-// wire [XAW-1:0] adr_sum;  // input address + offset address
+// logic [XAW-1:0] adr_reg;  // input address register
+// logic [XAW-1:0] adr_sum;  // input address + offset address
 
 ////////////////////////////////////////////////////////////////////////////////
 // state machine                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 /*
-always @ (posedge clk, posedge rst)
+always_ff @ (posedge clk, posedge rst)
 if (rst) fsm_sts <= IDL_RST;
 else     fsm_sts <= fsm_nxt;
 
-always @ (*)
+always_comb
 casez (fsm_sts)
   IDL_RST : begin
     fsm_adr = 1'bx;
@@ -151,4 +151,4 @@ assign xip_rdt = fsm_rdt;
 assign xip_wrq = fsm_sts[5];
 assign xip_err = fsm_sts[6];
 */
-endmodule
+endmodule: sockit_spi_xip

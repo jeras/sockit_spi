@@ -104,37 +104,37 @@ module sockit_spi_reg #(
   parameter CDW     =           32   // command data width
 )(
   // system signals (used by the CPU interface)
-  input  wire           clk,      // clock for CPU interface
-  input  wire           rst,      // reset for CPU interface
+  input  logic           clk,      // clock for CPU interface
+  input  logic           rst,      // reset for CPU interface
   // bus interface
-  input  wire           reg_wen,  // write enable
-  input  wire           reg_ren,  // read enable
-  input  wire     [2:0] reg_adr,  // address
-  input  wire    [31:0] reg_wdt,  // write data
-  output reg     [31:0] reg_rdt,  // read data
-  output reg            reg_wrq,  // wait request
-  output wire           reg_err,  // error response
-  output wire           reg_irq,  // interrupt request
+  input  logic           reg_wen,  // write enable
+  input  logic           reg_ren,  // read enable
+  input  logic     [2:0] reg_adr,  // address
+  input  logic    [31:0] reg_wdt,  // write data
+  output logic    [31:0] reg_rdt,  // read data
+  output logic           reg_wrq,  // wait request
+  output logic           reg_err,  // error response
+  output logic           reg_irq,  // interrupt request
   // SPI/XIP/DMA configuration
-  output reg     [31:0] spi_cfg,  // configuration register
+  output logic    [31:0] spi_cfg,  // configuration register
   // address offsets
-  output reg     [31:0] adr_rof,  // address read  offset
-  output reg     [31:0] adr_wof,  // address write offset
+  output logic    [31:0] adr_rof,  // address read  offset
+  output logic    [31:0] adr_wof,  // address write offset
   // command output
-  output wire           cmo_vld,  // valid
-  output wire [CCO-1:0] cmo_ctl,  // control
-  output reg  [CDW-1:0] cmo_dat,  // data
-  input  wire           cmo_rdy,  // ready
+  output logic           cmo_vld,  // valid
+  output logic [CCO-1:0] cmo_ctl,  // control
+  output logic [CDW-1:0] cmo_dat,  // data
+  input  logic           cmo_rdy,  // ready
   // command input
-  input  wire           cmi_vld,  // valid
-  input  wire [CCI-1:0] cmi_ctl,  // control
-  input  wire [CDW-1:0] cmi_dat,  // data
-  output wire           cmi_rdy,  // ready
+  input  logic           cmi_vld,  // valid
+  input  logic [CCI-1:0] cmi_ctl,  // control
+  input  logic [CDW-1:0] cmi_dat,  // data
+  output logic           cmi_rdy,  // ready
   // DMA task interface
-  output wire           tsk_vld,  // DMA valid
-  output wire    [31:0] tsk_ctl,  // DMA control
-  input  wire    [31:0] tsk_sts,  // DMA status
-  input  wire           tsk_rdy   // DMA ready
+  output logic           tsk_vld,  // DMA valid
+  output logic    [31:0] tsk_ctl,  // DMA control
+  input  logic    [31:0] tsk_sts,  // DMA status
+  input  logic           tsk_rdy   // DMA ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,22 +142,22 @@ module sockit_spi_reg #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // decoded register access signals
-wire  wen_spi, ren_spi;  // SPI control/status
-wire  wen_dat, ren_dat;  // SPI data
-wire  wen_dma, ren_dma;  // DMA control/status
+logic  wen_spi, ren_spi;  // SPI control/status
+logic  wen_dat, ren_dat;  // SPI data
+logic  wen_dma, ren_dma;  // DMA control/status
 
 //
-wire    [31:0] spi_par;  // SPI parameterization
-wire    [31:0] spi_sts;  // SPI status
-reg     [31:0] spi_dat;  // SPI data
+logic    [31:0] spi_par;  // SPI parameterization
+logic    [31:0] spi_sts;  // SPI status
+logic    [31:0] spi_dat;  // SPI data
 
 // SPI command interface
-wire           cmo_trn;
-wire           cmi_trn;
+logic           cmo_trn;
+logic           cmi_trn;
 
 // data
-reg            dat_wld;  // write load
-reg            dat_rld;  // read  load
+logic           dat_wld;  // write load
+logic           dat_rld;  // read  load
 
 // DMA command interface
 
@@ -171,7 +171,7 @@ assign {wen_dat, ren_dat} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd3) & ~reg_wrq
 assign {wen_dma, ren_dma} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd5) & ~reg_wrq}};  // DMA control/status
 
 // read data
-always @ (*)
+always_comb
 case (reg_adr)
   3'd0 : reg_rdt =      spi_cfg;  // SPI configuration
   3'd1 : reg_rdt =      spi_par;  // SPI parameterization
@@ -184,7 +184,7 @@ case (reg_adr)
 endcase
 
 // wait request
-always @ (*)
+always_comb
 case (reg_adr)
   3'd0 : reg_wrq = 1'b0;                                 // SPI configuration
   3'd1 : reg_wrq = 1'b0;                                 // SPI parameterization
@@ -211,7 +211,7 @@ assign reg_irq = 1'b0; // TODO
 ////////////////////////////////////////////////////////////////////////////////
 
 // SPI configuration (write access)
-always @(posedge clk, posedge rst)
+always_ff @(posedge clk, posedge rst)
 if (rst) begin
   spi_cfg <= CFG_RST;
 end else if (reg_wen & (reg_adr == 3'd0)) begin
@@ -225,7 +225,7 @@ assign spi_par =  32'h0;
 assign spi_sts =  32'h0; // TODO
 
 // XIP/DMA address offsets
-always @(posedge clk, posedge rst)
+always_ff @(posedge clk, posedge rst)
 if (rst) begin
                         adr_rof <= ADR_ROF [31:0];
                         adr_wof <= ADR_WOF [31:0];
@@ -242,11 +242,11 @@ end
 assign cmo_trn = cmo_vld & cmo_rdy;
 
 // data output
-always @(posedge clk)
+always_ff @(posedge clk)
 if (wen_dat)  cmo_dat <= reg_wdt;
 
 // data output load status
-always @(posedge clk, posedge rst)
+always_ff @(posedge clk, posedge rst)
 if (rst)             dat_wld <= 1'b0;
 else begin
   if      (wen_dat)  dat_wld <= 1'b1;
@@ -265,11 +265,11 @@ assign cmo_ctl = {reg_wdt[12:8], reg_wdt[6:0]};
 assign cmi_trn = cmi_vld & cmi_rdy;
 
 // data input
-always @(posedge clk)
+always_ff @(posedge clk)
 if (cmi_trn)  spi_dat <= cmi_dat;
 
 // data input load status
-always @(posedge clk, posedge rst)
+always_ff @(posedge clk, posedge rst)
 if (rst)             dat_rld <= 1'b0;
 else begin
   if      (cmi_trn)  dat_rld <= 1'b1;
@@ -286,4 +286,4 @@ assign cmi_rdy = ~dat_rld;
 assign tsk_vld = wen_dma;
 assign tsk_ctl = reg_wdt;
 
-endmodule
+endmodule: sockit_spi_reg

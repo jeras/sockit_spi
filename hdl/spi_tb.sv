@@ -1030,4 +1030,4 @@ spi_flash_model #(
 //);
 //defparam Flash.mem_access.initfile = "hdl/bench/numonyx/initM25P80.txt";
 
-endmodule
+endmodule: spi_tb

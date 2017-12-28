@@ -81,51 +81,51 @@ module sockit_spi #(
   parameter CDC     =         1'b0   // implement clock domain crossing
 )(
   // system signals (used by the CPU interface)
-  input  wire           clk_cpu,     // clock for CPU interface
-  input  wire           rst_cpu,     // reset for CPU interface
-  input  wire           clk_spi,     // clock for SPI IO
-  input  wire           rst_spi,     // reset for SPI IO
+  input  logic           clk_cpu,     // clock for CPU interface
+  input  logic           rst_cpu,     // reset for CPU interface
+  input  logic           clk_spi,     // clock for SPI IO
+  input  logic           rst_spi,     // reset for SPI IO
   // registers interface bus (slave)
-  input  wire           reg_wen,     // write enable
-  input  wire           reg_ren,     // read enable
-  input  wire     [2:0] reg_adr,     // address
-  input  wire    [31:0] reg_wdt,     // write data
-  output wire    [31:0] reg_rdt,     // read data
-  output wire           reg_wrq,     // wait request
-  output wire           reg_err,     // error response
-  output wire           reg_irq,     // interrupt request
+  input  logic           reg_wen,     // write enable
+  input  logic           reg_ren,     // read enable
+  input  logic     [2:0] reg_adr,     // address
+  input  logic    [31:0] reg_wdt,     // write data
+  output logic    [31:0] reg_rdt,     // read data
+  output logic           reg_wrq,     // wait request
+  output logic           reg_err,     // error response
+  output logic           reg_irq,     // interrupt request
   // XIP interface bus (slave)
-  input  wire           xip_wen,     // write enable
-  input  wire           xip_ren,     // read enable
-  input  wire [XAW-1:0] xip_adr,     // address
-  input  wire     [3:0] xip_ben,     // byte enable
-  input  wire    [31:0] xip_wdt,     // write data
-  output wire    [31:0] xip_rdt,     // read data
-  output wire           xip_wrq,     // wait request
-  output wire           xip_err,     // error response
+  input  logic           xip_wen,     // write enable
+  input  logic           xip_ren,     // read enable
+  input  logic [XAW-1:0] xip_adr,     // address
+  input  logic     [3:0] xip_ben,     // byte enable
+  input  logic    [31:0] xip_wdt,     // write data
+  output logic    [31:0] xip_rdt,     // read data
+  output logic           xip_wrq,     // wait request
+  output logic           xip_err,     // error response
   // DMA interface bus (master)
-  output wire           dma_wen,     // write enable
-  output wire           dma_ren,     // read enable
-  output wire [DAW-1:0] dma_adr,     // address
-  output wire     [3:0] dma_ben,     // byte enable
-  output wire    [31:0] dma_wdt,     // write data
-  input  wire    [31:0] dma_rdt,     // read data
-  input  wire           dma_wrq,     // wait request
-  input  wire           dma_err,     // error response
+  output logic           dma_wen,     // write enable
+  output logic           dma_ren,     // read enable
+  output logic [DAW-1:0] dma_adr,     // address
+  output logic     [3:0] dma_ben,     // byte enable
+  output logic    [31:0] dma_wdt,     // write data
+  input  logic    [31:0] dma_rdt,     // read data
+  input  logic           dma_wrq,     // wait request
+  input  logic           dma_err,     // error response
 
   // SPI signals (at a higher level should be connected to tristate IO pads)
   // serial clock
-  input  wire           spi_sclk_i,  // input (clock loopback)
-  output wire           spi_sclk_o,  // output
-  output wire           spi_sclk_e,  // output enable
-  // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
-  input  wire     [3:0] spi_sio_i,   // input
-  output wire     [3:0] spi_sio_o,   // output
-  output wire     [3:0] spi_sio_e,   // output enable
+  input  logic           spi_sclk_i,  // input (clock loopback)
+  output logic           spi_sclk_o,  // output
+  output logic           spi_sclk_e,  // output enable
+  // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3logic-bidir}
+  input  logic     [3:0] spi_sio_i,   // input
+  output logic     [3:0] spi_sio_o,   // output
+  output logic     [3:0] spi_sio_e,   // output enable
   // active low slave select signal
-  input  wire [SSW-1:0] spi_ss_i,    // input  (requires inverter at the pad)
-  output wire [SSW-1:0] spi_ss_o,    // output (requires inverter at the pad)
-  output wire [SSW-1:0] spi_ss_e     // output enable
+  input  logic [SSW-1:0] spi_ss_i,    // input  (requires inverter at the pad)
+  output logic [SSW-1:0] spi_ss_o,    // output (requires inverter at the pad)
+  output logic [SSW-1:0] spi_ss_e     // output enable
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -143,48 +143,48 @@ localparam QCI =            4;  // control  input width
 localparam QDW =        4*SDW;  // data width
 
 // SPI/XIP/DMA configuration
-wire    [31:0] spi_cfg;
+logic    [31:0] spi_cfg;
 
 // address offsets
-wire    [31:0] adr_rof;  // address read  offset
-wire    [31:0] adr_wof;  // address write offset
+logic    [31:0] adr_rof;  // address read  offset
+logic    [31:0] adr_wof;  // address write offset
 
 // arbitration locks
-wire  arb_lko;  // command output multiplexer/decode
-wire  arb_lki;  // command input demultiplexer/encoder
-wire  arb_xip;  // XIP access to the command interface
+logic  arb_lko;  // command output multiplexer/decode
+logic  arb_lki;  // command input demultiplexer/encoder
+logic  arb_xip;  // XIP access to the command interface
 
 // command output
-wire           reg_cmo_vld, xip_cmo_vld, dma_cmo_vld,  cmo_vld;  // valid
-wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl,  cmo_ctl;  // control
-wire [CDW-1:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat,  cmo_dat;  // data
-wire           reg_cmo_rdy, xip_cmo_rdy, dma_cmo_rdy,  cmo_rdy;  // ready
+logic           reg_cmo_vld, xip_cmo_vld, dma_cmo_vld,  cmo_vld;  // valid
+logic [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl,  cmo_ctl;  // control
+logic [CDW-1:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat,  cmo_dat;  // data
+logic           reg_cmo_rdy, xip_cmo_rdy, dma_cmo_rdy,  cmo_rdy;  // ready
 // command input
-wire           reg_cmi_vld, xip_cmi_vld, dma_cmi_vld,  cmi_vld;  // valid
-wire [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl,  cmi_ctl;  // control
-wire [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat,  cmi_dat;  // data
-wire           reg_cmi_rdy, xip_cmi_rdy, dma_cmi_rdy,  cmi_rdy;  // ready
+logic           reg_cmi_vld, xip_cmi_vld, dma_cmi_vld,  cmi_vld;  // valid
+logic [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl,  cmi_ctl;  // control
+logic [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat,  cmi_dat;  // data
+logic           reg_cmi_rdy, xip_cmi_rdy, dma_cmi_rdy,  cmi_rdy;  // ready
 
 // queue output
-wire           qow_vld, qor_vld;  // valid
-wire [QCO-1:0] qow_ctl, qor_ctl;  // control
-wire [QDW-1:0] qow_dat, qor_dat;  // data
-wire           qow_rdy, qor_rdy;  // ready
+logic           qow_vld, qor_vld;  // valid
+logic [QCO-1:0] qow_ctl, qor_ctl;  // control
+logic [QDW-1:0] qow_dat, qor_dat;  // data
+logic           qow_rdy, qor_rdy;  // ready
 // queue input
-wire           qir_vld, qiw_vld;  // valid
-wire [QCI-1:0] qir_ctl, qiw_ctl;  // control
-wire [QDW-1:0] qir_dat, qiw_dat;  // data
-wire           qir_rdy, qiw_rdy;  // ready
+logic           qir_vld, qiw_vld;  // valid
+logic [QCI-1:0] qir_ctl, qiw_ctl;  // control
+logic [QDW-1:0] qir_dat, qiw_dat;  // data
+logic           qir_rdy, qiw_rdy;  // ready
 
 // DMA task interface
-wire           tsk_vld;  // valid
-wire    [31:0] tsk_ctl;  // control
-wire    [31:0] tsk_sts;  // status
-wire           tsk_rdy;  // ready
+logic           tsk_vld;  // valid
+logic    [31:0] tsk_ctl;  // control
+logic    [31:0] tsk_sts;  // status
+logic           tsk_rdy;  // ready
 
 // SPI clocks
-wire           spi_cko;  // output registers
-wire           spi_cki;  // input  registers
+logic           spi_cko;  // output registers
+logic           spi_cki;  // input  registers
 
 ////////////////////////////////////////////////////////////////////////////////
 // REG instance                                                               //
@@ -491,4 +491,4 @@ sockit_spi_ser #(
   .spi_ss_e    (spi_ss_e)
 );
 
-endmodule
+endmodule: sockit_spi

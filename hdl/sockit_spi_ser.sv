@@ -33,36 +33,36 @@ module sockit_spi_ser #(
   parameter QDW     =        4*SDW   // queue data width
 )(
   // system signals
-  input  wire           clk,      // clock
-  input  wire           rst,      // reset
+  input  logic           clk,      // clock
+  input  logic           rst,      // reset
   // SPI clocks
-  output wire           spi_cko,  // output registers
-  output wire           spi_cki,  // input  registers
+  output logic           spi_cko,  // output registers
+  output logic           spi_cki,  // input  registers
   // SPI configuration
-  input  wire    [31:0] spi_cfg,  // SPI/XIP/DMA configuration
+  input  logic    [31:0] spi_cfg,  // SPI/XIP/DMA configuration
   // output queue
-  input  wire           quo_vld,  // valid
-  input  wire [QCO-1:0] quo_ctl,  // control
-  input  wire [QDW-1:0] quo_dat,  // data
-  output wire           quo_rdy,  // ready
+  input  logic           quo_vld,  // valid
+  input  logic [QCO-1:0] quo_ctl,  // control
+  input  logic [QDW-1:0] quo_dat,  // data
+  output logic           quo_rdy,  // ready
   // input queue
-  output wire           qui_vld,  // valid
-  output wire [QCI-1:0] qui_ctl,  // control
-  output wire [QDW-1:0] qui_dat,  // data
-  input  wire           qui_rdy,  // ready
+  output logic           qui_vld,  // valid
+  output logic [QCI-1:0] qui_ctl,  // control
+  output logic [QDW-1:0] qui_dat,  // data
+  input  logic           qui_rdy,  // ready
 
   // SCLK (serial clock)
-  input  wire           spi_sclk_i,  // input (clock loopback)
-  output wire           spi_sclk_o,  // output
-  output wire           spi_sclk_e,  // output enable
+  input  logic           spi_sclk_i,  // input (clock loopback)
+  output logic           spi_sclk_o,  // output
+  output logic           spi_sclk_e,  // output enable
   // SIO  (serial input output) {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
-  input  wire     [3:0] spi_sio_i,   // input
-  output wire     [3:0] spi_sio_o,   // output
-  output wire     [3:0] spi_sio_e,   // output enable
+  input  logic     [3:0] spi_sio_i,   // input
+  output logic     [3:0] spi_sio_o,   // output
+  output logic     [3:0] spi_sio_e,   // output enable
   // SS_N (slave select - active low signal)
-  input  wire [SSW-1:0] spi_ss_i,    // input  (requires inverter at the pad)
-  output wire [SSW-1:0] spi_ss_o,    // output (requires inverter at the pad)
-  output wire [SSW-1:0] spi_ss_e     // output enable
+  input  logic [SSW-1:0] spi_ss_i,    // input  (requires inverter at the pad)
+  output logic [SSW-1:0] spi_ss_o,    // output (requires inverter at the pad)
+  output logic [SSW-1:0] spi_ss_e     // output enable
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,53 +70,53 @@ module sockit_spi_ser #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // SPI configuration
-wire [SSW-1:0] cfg_sss;  // slave select selector
-wire           cfg_m_s;  // SPI bus mode (0 - slave, 1 - master)
-wire           cfg_dir;  // shift direction (0 - LSB first, 1 - MSB first)
-wire           cfg_soe;  // slave select output enable
-wire           cfg_coe;  // clock output enable
-wire           cfg_pha;  // clock phase
-wire           cfg_pol;  // clock polarity
+logic [SSW-1:0] cfg_sss;  // slave select selector
+logic           cfg_m_s;  // SPI bus mode (0 - slave, 1 - master)
+logic           cfg_dir;  // shift direction (0 - LSB first, 1 - MSB first)
+logic           cfg_soe;  // slave select output enable
+logic           cfg_coe;  // clock output enable
+logic           cfg_pha;  // clock phase
+logic           cfg_pol;  // clock polarity
 
 // internal clocks, resets
-wire           spi_sclk;
-wire           spi_clk;
-wire           spi_rsi;
+logic           spi_sclk;
+logic           spi_clk;
+logic           spi_rsi;
 
 // queue transfers
-wire           qui_trn;
-wire           quo_trn;
+logic           qui_trn;
+logic           quo_trn;
 
 // cycle timing
-reg  [SDL-1:0] cyc_cnt;  // clock counter
-reg            cyc_cke;  // clock enable
-wire           cyc_end;  // cycle end
+logic [SDL-1:0] cyc_cnt;  // clock counter
+logic           cyc_cke;  // clock enable
+logic           cyc_end;  // cycle end
 
 // output control signals
-reg            cyc_lst;  // input last (signal for synchronization purposes)
-reg      [3:0] cyc_doe;  // data output enable
-reg            cyc_die;  // data input enable
-reg      [1:0] cyc_iom;  // data IO mode
-reg  [SSW-1:0] cyc_sso;  // slave select outputs
+logic           cyc_lst;  // input last (signal for synchronization purposes)
+logic     [3:0] cyc_doe;  // data output enable
+logic           cyc_die;  // data input enable
+logic     [1:0] cyc_iom;  // data IO mode
+logic [SSW-1:0] cyc_sso;  // slave select outputs
 
 // input control signals
-reg            cyc_new;  // new (first) data on input (used in slave mode)
+logic           cyc_new;  // new (first) data on input (used in slave mode)
 
 // output data signals
-reg  [SDW-1:0] spi_sdo_3;
-reg  [SDW-1:0] spi_sdo_2;
-reg  [SDW-1:0] spi_sdo_1;
-reg  [SDW-1:0] spi_sdo_0;
+logic [SDW-1:0] spi_sdo_3;
+logic [SDW-1:0] spi_sdo_2;
+logic [SDW-1:0] spi_sdo_1;
+logic [SDW-1:0] spi_sdo_0;
 
 // input data signals
-reg  [SDW-1:0] spi_sdi_3;
-reg  [SDW-1:0] spi_sdi_2;
-reg  [SDW-1:0] spi_sdi_1;
-reg  [SDW-1:0] spi_sdi_0;
-wire [SDW-1:0] spi_dti_3;
-wire [SDW-1:0] spi_dti_2;
-wire [SDW-1:0] spi_dti_1;
-wire [SDW-1:0] spi_dti_0;
+logic [SDW-1:0] spi_sdi_3;
+logic [SDW-1:0] spi_sdi_2;
+logic [SDW-1:0] spi_sdi_1;
+logic [SDW-1:0] spi_sdi_0;
+logic [SDW-1:0] spi_dti_3;
+logic [SDW-1:0] spi_dti_2;
+logic [SDW-1:0] spi_dti_1;
+logic [SDW-1:0] spi_dti_0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // configuration                                                              //

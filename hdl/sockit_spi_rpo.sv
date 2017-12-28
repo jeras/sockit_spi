@@ -73,38 +73,38 @@ module sockit_spi_rpo #(
   parameter QDW     =        4*SDW   // queue data width
 )(
   // system signals
-  input  wire           clk,      // clock
-  input  wire           rst,      // reset
+  input  logic           clk,      // clock
+  input  logic           rst,      // reset
   // command
-  input  wire           cmd_vld,  // valid
-  input  wire [CCO-1:0] cmd_ctl,  // control
-  input  wire [CDW-1:0] cmd_dat,  // data
-  output wire           cmd_rdy,  // ready
+  input  logic           cmd_vld,  // valid
+  input  logic [CCO-1:0] cmd_ctl,  // control
+  input  logic [CDW-1:0] cmd_dat,  // data
+  output logic           cmd_rdy,  // ready
   // queue
-  output wire           que_vld,  // valid
-  output wire [QCO-1:0] que_ctl,  // control
-  output wire [QDW-1:0] que_dat,  // data
-  input  wire           que_rdy   // ready
+  output logic           que_vld,  // valid
+  output logic [QCO-1:0] que_ctl,  // control
+  output logic [QDW-1:0] que_dat,  // data
+  input  logic           que_rdy   // ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-wire           cmd_trn;  // command transfer
+logic           cmd_trn;  // command transfer
 
-reg            cyc_run;  // counter run state
-reg      [4:0] cyc_cnt;  // counter
-wire     [4:0] cyc_nxt;  // counter next
-wire [SDL-1:0] cyc_len;  // SPI transfer length
-reg            cyc_lst;  // last piece
-wire           cyc_pkm;  // packeting mode
-wire     [1:0] cyc_iom;  // SPI IO mode
+logic           cyc_run;  // counter run state
+logic     [4:0] cyc_cnt;  // counter
+logic     [4:0] cyc_nxt;  // counter next
+logic [SDL-1:0] cyc_len;  // SPI transfer length
+logic           cyc_lst;  // last piece
+logic           cyc_pkm;  // packeting mode
+logic     [1:0] cyc_iom;  // SPI IO mode
 
-reg      [6:0] cyc_ctl;  // control register
-reg  [CDW-1:0] cyc_dat;  // data    register
+logic     [6:0] cyc_ctl;  // control register
+logic [CDW-1:0] cyc_dat;  // data    register
 
-wire           que_trn;  // queue transfer
+logic           que_trn;  // queue transfer
 
 ////////////////////////////////////////////////////////////////////////////////
 // repackaging function                                                       //
@@ -156,7 +156,7 @@ assign cmd_rdy = ~cyc_run | que_rdy & cyc_lst;
 assign cmd_trn = cmd_vld & cmd_rdy;
 
 // counter
-always @(posedge clk, posedge rst)
+always_ff @(posedge clk, posedge rst)
 if (rst) begin
   cyc_run <= 1'b0;
   cyc_cnt <= 5'd0;
@@ -186,7 +186,7 @@ assign cyc_len = cyc_lst | cyc_pkm ? cyc_cnt [SDL-1:0] : {SDL{1'b1}};
 assign cyc_iom = cyc_ctl [5:4];
 
 // control and data registers
-always @(posedge clk)
+always_ff @(posedge clk)
 if (cmd_trn) begin
   cyc_ctl <= cmd_ctl [6:0];
   cyc_dat <= cmd_dat;
@@ -207,4 +207,4 @@ assign que_dat = rpk (cyc_dat, cyc_iom);
 assign que_vld = cyc_run;
 assign que_trn = que_vld & que_rdy;
 
-endmodule
+endmodule: sockit_spi_rpo

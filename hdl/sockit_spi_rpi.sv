@@ -67,33 +67,33 @@ module sockit_spi_rpi #(
   parameter QDW     =        4*SDW   // queue data width
 )(
   // system signals
-  input  wire           clk,      // clock
-  input  wire           rst,      // reset
+  input  logic           clk,      // clock
+  input  logic           rst,      // reset
   // command
-  output wire           cmd_vld,  // valid
-  output wire [CCI-1:0] cmd_ctl,  // control
-  output wire [CDW-1:0] cmd_dat,  // data
-  input  wire           cmd_rdy,  // ready
+  output logic           cmd_vld,  // valid
+  output logic [CCI-1:0] cmd_ctl,  // control
+  output logic [CDW-1:0] cmd_dat,  // data
+  input  logic           cmd_rdy,  // ready
   // queue
-  input  wire           que_vld,  // valid
-  input  wire [QCI-1:0] que_ctl,  // control
-  input  wire [QDW-1:0] que_dat,  // data
-  output wire           que_rdy   // ready
+  input  logic           que_vld,  // valid
+  input  logic [QCI-1:0] que_ctl,  // control
+  input  logic [QDW-1:0] que_dat,  // data
+  output logic           que_rdy   // ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-reg            cyc_lst;
-reg            cyc_new;
-reg      [1:0] cyc_cnt;
+logic           cyc_lst;
+logic           cyc_new;
+logic     [1:0] cyc_cnt;
 
-wire    [31:0] rpk_dat;
-reg     [31:0] cyc_dat;
+logic    [31:0] rpk_dat;
+logic    [31:0] cyc_dat;
 
-wire           cmd_trn;
-wire           que_trn;
+logic           cmd_trn;
+logic           que_trn;
 
 ////////////////////////////////////////////////////////////////////////////////
 // repackaging function                                                       //
@@ -137,7 +137,7 @@ assign cmd_vld = cyc_lst;
 assign cmd_trn = cmd_vld & cmd_rdy;
 
 // control registers
-always @(posedge clk, posedge rst)
+always_ff @(posedge clk, posedge rst)
 if (rst) begin
   cyc_lst <= 1'b0;
   cyc_new <= 1'b0;
@@ -156,7 +156,7 @@ end
 assign rpk_dat = rpk(que_dat, que_ctl [1:0]);
 
 // data registers
-always @(posedge clk)
+always_ff @(posedge clk)
 if (que_trn) begin
   case (que_ctl [1:0])
     2'd0 : cyc_dat <= {cyc_dat [23: 0], rpk_dat [31:24]};
@@ -174,4 +174,4 @@ assign cmd_dat = cyc_dat;
 assign que_rdy = ~cyc_lst;
 assign que_trn = que_vld & que_rdy;
 
-endmodule
+endmodule: sockit_spi_rpi
