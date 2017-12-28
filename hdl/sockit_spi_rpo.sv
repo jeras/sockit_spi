@@ -28,8 +28,8 @@
 // Handshaking protocol:                                                      //
 //                                                                            //
 // Both the command and the queue protocol employ the same handshaking mech-  //
-// anism. The data source sets the request signal (*_req) and the data drain  //
-// confirms the transfer by setting the grant signal (*_grt).                 //
+// anism. The data source sets the request signal (*_vld) and the data drain  //
+// confirms the transfer by setting the grant signal (*_rdy).                 //
 //                                                                            //
 //                       ----------   req    ----------                       //
 //                       )      S | ------>  | D      (                       //
@@ -76,15 +76,15 @@ module sockit_spi_rpo #(
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // command
-  input  wire           cmd_req,  // request
+  input  wire           cmd_vld,  // request
   input  wire [CCO-1:0] cmd_ctl,  // control
   input  wire [CDW-1:0] cmd_dat,  // data
-  output wire           cmd_grt,  // grant
+  output wire           cmd_rdy,  // grant
   // queue
-  output wire           que_req,  // request
+  output wire           que_vld,  // request
   output wire [QCO-1:0] que_ctl,  // control
   output wire [QDW-1:0] que_dat,  // data
-  input  wire           que_grt   // grant
+  input  wire           que_rdy   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -152,8 +152,8 @@ endfunction
 ////////////////////////////////////////////////////////////////////////////////
 
 // command flow control
-assign cmd_grt = ~cyc_run | que_grt & cyc_lst;
-assign cmd_trn = cmd_req & cmd_grt;
+assign cmd_rdy = ~cyc_run | que_rdy & cyc_lst;
+assign cmd_trn = cmd_vld & cmd_rdy;
 
 // counter
 always @(posedge clk, posedge rst)
@@ -204,7 +204,7 @@ assign que_ctl = {cyc_len, cyc_lst, cyc_ctl[5:0]};
 assign que_dat = rpk (cyc_dat, cyc_iom);
 
 // queue flow control
-assign que_req = cyc_run;
-assign que_trn = que_req & que_grt;
+assign que_vld = cyc_run;
+assign que_trn = que_vld & que_rdy;
 
 endmodule

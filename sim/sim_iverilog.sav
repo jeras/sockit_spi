@@ -38,7 +38,7 @@ spi_tb.sockit_spi.rgs.reg_err
 @1000200
 -REG bus
 @28
-spi_tb.sockit_spi.rgs.tsk_req
+spi_tb.sockit_spi.rgs.tsk_vld
 @c00200
 -XIP bus
 @28
@@ -86,7 +86,7 @@ spi_tb.sockit_spi.dma.dma_err
 -DMA
 @28
 spi_tb.sockit_spi.dma.cfg_m_s
-spi_tb.sockit_spi.dma.tsk_req
+spi_tb.sockit_spi.dma.tsk_vld
 @22
 spi_tb.sockit_spi.tsk_sts[31:0]
 @28
@@ -104,8 +104,8 @@ spi_tb.sockit_spi.dma.dma_rds
 @c00200
 -DMA CMO
 @28
-spi_tb.sockit_spi.dma.cmo_req
-spi_tb.sockit_spi.dma.cmo_grt
+spi_tb.sockit_spi.dma.cmo_vld
+spi_tb.sockit_spi.dma.cmo_rdy
 spi_tb.sockit_spi.dma.cmo_trn
 @22
 spi_tb.sockit_spi.dma.cmo_dat[31:0]
@@ -114,8 +114,8 @@ spi_tb.sockit_spi.dma.cmo_dat[31:0]
 @c00200
 -DMA CMI
 @28
-spi_tb.sockit_spi.dma.cmi_req
-spi_tb.sockit_spi.dma.cmi_grt
+spi_tb.sockit_spi.dma.cmi_vld
+spi_tb.sockit_spi.dma.cmi_rdy
 spi_tb.sockit_spi.dma.cmi_trn
 @22
 spi_tb.sockit_spi.dma.cmo_dat[31:0]
@@ -167,8 +167,8 @@ spi_tb.sockit_spi.rpo.clk
 spi_tb.sockit_spi.rpo.cmd_ctl[11:0]
 spi_tb.sockit_spi.rpo.cmd_dat[31:0]
 @28
-spi_tb.sockit_spi.rpo.cmd_grt
-spi_tb.sockit_spi.rpo.cmd_req
+spi_tb.sockit_spi.rpo.cmd_rdy
+spi_tb.sockit_spi.rpo.cmd_vld
 spi_tb.sockit_spi.rpo.cmd_trn
 @22
 spi_tb.sockit_spi.rpo.cyc_cnt[4:0]
@@ -188,8 +188,8 @@ spi_tb.sockit_spi.rpo.cyc_run
 spi_tb.sockit_spi.rpo.que_ctl[9:0]
 spi_tb.sockit_spi.rpo.que_dat[31:0]
 @28
-spi_tb.sockit_spi.rpo.que_grt
-spi_tb.sockit_spi.rpo.que_req
+spi_tb.sockit_spi.rpo.que_rdy
+spi_tb.sockit_spi.rpo.que_vld
 spi_tb.sockit_spi.rpo.que_trn
 spi_tb.sockit_spi.rpo.rst
 @1401200
@@ -202,8 +202,8 @@ spi_tb.sockit_spi.rpi.clk
 spi_tb.sockit_spi.rpi.cmd_ctl[3:0]
 spi_tb.sockit_spi.rpi.cmd_dat[31:0]
 @28
-spi_tb.sockit_spi.rpi.cmd_grt
-spi_tb.sockit_spi.rpi.cmd_req
+spi_tb.sockit_spi.rpi.cmd_rdy
+spi_tb.sockit_spi.rpi.cmd_vld
 spi_tb.sockit_spi.rpi.cmd_trn
 spi_tb.sockit_spi.rpi.cyc_cnt[1:0]
 @22
@@ -215,8 +215,8 @@ spi_tb.sockit_spi.rpi.cyc_new
 spi_tb.sockit_spi.rpi.que_ctl[3:0]
 spi_tb.sockit_spi.rpi.que_dat[31:0]
 @28
-spi_tb.sockit_spi.rpi.que_grt
-spi_tb.sockit_spi.rpi.que_req
+spi_tb.sockit_spi.rpi.que_rdy
+spi_tb.sockit_spi.rpi.que_vld
 spi_tb.sockit_spi.rpi.que_trn
 @22
 spi_tb.sockit_spi.rpi.rpk_dat[31:0]

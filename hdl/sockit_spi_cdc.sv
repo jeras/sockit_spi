@@ -28,8 +28,8 @@
 // Handshaking protocol:                                                      //
 //                                                                            //
 // Both the input and the output port employ the same handshaking mechanism.  //
-// The data source sets the request signal (*_req) and the data drain         //
-// confirms the transfer by setting the grant signal (*_grt).                 //
+// The data source sets the request signal (*_vld) and the data drain         //
+// confirms the transfer by setting the grant signal (*_rdy).                 //
 //                                                                            //
 //                       ----------   req    ----------                       //
 //                       )      S | ------>  | D      (                       //
@@ -57,15 +57,15 @@ module sockit_spi_cdc #(
   input  wire          cdi_rst,  // reset
   input  wire          cdi_clr,  // clear
   input  wire [DW-1:0] cdi_dat,  // data
-  input  wire          cdi_req,  // request
-  output reg           cdi_grt,  // grant
+  input  wire          cdi_vld,  // request
+  output reg           cdi_rdy,  // grant
   // output port
   input  wire          cdo_clk,  // clock
   input  wire          cdo_rst,  // reset
   input  wire          cdo_clr,  // clear
   output wire [DW-1:0] cdo_dat,  // data
-  output reg           cdo_req,  // request
-  input  wire          cdo_grt   // grant
+  output reg           cdo_vld,  // request
+  input  wire          cdo_rdy   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -121,7 +121,7 @@ wire [CW-1:0] cdo_inc;  // gray increment
 ////////////////////////////////////////////////////////////////////////////////
 
 // transfer
-assign cdi_trn = cdi_req & cdi_grt;
+assign cdi_trn = cdi_vld & cdi_rdy;
 
 // counter increment
 assign cdi_inc = gry_inc (cdi_cnt);
@@ -131,12 +131,12 @@ always @ (posedge cdi_clk, posedge cdi_rst)
 if (cdi_rst) begin
                      cdi_syn <= {CW{1'b0}};
                      cdi_cnt <= {CW{1'b0}};
-                     cdi_grt <=     1'b1  ;
+                     cdi_rdy <=     1'b1  ;
 end else begin
                      cdi_syn <= cdo_cnt;
   if      (cdi_clr)  cdi_cnt <= cdi_syn;
   else if (cdi_trn)  cdi_cnt <= cdi_inc;
-                     cdi_grt <= cdi_grt & ~cdi_trn | (cdi_syn != cdi_grt ? cdi_inc : cdi_cnt);
+                     cdi_rdy <= cdi_rdy & ~cdi_trn | (cdi_syn != cdi_rdy ? cdi_inc : cdi_cnt);
 end
 
 // data memory
@@ -148,7 +148,7 @@ if (cdi_trn) cdc_mem [cdi_cnt] <= cdi_dat;
 ////////////////////////////////////////////////////////////////////////////////
 
 // transfer
-assign cdo_trn = cdo_req & cdo_grt;
+assign cdo_trn = cdo_vld & cdo_rdy;
 
 // counter increment
 assign cdo_inc = gry_inc (cdo_cnt);
@@ -158,12 +158,12 @@ always @ (posedge cdo_clk, posedge cdo_rst)
 if (cdo_rst) begin
                      cdo_syn <= {CW{1'b0}};
                      cdo_cnt <= {CW{1'b0}};
-                     cdo_req <=     1'b0  ;
+                     cdo_vld <=     1'b0  ;
 end else begin
                      cdo_syn <= cdi_cnt;
   if      (cdo_clr)  cdo_cnt <= cdo_syn;
   else if (cdo_trn)  cdo_cnt <= cdo_inc;
-                     cdo_req <= cdo_req & ~cdo_trn | (cdo_syn != cdo_req ? cdo_inc : cdo_cnt);
+                     cdo_vld <= cdo_vld & ~cdo_trn | (cdo_syn != cdo_vld ? cdo_inc : cdo_cnt);
 end
 
 // asynchronous output data

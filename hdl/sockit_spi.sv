@@ -155,32 +155,32 @@ wire  arb_lki;  // command input demultiplexer/encoder
 wire  arb_xip;  // XIP access to the command interface
 
 // command output
-wire           reg_cmo_req, xip_cmo_req, dma_cmo_req,  cmo_req;  // request
+wire           reg_cmo_vld, xip_cmo_vld, dma_cmo_vld,  cmo_vld;  // request
 wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl,  cmo_ctl;  // control
 wire [CDW-1:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat,  cmo_dat;  // data
-wire           reg_cmo_grt, xip_cmo_grt, dma_cmo_grt,  cmo_grt;  // grant
+wire           reg_cmo_rdy, xip_cmo_rdy, dma_cmo_rdy,  cmo_rdy;  // grant
 // command input
-wire           reg_cmi_req, xip_cmi_req, dma_cmi_req,  cmi_req;  // request
+wire           reg_cmi_vld, xip_cmi_vld, dma_cmi_vld,  cmi_vld;  // request
 wire [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl,  cmi_ctl;  // control
 wire [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat,  cmi_dat;  // data
-wire           reg_cmi_grt, xip_cmi_grt, dma_cmi_grt,  cmi_grt;  // grant
+wire           reg_cmi_rdy, xip_cmi_rdy, dma_cmi_rdy,  cmi_rdy;  // grant
 
 // queue output
-wire           qow_req, qor_req;  // request
+wire           qow_vld, qor_vld;  // request
 wire [QCO-1:0] qow_ctl, qor_ctl;  // control
 wire [QDW-1:0] qow_dat, qor_dat;  // data
-wire           qow_grt, qor_grt;  // grant
+wire           qow_rdy, qor_rdy;  // grant
 // queue input
-wire           qir_req, qiw_req;  // request
+wire           qir_vld, qiw_vld;  // request
 wire [QCI-1:0] qir_ctl, qiw_ctl;  // control
 wire [QDW-1:0] qir_dat, qiw_dat;  // data
-wire           qir_grt, qiw_grt;  // grant
+wire           qir_rdy, qiw_rdy;  // grant
 
 // DMA task interface
-wire           tsk_req;  // request
+wire           tsk_vld;  // request
 wire    [31:0] tsk_ctl;  // control
 wire    [31:0] tsk_sts;  // status
-wire           tsk_grt;  // grant
+wire           tsk_rdy;  // grant
 
 // SPI clocks
 wire           spi_cko;  // output registers
@@ -217,20 +217,20 @@ sockit_spi_reg #(
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
   // command output
-  .cmo_req  (reg_cmo_req),
+  .cmo_vld  (reg_cmo_vld),
   .cmo_ctl  (reg_cmo_ctl),
   .cmo_dat  (reg_cmo_dat),
-  .cmo_grt  (reg_cmo_grt),
+  .cmo_rdy  (reg_cmo_rdy),
   // command input
-  .cmi_req  (reg_cmi_req),
+  .cmi_vld  (reg_cmi_vld),
   .cmi_ctl  (reg_cmi_ctl),
   .cmi_dat  (reg_cmi_dat),
-  .cmi_grt  (reg_cmi_grt),
+  .cmi_rdy  (reg_cmi_rdy),
   // DMA task interface
-  .tsk_req  (tsk_req),
+  .tsk_vld  (tsk_vld),
   .tsk_ctl  (tsk_ctl),
   .tsk_sts  (tsk_sts),
-  .tsk_grt  (tsk_grt)
+  .tsk_rdy  (tsk_rdy)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -260,15 +260,15 @@ sockit_spi_xip #(
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
   // command output
-  .cmo_req  (xip_cmo_req),
+  .cmo_vld  (xip_cmo_vld),
   .cmo_ctl  (xip_cmo_ctl),
   .cmo_dat  (xip_cmo_dat),
-  .cmo_grt  (xip_cmo_grt),
+  .cmo_rdy  (xip_cmo_rdy),
   // command input
-  .cmi_req  (xip_cmi_req),
+  .cmi_vld  (xip_cmi_vld),
   .cmi_ctl  (xip_cmi_ctl),
   .cmi_dat  (xip_cmi_dat),
-  .cmi_grt  (xip_cmi_grt)
+  .cmi_rdy  (xip_cmi_rdy)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -296,23 +296,23 @@ sockit_spi_dma #(
   .adr_rof  (adr_rof),
   .adr_wof  (adr_wof),
   // DMA task
-  .tsk_req  (tsk_req),
+  .tsk_vld  (tsk_vld),
   .tsk_ctl  (tsk_ctl),
   .tsk_sts  (tsk_sts),
-  .tsk_grt  (tsk_grt),
+  .tsk_rdy  (tsk_rdy),
   // arbiter locks
   .arb_lko  (arb_lko),
   .arb_lki  (arb_lki),
   // command output
-  .cmo_req  (dma_cmo_req),
+  .cmo_vld  (dma_cmo_vld),
   .cmo_ctl  (dma_cmo_ctl),
   .cmo_dat  (dma_cmo_dat),
-  .cmo_grt  (dma_cmo_grt),
+  .cmo_rdy  (dma_cmo_rdy),
   // command input
-  .cmi_req  (dma_cmi_req),
+  .cmi_vld  (dma_cmi_vld),
   .cmi_ctl  (dma_cmi_ctl),
   .cmi_dat  (dma_cmi_dat),
-  .cmi_grt  (dma_cmi_grt)
+  .cmi_rdy  (dma_cmi_rdy)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -323,22 +323,22 @@ sockit_spi_dma #(
 assign arb_xip = 1'b0;  // TODO
 
 // command output multiplexer
-assign cmo_req = arb_xip ? xip_cmo_req : arb_lko ? dma_cmo_req : reg_cmo_req;
+assign cmo_vld = arb_xip ? xip_cmo_vld : arb_lko ? dma_cmo_vld : reg_cmo_vld;
 assign cmo_ctl = arb_xip ? xip_cmo_ctl : arb_lko ? dma_cmo_ctl : reg_cmo_ctl;
 assign cmo_dat = arb_xip ? xip_cmo_dat : arb_lko ? dma_cmo_dat : reg_cmo_dat;
 // command output decoder
-assign reg_cmo_grt = cmo_grt & ~arb_xip & ~arb_lko;
-assign dma_cmo_grt = cmo_grt & ~arb_xip &  arb_lko;
-assign xip_cmo_grt = cmo_grt &  arb_xip;
+assign reg_cmo_rdy = cmo_rdy & ~arb_xip & ~arb_lko;
+assign dma_cmo_rdy = cmo_rdy & ~arb_xip &  arb_lko;
+assign xip_cmo_rdy = cmo_rdy &  arb_xip;
 
 // command input demultiplexer
-assign reg_cmi_req = cmi_req & ~arb_xip & ~arb_lki;
-assign dma_cmi_req = cmi_req & ~arb_xip &  arb_lki;
-assign xip_cmi_req = cmi_req &  arb_xip;
+assign reg_cmi_vld = cmi_vld & ~arb_xip & ~arb_lki;
+assign dma_cmi_vld = cmi_vld & ~arb_xip &  arb_lki;
+assign xip_cmi_vld = cmi_vld &  arb_xip;
 assign {xip_cmi_ctl, dma_cmi_ctl, reg_cmi_ctl} = {3{cmi_ctl}};
 assign {xip_cmi_dat, dma_cmi_dat, reg_cmi_dat} = {3{cmi_dat}};
 // command input encoder
-assign cmi_grt = arb_xip ? xip_cmi_grt : arb_lki ? dma_cmi_grt : reg_cmi_grt;
+assign cmi_rdy = arb_xip ? xip_cmi_rdy : arb_lki ? dma_cmi_rdy : reg_cmi_rdy;
 
 ////////////////////////////////////////////////////////////////////////////////
 // repack                                                                     //
@@ -352,15 +352,15 @@ sockit_spi_rpo #(
   .rst      (rst_cpu),
   // configuration  // TODO
   // command output
-  .cmd_req  (cmo_req),
+  .cmd_vld  (cmo_vld),
   .cmd_ctl  (cmo_ctl),
   .cmd_dat  (cmo_dat),
-  .cmd_grt  (cmo_grt),
+  .cmd_rdy  (cmo_rdy),
   // queue output
-  .que_req  (qow_req),
+  .que_vld  (qow_vld),
   .que_ctl  (qow_ctl),
   .que_dat  (qow_dat),
-  .que_grt  (qow_grt)
+  .que_rdy  (qow_rdy)
 );
 
 sockit_spi_rpi #(
@@ -371,15 +371,15 @@ sockit_spi_rpi #(
   .rst      (rst_cpu),
   // configuration  // TODO
   // command input
-  .cmd_req  (cmi_req),
+  .cmd_vld  (cmi_vld),
   .cmd_ctl  (cmi_ctl),
   .cmd_dat  (cmi_dat),
-  .cmd_grt  (cmi_grt),
+  .cmd_rdy  (cmi_rdy),
   // queue output
-  .que_req  (qir_req),
+  .que_vld  (qir_vld),
   .que_ctl  (qir_ctl),
   .que_dat  (qir_dat),
-  .que_grt  (qir_grt)
+  .que_rdy  (qir_rdy)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -399,16 +399,16 @@ generate if (CDC) begin : cdc
     .cdi_clr  (1'b0),
     .cdi_dat ({qow_ctl,
                qow_dat}),
-    .cdi_req  (qow_req),
-    .cdi_grt  (qow_grt),
+    .cdi_vld  (qow_vld),
+    .cdi_rdy  (qow_rdy),
     // output port
     .cdo_clk  (spi_cko),
     .cdo_rst  (rst_spi),
     .cdo_clr  (1'b0),
     .cdo_dat ({qor_ctl,
                qor_dat}),
-    .cdo_req  (qor_req),
-    .cdo_grt  (qor_grt)
+    .cdo_vld  (qor_vld),
+    .cdo_rdy  (qor_rdy)
   );
 
   // data input
@@ -422,31 +422,31 @@ generate if (CDC) begin : cdc
     .cdi_clr  (1'b0),
     .cdi_dat ({qiw_ctl,
                qiw_dat}),
-    .cdi_req  (qiw_req),
-    .cdi_grt  (qiw_grt),
+    .cdi_vld  (qiw_vld),
+    .cdi_rdy  (qiw_rdy),
     // output port
     .cdo_clk  (clk_cpu),
     .cdo_rst  (rst_cpu),
     .cdo_clr  (1'b0),
     .cdo_dat ({qir_ctl,
                qir_dat}),
-    .cdo_req  (qir_req),
-    .cdo_grt  (qir_grt)
+    .cdo_vld  (qir_vld),
+    .cdo_rdy  (qir_rdy)
   );
 
 end else begin : syn
 
   // data output
-  assign qor_req = qow_req;
+  assign qor_vld = qow_vld;
   assign qor_ctl = qow_ctl;
   assign qor_dat = qow_dat;
-  assign qow_grt = qor_grt;
+  assign qow_rdy = qor_rdy;
 
   // data input
-  assign qir_req = qiw_req;
+  assign qir_vld = qiw_vld;
   assign qir_ctl = qiw_ctl;
   assign qir_dat = qiw_dat;
-  assign qiw_grt = qir_grt;
+  assign qiw_rdy = qir_rdy;
 
 end endgenerate
 
@@ -467,15 +467,15 @@ sockit_spi_ser #(
   // SPI configuration
   .spi_cfg  (spi_cfg),
   // output queue
-  .quo_req  (qor_req),
+  .quo_vld  (qor_vld),
   .quo_ctl  (qor_ctl),
   .quo_dat  (qor_dat),
-  .quo_grt  (qor_grt),
+  .quo_rdy  (qor_rdy),
   // input queue
-  .qui_req  (qiw_req),
+  .qui_vld  (qiw_vld),
   .qui_ctl  (qiw_ctl),
   .qui_dat  (qiw_dat),
-  .qui_grt  (qiw_grt),
+  .qui_rdy  (qiw_rdy),
 
   // SCLK (serial clock)
   .spi_sclk_i  (spi_sclk_i),

@@ -28,8 +28,8 @@
 // Handshaking protocol:                                                      //
 //                                                                            //
 // The DMA task protocol employ a handshaking mechanism. The data source sets //
-// the request signal (tsk_req) and the data drain confirms the transfer by   //
-// setting the grant signal (tsk_grt).                                        //
+// the request signal (tsk_vld) and the data drain confirms the transfer by   //
+// setting the grant signal (tsk_rdy).                                        //
 //                                                                            //
 //                       ----------   req    ----------                       //
 //                       )      S | ------>  | D      (                       //
@@ -83,23 +83,23 @@ module sockit_spi_dma #(
   input  wire    [31:0] adr_rof,  // address read  offset
   input  wire    [31:0] adr_wof,  // address write offset
   // DMA task interface
-  input  wire           tsk_req,  // request
+  input  wire           tsk_vld,  // request
   input  wire    [31:0] tsk_ctl,  // control
   output wire    [31:0] tsk_sts,  // status
-  output wire           tsk_grt,  // grant
+  output wire           tsk_rdy,  // grant
   // arbiter locks
   output reg            arb_lko,  // command output lock
   output reg            arb_lki,  // command input  lock
   // command output
-  output wire           cmo_req,  // request
+  output wire           cmo_vld,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
   output reg  [CDW-1:0] cmo_dat,  // data
-  input  wire           cmo_grt,  // grant
+  input  wire           cmo_rdy,  // grant
   // command input
-  input  wire           cmi_req,  // request
+  input  wire           cmi_vld,  // request
   input  wire [CCI-1:0] cmi_ctl,  // control
   input  wire [CDW-1:0] cmi_dat,  // data
-  output wire           cmi_grt   // grant
+  output wire           cmi_rdy   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -164,8 +164,8 @@ assign dma_trn = (~dma_wrq | dma_err) & (dma_wen | dma_ren);
 assign dma_rdy = ~(dma_wen | dma_ren) | dma_trn;
 
 // bus cycle TODO remove
-//assign dma_wcy = cyc_ien &  cmi_req;
-//assign dma_rcy = cyc_oen & ~(cyc_ofn & cmo_trn) & (cmo_grt | ~dma_rds & ~dma_ren);
+//assign dma_wcy = cyc_ien &  cmi_vld;
+//assign dma_rcy = cyc_oen & ~(cyc_ofn & cmo_trn) & (cmo_rdy | ~dma_rds & ~dma_ren);
 
 // write/read control (write has priority over read)
 always @ (posedge clk, posedge rst)
@@ -173,7 +173,7 @@ if (rst) begin
   dma_wen <= 1'b0;
   dma_ren <= 1'b0;
 end else if (dma_rdy) begin
-  dma_wen <= cyc_ien & cmi_req;
+  dma_wen <= cyc_ien & cmi_vld;
   dma_ren <= cyc_oen & ~cyc_iod;
 end
 
@@ -285,11 +285,11 @@ assign cyc_ifn = ~|cyc_icn;
 // task cycle status                                                          //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign tsk_trn = tsk_req & tsk_grt;
+assign tsk_trn = tsk_vld & tsk_rdy;
 
 assign tsk_sts = {cyc_run, {31-DCW{1'b0}}, cyc_iod ? cyc_ocn : cyc_icn};
 
-assign tsk_grt = ~cyc_run;
+assign tsk_rdy = ~cyc_run;
 
 ////////////////////////////////////////////////////////////////////////////////
 // arbiter locks                                                              //
@@ -307,10 +307,10 @@ end
 ////////////////////////////////////////////////////////////////////////////////
 
 // transfer
-assign cmo_trn = cmo_req & cmo_grt;
+assign cmo_trn = cmo_vld & cmo_rdy;
 
 // transfer request
-assign cmo_req = cyc_oen; //  dma_rds;
+assign cmo_vld = cyc_oen; //  dma_rds;
 
 // packaging mode
 assign cfg_pkm = 0;
@@ -349,9 +349,9 @@ end endgenerate
 ////////////////////////////////////////////////////////////////////////////////
 
 // transfer
-assign cmi_trn = cmi_req & cmi_grt;
+assign cmi_trn = cmi_vld & cmi_rdy;
 
 // transfer grant
-assign cmi_grt = dma_rdy;
+assign cmi_rdy = dma_rdy;
 
 endmodule

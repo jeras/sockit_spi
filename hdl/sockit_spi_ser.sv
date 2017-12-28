@@ -41,15 +41,15 @@ module sockit_spi_ser #(
   // SPI configuration
   input  wire    [31:0] spi_cfg,  // SPI/XIP/DMA configuration
   // output queue
-  input  wire           quo_req,  // request
+  input  wire           quo_vld,  // request
   input  wire [QCO-1:0] quo_ctl,  // control
   input  wire [QDW-1:0] quo_dat,  // data
-  output wire           quo_grt,  // grant
+  output wire           quo_rdy,  // grant
   // input queue
-  output wire           qui_req,  // request
+  output wire           qui_vld,  // request
   output wire [QCI-1:0] qui_ctl,  // control
   output wire [QDW-1:0] qui_dat,  // data
-  input  wire           qui_grt,  // grant
+  input  wire           qui_rdy,  // grant
 
   // SCLK (serial clock)
   input  wire           spi_sclk_i,  // input (clock loopback)
@@ -157,12 +157,12 @@ else if (qui_trn) cyc_new <= 1'b0;
 ////////////////////////////////////////////////////////////////////////////////
 
 // flow control for queue output
-assign quo_grt = cyc_end;
-assign quo_trn = quo_req & quo_grt;
+assign quo_rdy = cyc_end;
+assign quo_trn = quo_vld & quo_rdy;
 
 // flow control for queue input
-assign qui_req = cyc_die & cyc_cke & cyc_end;
-assign qui_trn = qui_req & qui_grt;
+assign qui_vld = cyc_die & cyc_cke & cyc_end;
+assign qui_trn = qui_vld & qui_rdy;
 
 // transfer length counter
 always @(posedge spi_cko, posedge rst)
@@ -179,7 +179,7 @@ always @(posedge spi_sclk, posedge rst)
 if (rst)             cyc_cke <= 1'b0;
 else begin
   if      (quo_trn)  cyc_cke <= quo_ctl [0];
-  else if (quo_grt)  cyc_cke <= 1'b0;
+  else if (quo_rdy)  cyc_cke <= 1'b0;
 end
 
 // IO control registers

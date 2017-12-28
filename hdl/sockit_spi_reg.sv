@@ -121,20 +121,20 @@ module sockit_spi_reg #(
   output reg     [31:0] adr_rof,  // address read  offset
   output reg     [31:0] adr_wof,  // address write offset
   // command output
-  output wire           cmo_req,  // request
+  output wire           cmo_vld,  // request
   output wire [CCO-1:0] cmo_ctl,  // control
   output reg  [CDW-1:0] cmo_dat,  // data
-  input  wire           cmo_grt,  // grant
+  input  wire           cmo_rdy,  // grant
   // command input
-  input  wire           cmi_req,  // request
+  input  wire           cmi_vld,  // request
   input  wire [CCI-1:0] cmi_ctl,  // control
   input  wire [CDW-1:0] cmi_dat,  // data
-  output wire           cmi_grt,  // grant
+  output wire           cmi_rdy,  // grant
   // DMA task interface
-  output wire           tsk_req,  // DMA request
+  output wire           tsk_vld,  // DMA request
   output wire    [31:0] tsk_ctl,  // DMA control
   input  wire    [31:0] tsk_sts,  // DMA status
-  input  wire           tsk_grt   // DMA grant
+  input  wire           tsk_rdy   // DMA grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -188,10 +188,10 @@ always @ (*)
 case (reg_adr)
   3'd0 : reg_wrq = 1'b0;                                 // SPI configuration
   3'd1 : reg_wrq = 1'b0;                                 // SPI parameterization
-  3'd2 : reg_wrq = reg_wen & ~cmo_grt;                   // SPI control
+  3'd2 : reg_wrq = reg_wen & ~cmo_rdy;                   // SPI control
   3'd3 : reg_wrq = reg_wen & 1'b0 | reg_ren & ~dat_rld;  // SPI data
   3'd4 : reg_wrq = 1'b0;                                 // SPI interrupts
-  3'd5 : reg_wrq = ~tsk_grt;                             // DMA control/status
+  3'd5 : reg_wrq = ~tsk_rdy;                             // DMA control/status
   3'd6 : reg_wrq = 1'b0;                                 // address read  offset
   3'd7 : reg_wrq = 1'b0;                                 // address write offset
 endcase
@@ -239,7 +239,7 @@ end
 ////////////////////////////////////////////////////////////////////////////////
 
 // command output transfer
-assign cmo_trn = cmo_req & cmo_grt;
+assign cmo_trn = cmo_vld & cmo_rdy;
 
 // data output
 always @(posedge clk)
@@ -254,7 +254,7 @@ else begin
 end
 
 // command output
-assign cmo_req = wen_spi;
+assign cmo_vld = wen_spi;
 assign cmo_ctl = {reg_wdt[12:8], reg_wdt[6:0]};
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -262,7 +262,7 @@ assign cmo_ctl = {reg_wdt[12:8], reg_wdt[6:0]};
 ////////////////////////////////////////////////////////////////////////////////
 
 // command input transfer
-assign cmi_trn = cmi_req & cmi_grt;
+assign cmi_trn = cmi_vld & cmi_rdy;
 
 // data input
 always @(posedge clk)
@@ -277,13 +277,13 @@ else begin
 end
 
 // command input transfer grant
-assign cmi_grt = ~dat_rld;
+assign cmi_rdy = ~dat_rld;
 
 ////////////////////////////////////////////////////////////////////////////////
 // DMA control/status interface                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign tsk_req = wen_dma;
+assign tsk_vld = wen_dma;
 assign tsk_ctl = reg_wdt;
 
 endmodule

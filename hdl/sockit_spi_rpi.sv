@@ -28,8 +28,8 @@
 // Handshaking protocol:                                                      //
 //                                                                            //
 // Both the command and the queue protocol employ the same handshaking mech-  //
-// anism. The data source sets the request signal (*_req) and the data drain  //
-// confirms the transfer by setting the grant signal (*_grt).                 //
+// anism. The data source sets the request signal (*_vld) and the data drain  //
+// confirms the transfer by setting the grant signal (*_rdy).                 //
 //                                                                            //
 //                       ----------   req    ----------                       //
 //                       )      S | ------>  | D      (                       //
@@ -70,15 +70,15 @@ module sockit_spi_rpi #(
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // command
-  output wire           cmd_req,  // request
+  output wire           cmd_vld,  // request
   output wire [CCI-1:0] cmd_ctl,  // control
   output wire [CDW-1:0] cmd_dat,  // data
-  input  wire           cmd_grt,  // grant
+  input  wire           cmd_rdy,  // grant
   // queue
-  input  wire           que_req,  // request
+  input  wire           que_vld,  // request
   input  wire [QCI-1:0] que_ctl,  // control
   input  wire [QDW-1:0] que_dat,  // data
-  output wire           que_grt   // grant
+  output wire           que_rdy   // grant
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,8 +133,8 @@ endfunction
 ////////////////////////////////////////////////////////////////////////////////
 
 // command flow control
-assign cmd_req = cyc_lst;
-assign cmd_trn = cmd_req & cmd_grt;
+assign cmd_vld = cyc_lst;
+assign cmd_trn = cmd_vld & cmd_rdy;
 
 // control registers
 always @(posedge clk, posedge rst)
@@ -171,7 +171,7 @@ assign cmd_ctl = {cyc_new, cyc_lst, cyc_cnt};
 assign cmd_dat = cyc_dat;
 
 // queue flow control
-assign que_grt = ~cyc_lst;
-assign que_trn = que_req & que_grt;
+assign que_rdy = ~cyc_lst;
+assign que_trn = que_vld & que_rdy;
 
 endmodule
