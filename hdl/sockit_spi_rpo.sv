@@ -28,14 +28,14 @@
 // Handshaking protocol:                                                      //
 //                                                                            //
 // Both the command and the queue protocol employ the same handshaking mech-  //
-// anism. The data source sets the request signal (*_vld) and the data drain  //
-// confirms the transfer by setting the grant signal (*_rdy).                 //
+// anism. The data source sets the valid signal (*_vld) and the data drain    //
+// confirms the transfer by setting the ready signal (*_rdy).                 //
 //                                                                            //
-//                       ----------   req    ----------                       //
+//                       ----------   vld    ----------                       //
 //                       )      S | ------>  | D      (                       //
 //                       (      R |          | R      )                       //
 //                       )      C | <------  | N      (                       //
-//                       ----------   grt    ----------                       //
+//                       ----------   rdy    ----------                       //
 //                                                                            //
 // Command protocol:                                                          //
 //                                                                            //
@@ -76,15 +76,15 @@ module sockit_spi_rpo #(
   input  wire           clk,      // clock
   input  wire           rst,      // reset
   // command
-  input  wire           cmd_vld,  // request
+  input  wire           cmd_vld,  // valid
   input  wire [CCO-1:0] cmd_ctl,  // control
   input  wire [CDW-1:0] cmd_dat,  // data
-  output wire           cmd_rdy,  // grant
+  output wire           cmd_rdy,  // ready
   // queue
-  output wire           que_vld,  // request
+  output wire           que_vld,  // valid
   output wire [QCO-1:0] que_ctl,  // control
   output wire [QDW-1:0] que_dat,  // data
-  input  wire           que_rdy   // grant
+  input  wire           que_rdy   // ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////

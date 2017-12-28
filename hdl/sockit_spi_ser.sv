@@ -41,15 +41,15 @@ module sockit_spi_ser #(
   // SPI configuration
   input  wire    [31:0] spi_cfg,  // SPI/XIP/DMA configuration
   // output queue
-  input  wire           quo_vld,  // request
+  input  wire           quo_vld,  // valid
   input  wire [QCO-1:0] quo_ctl,  // control
   input  wire [QDW-1:0] quo_dat,  // data
-  output wire           quo_rdy,  // grant
+  output wire           quo_rdy,  // ready
   // input queue
-  output wire           qui_vld,  // request
+  output wire           qui_vld,  // valid
   output wire [QCI-1:0] qui_ctl,  // control
   output wire [QDW-1:0] qui_dat,  // data
-  input  wire           qui_rdy,  // grant
+  input  wire           qui_rdy,  // ready
 
   // SCLK (serial clock)
   input  wire           spi_sclk_i,  // input (clock loopback)

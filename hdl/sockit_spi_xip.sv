@@ -50,15 +50,15 @@ module sockit_spi_xip #(
   input  wire    [31:0] adr_rof,  // address read  offset
   input  wire    [31:0] adr_wof,  // address write offset
   // command output
-  output wire           cmo_vld,  // request
+  output wire           cmo_vld,  // valid
   output wire [CCO-1:0] cmo_ctl,  // control
   output wire [CDW-1:0] cmo_dat,  // data
-  input  wire           cmo_rdy,  // grant
+  input  wire           cmo_rdy,  // ready
   // command input
-  input  wire           cmi_vld,  // request
+  input  wire           cmi_vld,  // valid
   input  wire [CCI-1:0] cmi_ctl,  // control
   input  wire [CDW-1:0] cmi_dat,  // data
-  output wire           cmi_rdy   // grant
+  output wire           cmi_rdy   // ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////

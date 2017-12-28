@@ -155,32 +155,32 @@ wire  arb_lki;  // command input demultiplexer/encoder
 wire  arb_xip;  // XIP access to the command interface
 
 // command output
-wire           reg_cmo_vld, xip_cmo_vld, dma_cmo_vld,  cmo_vld;  // request
+wire           reg_cmo_vld, xip_cmo_vld, dma_cmo_vld,  cmo_vld;  // valid
 wire [CCO-1:0] reg_cmo_ctl, xip_cmo_ctl, dma_cmo_ctl,  cmo_ctl;  // control
 wire [CDW-1:0] reg_cmo_dat, xip_cmo_dat, dma_cmo_dat,  cmo_dat;  // data
-wire           reg_cmo_rdy, xip_cmo_rdy, dma_cmo_rdy,  cmo_rdy;  // grant
+wire           reg_cmo_rdy, xip_cmo_rdy, dma_cmo_rdy,  cmo_rdy;  // ready
 // command input
-wire           reg_cmi_vld, xip_cmi_vld, dma_cmi_vld,  cmi_vld;  // request
+wire           reg_cmi_vld, xip_cmi_vld, dma_cmi_vld,  cmi_vld;  // valid
 wire [CCI-1:0] reg_cmi_ctl, xip_cmi_ctl, dma_cmi_ctl,  cmi_ctl;  // control
 wire [CDW-1:0] reg_cmi_dat, xip_cmi_dat, dma_cmi_dat,  cmi_dat;  // data
-wire           reg_cmi_rdy, xip_cmi_rdy, dma_cmi_rdy,  cmi_rdy;  // grant
+wire           reg_cmi_rdy, xip_cmi_rdy, dma_cmi_rdy,  cmi_rdy;  // ready
 
 // queue output
-wire           qow_vld, qor_vld;  // request
+wire           qow_vld, qor_vld;  // valid
 wire [QCO-1:0] qow_ctl, qor_ctl;  // control
 wire [QDW-1:0] qow_dat, qor_dat;  // data
-wire           qow_rdy, qor_rdy;  // grant
+wire           qow_rdy, qor_rdy;  // ready
 // queue input
-wire           qir_vld, qiw_vld;  // request
+wire           qir_vld, qiw_vld;  // valid
 wire [QCI-1:0] qir_ctl, qiw_ctl;  // control
 wire [QDW-1:0] qir_dat, qiw_dat;  // data
-wire           qir_rdy, qiw_rdy;  // grant
+wire           qir_rdy, qiw_rdy;  // ready
 
 // DMA task interface
-wire           tsk_vld;  // request
+wire           tsk_vld;  // valid
 wire    [31:0] tsk_ctl;  // control
 wire    [31:0] tsk_sts;  // status
-wire           tsk_rdy;  // grant
+wire           tsk_rdy;  // ready
 
 // SPI clocks
 wire           spi_cko;  // output registers

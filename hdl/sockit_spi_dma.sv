@@ -28,14 +28,14 @@
 // Handshaking protocol:                                                      //
 //                                                                            //
 // The DMA task protocol employ a handshaking mechanism. The data source sets //
-// the request signal (tsk_vld) and the data drain confirms the transfer by   //
-// setting the grant signal (tsk_rdy).                                        //
+// the valid signal (tsk_vld) and the data drain confirms the transfer by     //
+// setting the ready signal (tsk_rdy).                                        //
 //                                                                            //
-//                       ----------   req    ----------                       //
+//                       ----------   vld    ----------                       //
 //                       )      S | ------>  | D      (                       //
 //                       (      R |          | R      )                       //
 //                       )      C | <------  | N      (                       //
-//                       ----------   grt    ----------                       //
+//                       ----------   rdy    ----------                       //
 //                                                                            //
 // DMA task protocol:                                                         //
 //                                                                            //
@@ -83,23 +83,23 @@ module sockit_spi_dma #(
   input  wire    [31:0] adr_rof,  // address read  offset
   input  wire    [31:0] adr_wof,  // address write offset
   // DMA task interface
-  input  wire           tsk_vld,  // request
+  input  wire           tsk_vld,  // valid
   input  wire    [31:0] tsk_ctl,  // control
   output wire    [31:0] tsk_sts,  // status
-  output wire           tsk_rdy,  // grant
+  output wire           tsk_rdy,  // ready
   // arbiter locks
   output reg            arb_lko,  // command output lock
   output reg            arb_lki,  // command input  lock
   // command output
-  output wire           cmo_vld,  // request
+  output wire           cmo_vld,  // valid
   output wire [CCO-1:0] cmo_ctl,  // control
   output reg  [CDW-1:0] cmo_dat,  // data
-  input  wire           cmo_rdy,  // grant
+  input  wire           cmo_rdy,  // ready
   // command input
-  input  wire           cmi_vld,  // request
+  input  wire           cmi_vld,  // valid
   input  wire [CCI-1:0] cmi_ctl,  // control
   input  wire [CDW-1:0] cmi_dat,  // data
-  output wire           cmi_rdy   // grant
+  output wire           cmi_rdy   // ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -309,7 +309,7 @@ end
 // transfer
 assign cmo_trn = cmo_vld & cmo_rdy;
 
-// transfer request
+// transfer valid
 assign cmo_vld = cyc_oen; //  dma_rds;
 
 // packaging mode
@@ -351,7 +351,7 @@ end endgenerate
 // transfer
 assign cmi_trn = cmi_vld & cmi_rdy;
 
-// transfer grant
+// transfer ready
 assign cmi_rdy = dma_rdy;
 
 endmodule

@@ -121,20 +121,20 @@ module sockit_spi_reg #(
   output reg     [31:0] adr_rof,  // address read  offset
   output reg     [31:0] adr_wof,  // address write offset
   // command output
-  output wire           cmo_vld,  // request
+  output wire           cmo_vld,  // valid
   output wire [CCO-1:0] cmo_ctl,  // control
   output reg  [CDW-1:0] cmo_dat,  // data
-  input  wire           cmo_rdy,  // grant
+  input  wire           cmo_rdy,  // ready
   // command input
-  input  wire           cmi_vld,  // request
+  input  wire           cmi_vld,  // valid
   input  wire [CCI-1:0] cmi_ctl,  // control
   input  wire [CDW-1:0] cmi_dat,  // data
-  output wire           cmi_rdy,  // grant
+  output wire           cmi_rdy,  // ready
   // DMA task interface
-  output wire           tsk_vld,  // DMA request
+  output wire           tsk_vld,  // DMA valid
   output wire    [31:0] tsk_ctl,  // DMA control
   input  wire    [31:0] tsk_sts,  // DMA status
-  input  wire           tsk_rdy   // DMA grant
+  input  wire           tsk_rdy   // DMA ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -276,7 +276,7 @@ else begin
   else if (ren_dat)  dat_rld <= 1'b0;
 end
 
-// command input transfer grant
+// command input transfer ready
 assign cmi_rdy = ~dat_rld;
 
 ////////////////////////////////////////////////////////////////////////////////

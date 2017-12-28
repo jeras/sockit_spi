@@ -28,14 +28,14 @@
 // Handshaking protocol:                                                      //
 //                                                                            //
 // Both the input and the output port employ the same handshaking mechanism.  //
-// The data source sets the request signal (*_vld) and the data drain         //
-// confirms the transfer by setting the grant signal (*_rdy).                 //
+// The data source sets the valid signal (*_vld) and the data drain           //
+// confirms the transfer by setting the ready signal (*_rdy).                 //
 //                                                                            //
-//                       ----------   req    ----------                       //
+//                       ----------   vld    ----------                       //
 //                       )      S | ------>  | D      (                       //
 //                       (      R |          | R      )                       //
 //                       )      C | <------  | N      (                       //
-//                       ----------   grt    ----------                       //
+//                       ----------   rdy    ----------                       //
 //                                                                            //
 // Clear signal:                                                              //
 //                                                                            //
@@ -57,15 +57,15 @@ module sockit_spi_cdc #(
   input  wire          cdi_rst,  // reset
   input  wire          cdi_clr,  // clear
   input  wire [DW-1:0] cdi_dat,  // data
-  input  wire          cdi_vld,  // request
-  output reg           cdi_rdy,  // grant
+  input  wire          cdi_vld,  // valid
+  output reg           cdi_rdy,  // ready
   // output port
   input  wire          cdo_clk,  // clock
   input  wire          cdo_rst,  // reset
   input  wire          cdo_clr,  // clear
   output wire [DW-1:0] cdo_dat,  // data
-  output reg           cdo_vld,  // request
-  input  wire          cdo_rdy   // grant
+  output reg           cdo_vld,  // valid
+  input  wire          cdo_rdy   // ready
 );
 
 ////////////////////////////////////////////////////////////////////////////////
