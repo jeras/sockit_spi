@@ -13,18 +13,18 @@ xxd -ps -c 1 flash.bin >> flash.hex
 xxd -ps -c 4 lorem-ipsum.txt >> dma_mem.hex
 
 # compile Verilog sources (testbench and RTL) with Icarus Verilog
-iverilog -o spi.out \
-../hdl/spi_tb.v \
-../hdl/sockit_spi.v \
-../hdl/sockit_spi_reg.v \
-../hdl/sockit_spi_xip.v \
-../hdl/sockit_spi_dma.v \
-../hdl/sockit_spi_rpo.v \
-../hdl/sockit_spi_rpi.v \
-../hdl/sockit_spi_cdc.v \
-../hdl/sockit_spi_ser.v \
-../hdl/spi_slave_model.v \
-../hdl/spi_flash_model.v
+iverilog -g2012 -o spi.out \
+../hdl/spi_tb.sv \
+../hdl/sockit_spi.sv \
+../hdl/sockit_spi_reg.sv \
+../hdl/sockit_spi_xip.sv \
+../hdl/sockit_spi_dma.sv \
+../hdl/sockit_spi_rpo.sv \
+../hdl/sockit_spi_rpi.sv \
+../hdl/sockit_spi_cdc.sv \
+../hdl/sockit_spi_ser.sv \
+../hdl/spi_slave_model.sv \
+../hdl/spi_flash_model.sv
 #-I ../dev/NU_N25Q128A230B_VG14/ \
 #../dev/NU_N25Q128A230B_VG14/code/N25Q128A230B.v
 #../hdl/MX25L12845E.v \
@@ -33,13 +33,13 @@ iverilog -o spi.out \
 # # compile verilog sources (testbench and RTL) for coverage
 # #covered score -o spi.cdd -g 2 -t spi_tb \
 # covered score -o spi.cdd -g 2 -t sockit_spi -i spi_tb.sockit_spi \
-# -v ../hdl/spi_tb.v \
-# -v ../hdl/sockit_spi.v \
-# -v ../hdl/sockit_spi_cdc.v \
-# -v ../hdl/sockit_spi_xip.v \
-# -v ../hdl/sockit_spi_dma.v \
-# -v ../hdl/spi_slave_model.v \
-# -v ../hdl/spi_flash_model.v
+# -v ../hdl/spi_tb.sv \
+# -v ../hdl/sockit_spi.sv \
+# -v ../hdl/sockit_spi_cdc.sv \
+# -v ../hdl/sockit_spi_xip.sv \
+# -v ../hdl/sockit_spi_dma.sv \
+# -v ../hdl/spi_slave_model.sv \
+# -v ../hdl/spi_flash_model.sv
 
 # run the simulation
 vvp spi.out -fst
