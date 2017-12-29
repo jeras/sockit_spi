@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="axi4stream_vip_0_exdes_tb_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="axi4stream_vip_0_exdes_tb" />
+            <top_module name="axi4stream_vip_v1_0_1_pkg" />
+            <top_module name="glbl" />
+            <top_module name="xil_common_vip_v1_0_0_pkg" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="236267870fs"></ZoomStartTime>
+      <ZoomEndTime time="1152746426fs"></ZoomEndTime>
+      <Cursor1Time time="450001000fs"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="350"></NameColumnWidth>
+      <ValueColumnWidth column_width="119"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="18" />
+   <wvobject type="array" fp_name="/axi4stream_vip_0_exdes_tb/error_cnt">
+      <obj_property name="ElementShortName">error_cnt[31:0]</obj_property>
+      <obj_property name="ObjectShortName">error_cnt[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/axi4stream_vip_0_exdes_tb/comparison_cnt">
+      <obj_property name="ElementShortName">comparison_cnt[31:0]</obj_property>
+      <obj_property name="ObjectShortName">comparison_cnt[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/axi4stream_vip_0_exdes_tb/master_moniter_transaction_queue_size">
+      <obj_property name="ElementShortName">master_moniter_transaction_queue_size[31:0]</obj_property>
+      <obj_property name="ObjectShortName">master_moniter_transaction_queue_size[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/axi4stream_vip_0_exdes_tb/slave_moniter_transaction_queue_size">
+      <obj_property name="ElementShortName">slave_moniter_transaction_queue_size[31:0]</obj_property>
+      <obj_property name="ObjectShortName">slave_moniter_transaction_queue_size[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/axi4stream_vip_0_exdes_tb/mst_agent_verbosity">
+      <obj_property name="ElementShortName">mst_agent_verbosity[31:0]</obj_property>
+      <obj_property name="ObjectShortName">mst_agent_verbosity[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/axi4stream_vip_0_exdes_tb/slv_agent_verbosity">
+      <obj_property name="ElementShortName">slv_agent_verbosity[31:0]</obj_property>
+      <obj_property name="ObjectShortName">slv_agent_verbosity[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/axi4stream_vip_0_exdes_tb/str/ACLK">
+      <obj_property name="ElementShortName">ACLK</obj_property>
+      <obj_property name="ObjectShortName">ACLK</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/axi4stream_vip_0_exdes_tb/str/ARESETn">
+      <obj_property name="ElementShortName">ARESETn</obj_property>
+      <obj_property name="ObjectShortName">ARESETn</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/axi4stream_vip_0_exdes_tb/str/TVALID">
+      <obj_property name="ElementShortName">str.TVALID[0:0]</obj_property>
+      <obj_property name="ObjectShortName">str.TVALID[0:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/axi4stream_vip_0_exdes_tb/str/TREADY">
+      <obj_property name="ElementShortName">str.TREADY[0:0]</obj_property>
+      <obj_property name="ObjectShortName">str.TREADY[0:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/axi4stream_vip_0_exdes_tb/str/TDATA">
+      <obj_property name="ElementShortName">str.TDATA[7:0]</obj_property>
+      <obj_property name="ObjectShortName">str.TDATA[7:0]</obj_property>
+   </wvobject>
+</wave_config>
