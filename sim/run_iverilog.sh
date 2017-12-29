@@ -14,7 +14,6 @@ xxd -ps -c 4 lorem-ipsum.txt >> dma_mem.hex
 
 # compile Verilog sources (testbench and RTL) with Icarus Verilog
 iverilog -g2012 -o spi.out \
-../hdl/spi_tb.sv \
 ../hdl/sockit_spi.sv \
 ../hdl/sockit_spi_reg.sv \
 ../hdl/sockit_spi_xip.sv \
@@ -23,23 +22,13 @@ iverilog -g2012 -o spi.out \
 ../hdl/sockit_spi_rpi.sv \
 ../hdl/sockit_spi_cdc.sv \
 ../hdl/sockit_spi_ser.sv \
-../hdl/spi_slave_model.sv \
-../hdl/spi_flash_model.sv
+../hdl/tbn/spi_tb.sv \
+../hdl/tbn/spi_slave_model.sv \
+../hdl/tbn/spi_flash_model.sv
 #-I ../dev/NU_N25Q128A230B_VG14/ \
 #../dev/NU_N25Q128A230B_VG14/code/N25Q128A230B.v
-#../hdl/MX25L12845E.v \
-#../hdl/s25fl129p00.v
-
-# # compile verilog sources (testbench and RTL) for coverage
-# #covered score -o spi.cdd -g 2 -t spi_tb \
-# covered score -o spi.cdd -g 2 -t sockit_spi -i spi_tb.sockit_spi \
-# -v ../hdl/spi_tb.sv \
-# -v ../hdl/sockit_spi.sv \
-# -v ../hdl/sockit_spi_cdc.sv \
-# -v ../hdl/sockit_spi_xip.sv \
-# -v ../hdl/sockit_spi_dma.sv \
-# -v ../hdl/spi_slave_model.sv \
-# -v ../hdl/spi_flash_model.sv
+#../hdl/mdl/MX25L12845E.v \
+#../hdl/mdl/s25fl129p00.v
 
 # run the simulation
 vvp spi.out -fst

@@ -11,7 +11,7 @@ xxd -ps -c 1 flash.bin >> flash.hex
 
 # compile Verilog sources (RTL and slave models) and C++ testbench with Verilator
 verilator -Wall --cc --trace --exe --prefix Vspi --top-module spi_wrp \
-../hdl/spi_wrp.sv \
+../hdl/tbn/spi_wrp.sv \
 ../hdl/sockit_spi.sv \
 ../hdl/sockit_spi_reg.sv \
 ../hdl/sockit_spi_xip.sv \
@@ -20,7 +20,7 @@ verilator -Wall --cc --trace --exe --prefix Vspi --top-module spi_wrp \
 ../hdl/sockit_spi_rpi.sv \
 ../hdl/sockit_spi_cdc.sv \
 ../hdl/sockit_spi_ser.sv \
-../hdl/spi_flash_model.sv \
+../hdl/tbn/spi_flash_model.sv \
 ../src/spi_tb.cpp
 # build C++ project
 make -j -C obj_dir/ -f Vspi.mk Vspi
