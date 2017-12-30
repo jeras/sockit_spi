@@ -30,6 +30,7 @@ SIP=$(PATH_SIP)/oserdese2/oserdese2_002.vp \
 
 # RTL files
 RTL_PKG =$(wildcard $(PATH_RTL)/*_pkg.sv)
+RTL_SRC+=$(wildcard $(PATH_RTL)/if/*.sv)
 RTL_SRC+=$(wildcard $(PATH_RTL)/*.sv)
 RTL_SRC+=$(wildcard $(PATH_RTL)/*.v)
 RTL_DIF =$(filter-out $(RTL_PKG),$(RTL_SRC))

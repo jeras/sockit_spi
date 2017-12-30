@@ -29,36 +29,18 @@ module sockit_spi_xip #(
   // port widths
   parameter XAW     =           24,  // bus address width
   parameter SDW     =            8,  // serial data register width
-  parameter CCO     =          5+7,  // command control output width
-  parameter CCI     =            4,  // command control  input width
   parameter CDW     =           32   // command data width
 )(
-  // system signals
-  input  logic           clk,      // clock
-  input  logic           rst,      // reset
   // input bus (XIP requests)
-  input  logic           xip_wen,  // write enable
-  input  logic           xip_ren,  // read enable
-  input  logic [XAW-1:0] xip_adr,  // address
-  input  logic     [3:0] xip_ben,  // byte enable
-  input  logic    [31:0] xip_wdt,  // write data
-  output logic    [31:0] xip_rdt,  // read data
-  output logic           xip_wrq,  // wait request
-  output logic           xip_err,  // error response
+  axi4_if.s              axi
   // configuration
-  input  logic    [31:0] spi_cfg,  // SPI/XIP/DMA configuration
-  input  logic    [31:0] adr_rof,  // address read  offset
-  input  logic    [31:0] adr_wof,  // address write offset
-  // command output
-  output logic           cmo_vld,  // valid
-  output logic [CCO-1:0] cmo_ctl,  // control
-  output logic [CDW-1:0] cmo_dat,  // data
-  input  logic           cmo_rdy,  // ready
-  // command input
-  input  logic           cmi_vld,  // valid
-  input  logic [CCI-1:0] cmi_ctl,  // control
-  input  logic [CDW-1:0] cmi_dat,  // data
-  output logic           cmi_rdy   // ready
+  input  logic  [32-1:0] spi_cfg,  // SPI/XIP/DMA configuration
+  input  logic  [32-1:0] adr_rof,  // address read  offset
+  input  logic  [32-1:0] adr_wof,  // address write offset
+  // streams
+  sockit_spi_if.s        cmc,  //
+  sockit_spi_if.s        cmo,  //
+  sockit_spi_if.d        cmi   //
 );
 
 ////////////////////////////////////////////////////////////////////////////////

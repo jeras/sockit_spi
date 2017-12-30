@@ -2,7 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
-//  data serializer/de-serializer, clave selects, clocks                      //
+//  data serializer/de-serializer, slave selects, clocks                      //
 //                                                                            //
 //  Copyright (C) 2008-2011  Iztok Jeras                                      //
 //                                                                            //
@@ -25,12 +25,12 @@
 
 module sockit_spi_ser #(
   // port widths
-  parameter SSW     =            8,  // slave select width
-  parameter SDW     =            8,  // serial data register width
-  parameter SDL     =            3,  // serial data register width logarithm
-  parameter QCO     =        SDL+7,  // queue control output width
-  parameter QCI     =            4,  // queue control  input width
-  parameter QDW     =        4*SDW   // queue data width
+  int unsigned SSW     = sockit_spi_pkg::SSW,  // slave select width
+  int unsigned SDW     = sockit_spi_pkg::SDW,  // serial data register width
+  int unsigned SDL     = sockit_spi_pkg::SDL,  // serial data register width logarithm
+  int unsigned QCO     =        SDL+7,  // queue control output width
+  int unsigned QCI     =            4,  // queue control  input width
+  int unsigned QDW     =        4*SDW   // queue data width
 )(
   // system signals
   input  logic           clk,      // clock
@@ -39,18 +39,11 @@ module sockit_spi_ser #(
   output logic           spi_cko,  // output registers
   output logic           spi_cki,  // input  registers
   // SPI configuration
-  input  logic    [31:0] spi_cfg,  // SPI/XIP/DMA configuration
-  // output queue
-  input  logic           quo_vld,  // valid
-  input  logic [QCO-1:0] quo_ctl,  // control
-  input  logic [QDW-1:0] quo_dat,  // data
-  output logic           quo_rdy,  // ready
-  // input queue
-  output logic           qui_vld,  // valid
-  output logic [QCI-1:0] qui_ctl,  // control
-  output logic [QDW-1:0] qui_dat,  // data
-  input  logic           qui_rdy,  // ready
-
+  input  sockit_spi_pkg::cfg_t spi_cfg,  // SPI/XIP/DMA configuration
+  // control/data streams
+  sockit_spi_if.d        quc,   // command queue
+  sockit_spi_if.d        quo,   // output  queue
+  sockit_spi_if.s        qui,   // input   queue
   // SCLK (serial clock)
   input  logic           spi_sclk_i,  // input (clock loopback)
   output logic           spi_sclk_o,  // output
@@ -69,192 +62,133 @@ module sockit_spi_ser #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-// SPI configuration
-logic [SSW-1:0] cfg_sss;  // slave select selector
-logic           cfg_m_s;  // SPI bus mode (0 - slave, 1 - master)
-logic           cfg_dir;  // shift direction (0 - LSB first, 1 - MSB first)
-logic           cfg_soe;  // slave select output enable
-logic           cfg_coe;  // clock output enable
-logic           cfg_pha;  // clock phase
-logic           cfg_pol;  // clock polarity
-
 // internal clocks, resets
 logic           spi_sclk;
 logic           spi_clk;
-logic           spi_rsi;
 
-// queue transfers
-logic           qui_trn;
-logic           quo_trn;
-
-// cycle timing
-logic [SDL-1:0] cyc_cnt;  // clock counter
-logic           cyc_cke;  // clock enable
+// cycle control
+sockit_spi_pkg::cmd_t cyc;
 logic           cyc_end;  // cycle end
 
-// output control signals
-logic           cyc_lst;  // input last (signal for synchronization purposes)
-logic     [3:0] cyc_doe;  // data output enable
-logic           cyc_die;  // data input enable
-logic     [1:0] cyc_iom;  // data IO mode
-logic [SSW-1:0] cyc_sso;  // slave select outputs
-
-// input control signals
-logic           cyc_new;  // new (first) data on input (used in slave mode)
-
 // output data signals
-logic [SDW-1:0] spi_sdo_3;
-logic [SDW-1:0] spi_sdo_2;
-logic [SDW-1:0] spi_sdo_1;
-logic [SDW-1:0] spi_sdo_0;
+logic [4-1:0][SDW-1:0] spi_sdo;
 
 // input data signals
-logic [SDW-1:0] spi_sdi_3;
-logic [SDW-1:0] spi_sdi_2;
-logic [SDW-1:0] spi_sdi_1;
-logic [SDW-1:0] spi_sdi_0;
-logic [SDW-1:0] spi_dti_3;
-logic [SDW-1:0] spi_dti_2;
-logic [SDW-1:0] spi_dti_1;
-logic [SDW-1:0] spi_dti_0;
-
-////////////////////////////////////////////////////////////////////////////////
-// configuration                                                              //
-////////////////////////////////////////////////////////////////////////////////
-
-assign cfg_sss = spi_cfg[24+:SSW];
-assign cfg_m_s = spi_cfg[7];
-assign cfg_dir = spi_cfg[6];
-assign cfg_soe = spi_cfg[3];
-assign cfg_coe = spi_cfg[2];
-assign cfg_pol = spi_cfg[1];
-assign cfg_pha = spi_cfg[0];
+logic [4-1:0][SDW-1:0] spi_sdi;
+logic [4-1:0][SDW-1:0] spi_dti;
 
 ////////////////////////////////////////////////////////////////////////////////
 // master/slave mode                                                          //
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock driver source
-assign spi_sclk = clk ^ cfg_pha;
+assign spi_sclk = clk ^ cfg.pha;
 
 // clock source
-assign spi_clk = cfg_m_s ? clk : spi_sclk_i ^ (cfg_pol ^ cfg_pha);
+assign spi_clk = cfg.m_s ? clk : spi_sclk_i ^ (cfg.pol ^ cfg.pha);
 
 // register clocks
 assign spi_cko =  spi_clk;  // output registers
 assign spi_cki = ~spi_clk;  // input  registers
-
-// slave select input
-assign spi_rsi = spi_ss_i [0];  // reset for output registers
-
-// new data cycle indicator
-always @(posedge spi_cko, posedge spi_rsi)
-if (spi_rsi)      cyc_new <= 1'b1;
-else if (qui_trn) cyc_new <= 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI cycle timing                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 // flow control for queue output
-assign quo_rdy = cyc_end;
-assign quo_trn = quo_vld & quo_rdy;
+assign quc.rdy = cyc_end;
+assign quo.rdy = cyc_end;
 
 // flow control for queue input
-assign qui_vld = cyc_die & cyc_cke & cyc_end;
-assign qui_trn = qui_vld & qui_rdy;
+assign qui.vld = cyc.die & cyc.cke & cyc_end;
 
 // transfer length counter
 always @(posedge spi_cko, posedge rst)
-if (rst)              cyc_cnt <= {SDL{1'b0}};
+if (rst)              cyc.cnt <= {SDL{1'b0}};
 else begin
-  if       (quo_trn)  cyc_cnt <= quo_ctl [7+:SDL];
-  else if (~cyc_end)  cyc_cnt <= cyc_cnt - 'd1;
+  if       (quc.trn)  cyc.cnt <= quc.dat.cnt;
+  else if (~cyc_end)  cyc.cnt <= cyc.cnt - 'd1;
 end
 
-assign cyc_end = ~|cyc_cnt;
+assign cyc_end = ~|cyc.cnt;
 
 // clock enable
 always @(posedge spi_sclk, posedge rst)
-if (rst)             cyc_cke <= 1'b0;
+if (rst)             cyc.cke <= 1'b0;
 else begin
-  if      (quo_trn)  cyc_cke <= quo_ctl [0];
-  else if (quo_rdy)  cyc_cke <= 1'b0;
+  if      (quc.trn)  cyc.cke <= quc.dat.cke;
+  else if (quc.rdy)  cyc.cke <= 1'b0;
 end
 
 // IO control registers
 always @(posedge spi_cko, posedge rst)
 if (rst) begin
-  cyc_sso <= {SSW{1'b0}};
-  cyc_doe <=      4'h0  ;
-  cyc_die <=      1'b0  ;
-  cyc_iom <=      2'd1  ;
-  cyc_lst <=      1'b0  ;
-end else if (quo_trn) begin
-  cyc_sso <= {SSW{quo_ctl [1]}} & cfg_sss;
-  case (quo_ctl [5:4])
-    2'd0 : cyc_doe <= {4{quo_ctl [2]}} & 4'b0001;
-    2'd1 : cyc_doe <= {4{quo_ctl [2]}} & 4'b0001;
-    2'd2 : cyc_doe <= {4{quo_ctl [2]}} & 4'b0011;
-    2'd3 : cyc_doe <= {4{quo_ctl [2]}} & 4'b1111;
-  endcase
-  cyc_die <= quo_ctl [  3];
-  cyc_iom <= quo_ctl [5:4];
-  cyc_lst <= quo_ctl [  6];
+  cyc.sso <= {SSW{1'b0}};
+  cyc.die <=      1'b0  ;
+  cyc.iom <=      2'd1  ;
+  cyc.lst <=      1'b0  ;
+end else if (quc.trn) begin
+  cyc.sso <= {SSW{quc.dat.sso}} & cfg.sss;
+  cyc.die <= quc.dat.die;
+  cyc.iom <= quc.dat.iom;
+  cyc.lst <= quc.dat.lst;
 end
 
-assign qui_ctl = {cyc_new, cyc_lst, cyc_iom};
-assign qui_dat = {spi_dti_3, spi_dti_2, spi_dti_1, spi_dti_0};
+assign qui.dat = spi_dti;
 
 ////////////////////////////////////////////////////////////////////////////////
 // slave select, clock, data (input, output, enable)                          //
 ////////////////////////////////////////////////////////////////////////////////
 
 // serial clock output
-assign spi_sclk_o = cfg_pol ^ (cyc_cke & ~(spi_sclk));
-assign spi_sclk_e = cfg_coe;
+assign spi_sclk_o = cfg.pol ^ (cyc.cke & ~(spi_sclk));
+assign spi_sclk_e = cfg.coe;
 
 
 // slave select output, output enable
-assign spi_ss_o =      cyc_sso  ;
-assign spi_ss_e = {SSW{cfg_soe}};
+assign spi_ss_o =      cyc.sso  ;
+assign spi_ss_e = {SSW{cfg.soe}};
 
 
 // data output
 always @ (posedge spi_cko)
-if (quo_trn) begin
-  spi_sdo_3 <=  quo_dat [3*SDW+:SDW];
-  spi_sdo_2 <=  quo_dat [2*SDW+:SDW];
-  spi_sdo_1 <=  quo_dat [1*SDW+:SDW];
-  spi_sdo_0 <=  quo_dat [0*SDW+:SDW];
+if (quo.trn) begin
+  spi_sdo <= quo.dat;
 end else begin
-  if (cyc_doe [3])  spi_sdo_3 <= {spi_sdo_3 [SDW-2:0], 1'bx};
-  if (cyc_doe [2])  spi_sdo_2 <= {spi_sdo_2 [SDW-2:0], 1'bx};
-  if (cyc_doe [1])  spi_sdo_1 <= {spi_sdo_1 [SDW-2:0], 1'bx};
-  if (cyc_doe [0])  spi_sdo_0 <= {spi_sdo_0 [SDW-2:0], 1'bx};
+  if (spi_sio_e[3])  spi_sdo[3] <= {spi_sdo[3][SDW-2:0], 1'bx};
+  if (spi_sio_e[2])  spi_sdo[2] <= {spi_sdo[2][SDW-2:0], 1'bx};
+  if (spi_sio_e[1])  spi_sdo[1] <= {spi_sdo[1][SDW-2:0], 1'bx};
+  if (spi_sio_e[0])  spi_sdo[0] <= {spi_sdo[0][SDW-2:0], 1'bx};
 end
 
-assign spi_sio_o [3] = spi_sdo_3 [SDW-1];
-assign spi_sio_o [2] = spi_sdo_2 [SDW-1];
-assign spi_sio_o [1] = spi_sdo_1 [SDW-1];
-assign spi_sio_o [0] = spi_sdo_0 [SDW-1];
+assign spi_sio_o[3] = spi_sdo[3][SDW-1];
+assign spi_sio_o[2] = spi_sdo[2][SDW-1];
+assign spi_sio_o[1] = spi_sdo[1][SDW-1];
+assign spi_sio_o[0] = spi_sdo[0][SDW-1];
 
 // data output enable
-assign spi_sio_e = cyc_doe;
+always @(posedge spi_cko, posedge rst)
+if (rst) begin
+  spi_sio_e <= 4'h0;
+end else if (quc.trn) begin
+  case (quc.dat.iom)
+    2'd0 : spi_sio_e <= {4{quc.dat.doe}} & 4'b0001;
+    2'd1 : spi_sio_e <= {4{quc.dat.doe}} & 4'b0001;
+    2'd2 : spi_sio_e <= {4{quc.dat.doe}} & 4'b0011;
+    2'd3 : spi_sio_e <= {4{quc.dat.doe}} & 4'b1111;
+  endcase
+end
 
 
 // data input
 always @ (posedge spi_cki)
-if (cyc_die) begin
-  spi_sdi_3 <= spi_dti_3;
-  spi_sdi_2 <= spi_dti_2;
-  spi_sdi_1 <= spi_dti_1;
-  spi_sdi_0 <= spi_dti_0;
+if (cyc.die) begin
+  spi_sdi <= spi_dti;
 end
 
-assign spi_dti_3 = {spi_sdi_3 [SDW-2:0], spi_sio_i [3]};
-assign spi_dti_2 = {spi_sdi_2 [SDW-2:0], spi_sio_i [2]};
-assign spi_dti_1 = {spi_sdi_1 [SDW-2:0], spi_sio_i [1]};
-assign spi_dti_0 = {spi_sdi_0 [SDW-2:0], spi_sio_i [0]};
+assign spi_dti[3] = {spi_sdi[3][SDW-2:0], spi_sio_i[3]};
+assign spi_dti[2] = {spi_sdi[2][SDW-2:0], spi_sio_i[2]};
+assign spi_dti[1] = {spi_sdi[1][SDW-2:0], spi_sio_i[1]};
+assign spi_dti[0] = {spi_sdi[0][SDW-2:0], spi_sio_i[0]};
 
 endmodule

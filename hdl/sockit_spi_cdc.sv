@@ -28,8 +28,8 @@
 // Handshaking protocol:                                                      //
 //                                                                            //
 // Both the input and the output port employ the same handshaking mechanism.  //
-// The data source sets the valid signal (*_vld) and the data drain           //
-// confirms the transfer by setting the ready signal (*_rdy).                 //
+// The data source sets the valid signal (*.vld) and the data drain           //
+// confirms the transfer by setting the ready signal (*.rdy).                 //
 //                                                                            //
 //                       ----------   vld    ----------                       //
 //                       )      S | ------>  | D      (                       //
@@ -39,33 +39,19 @@
 //                                                                            //
 // Clear signal:                                                              //
 //                                                                            //
-// The *_clr signal provides an optional synchronous clear of data counters.  //
+// The *.clr signal provides an optional synchronous clear of data counters.  //
 // To be precise by applying clear the counter of the applied side copies the //
 // counter value from the opposite side, thus causing the data still stored   //
 // inside the FIFO to be thrown out.                                          //
 //                                                                            //
-//                                                                            //
-//                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi_cdc #(
-  parameter    CW = 1,   // counter width
-  parameter    DW = 1    // data    width
+  int unsigned CW = 1,  // counter width
+  type         DT       // data type
 )(
-  // input port
-  input  logic          cdi_clk,  // clock
-  input  logic          cdi_rst,  // reset
-  input  logic          cdi_clr,  // clear
-  input  logic [DW-1:0] cdi_dat,  // data
-  input  logic          cdi_vld,  // valid
-  output logic          cdi_rdy,  // ready
-  // output port
-  input  logic          cdo_clk,  // clock
-  input  logic          cdo_rst,  // reset
-  input  logic          cdo_clr,  // clear
-  output logic [DW-1:0] cdo_dat,  // data
-  output logic          cdo_vld,  // valid
-  input  logic          cdo_rdy   // ready
+  sockit_spi_if.d cdi,  // input port
+  sockit_spi_if.s cdo   // output port
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,7 +94,7 @@ logic [CW-1:0] cdi_cnt;  // gray counter
 logic [CW-1:0] cdi_inc;  // gray increment
 
 // CDC FIFO memory
-logic [DW-1:0] cdc_mem [0:2**CW-1];
+DT             cdc_mem [0:2**CW-1];
 
 // output port
 logic          cdo_trn;  // transfer
@@ -121,52 +107,52 @@ logic [CW-1:0] cdo_inc;  // gray increment
 ////////////////////////////////////////////////////////////////////////////////
 
 // transfer
-assign cdi_trn = cdi_vld & cdi_rdy;
+assign cdi_trn = cdi.vld & cdi.rdy;
 
 // counter increment
 assign cdi_inc = gry_inc (cdi_cnt);
 
 // synchronization and counter registers
-always_ff @ (posedge cdi_clk, posedge cdi_rst)
-if (cdi_rst) begin
+always_ff @ (posedge cdi.clk, posedge cdi.rst)
+if (cdi.rst) begin
                      cdi_syn <= {CW{1'b0}};
                      cdi_cnt <= {CW{1'b0}};
-                     cdi_rdy <=     1'b1  ;
+                     cdi.rdy <=     1'b1  ;
 end else begin
                      cdi_syn <= cdo_cnt;
-  if      (cdi_clr)  cdi_cnt <= cdi_syn;
+  if      (cdi.clr)  cdi_cnt <= cdi_syn;
   else if (cdi_trn)  cdi_cnt <= cdi_inc;
-                     cdi_rdy <= cdi_rdy & ~cdi_trn | (cdi_syn != cdi_rdy ? cdi_inc : cdi_cnt);
+                     cdi.rdy <= cdi.rdy & ~cdi_trn | (cdi_syn != cdi.rdy ? cdi_inc : cdi_cnt);
 end
 
 // data memory
-always_ff @ (posedge cdi_clk)
-if (cdi_trn) cdc_mem [cdi_cnt] <= cdi_dat;
+always_ff @ (posedge cdi.clk)
+if (cdi_trn) cdc_mem [cdi_cnt] <= cdi.dat;
 
 ////////////////////////////////////////////////////////////////////////////////
 // output port                                                                //
 ////////////////////////////////////////////////////////////////////////////////
 
 // transfer
-assign cdo_trn = cdo_vld & cdo_rdy;
+assign cdo_trn = cdo.vld & cdo.rdy;
 
 // counter increment
 assign cdo_inc = gry_inc (cdo_cnt);
 
 // synchronization and counter registers
-always_ff @ (posedge cdo_clk, posedge cdo_rst)
-if (cdo_rst) begin
+always_ff @ (posedge cdo.clk, posedge cdo.rst)
+if (cdo.rst) begin
                      cdo_syn <= {CW{1'b0}};
                      cdo_cnt <= {CW{1'b0}};
-                     cdo_vld <=     1'b0  ;
+                     cdo.vld <=     1'b0  ;
 end else begin
                      cdo_syn <= cdi_cnt;
-  if      (cdo_clr)  cdo_cnt <= cdo_syn;
+  if      (cdo.clr)  cdo_cnt <= cdo_syn;
   else if (cdo_trn)  cdo_cnt <= cdo_inc;
-                     cdo_vld <= cdo_vld & ~cdo_trn | (cdo_syn != cdo_vld ? cdo_inc : cdo_cnt);
+                     cdo.vld <= cdo.vld & ~cdo_trn | (cdo_syn != cdo.vld ? cdo_inc : cdo_cnt);
 end
 
 // asynchronous output data
-assign cdo_dat = cdc_mem [cdo_cnt];
+assign cdo.dat = cdc_mem [cdo_cnt];
 
 endmodule: sockit_spi_cdc

@@ -32,9 +32,7 @@
 //  0x0 | spi_cfg - SPI configuration                                         //
 //  0x1 | spi_par - SPI parameterization (synthesis parameters, read only)    //
 //  0x2 | spi_ctl - SPI control/status                                        //
-//  0x3 | spi_dat - SPI data                                                  //
 //  0x4 | spi_irq - SPI interrupts                                            //
-//  0x5 | dma_ctl - DMA control/status                                        //
 //  0x6 | adr_rof - address read  offset                                      //
 //  0x7 | adr_wof - address write offset                                      //
 //                                                                            //
@@ -59,9 +57,8 @@
 //               -                   (1 - 2 bytes )                           //
 //               -                   (2 - reserved)                           //
 //               -                   (3 - 4 bytes )                           //
-// [    7] - m_s - SPI bus mode (0 - slave, 1 - master)                       //
 // [    6] - dir - shift direction (0 - LSB first, 1 - MSB first)             //
-// [ 5: 4] - iom - SPI data IO mode (0 - 3-wire) for XIP, DMA, slave mode     //
+// [ 5: 4] - iom - SPI data IO mode (0 - 3-wire) for XIP, slave mode          //
 //               -                  (1 - SPI   )                              //
 //               -                  (2 - dual  )                              //
 //               -                  (3 - quad  )                              //
@@ -98,43 +95,17 @@ module sockit_spi_reg #(
   parameter ADR_ROF = 32'h00000000,  // address write offset
   parameter ADR_WOF = 32'h00000000,  // address read  offset
   // port widths
-  parameter XAW     =           24,  // XIP address width
-  parameter CCO     =          5+7,  // command control output width
-  parameter CCI     =            4,  // command control  input width
-  parameter CDW     =           32   // command data width
+  parameter XAW     =           24   // XIP address width
 )(
-  // system signals (used by the CPU interface)
-  input  logic           clk,      // clock for CPU interface
-  input  logic           rst,      // reset for CPU interface
-  // bus interface
-  input  logic           reg_wen,  // write enable
-  input  logic           reg_ren,  // read enable
-  input  logic     [2:0] reg_adr,  // address
-  input  logic    [31:0] reg_wdt,  // write data
-  output logic    [31:0] reg_rdt,  // read data
-  output logic           reg_wrq,  // wait request
-  output logic           reg_err,  // error response
-  output logic           reg_irq,  // interrupt request
+  // AMBA AXI4-Lite
+  axi4_lite_if.s         axi,
   // SPI/XIP/DMA configuration
-  output logic    [31:0] spi_cfg,  // configuration register
+  output sockit_spi_pkg::cfg_t  spi_cfg,  // configuration register
   // address offsets
   output logic    [31:0] adr_rof,  // address read  offset
   output logic    [31:0] adr_wof,  // address write offset
-  // command output
-  output logic           cmo_vld,  // valid
-  output logic [CCO-1:0] cmo_ctl,  // control
-  output logic [CDW-1:0] cmo_dat,  // data
-  input  logic           cmo_rdy,  // ready
-  // command input
-  input  logic           cmi_vld,  // valid
-  input  logic [CCI-1:0] cmi_ctl,  // control
-  input  logic [CDW-1:0] cmi_dat,  // data
-  output logic           cmi_rdy,  // ready
-  // DMA task interface
-  output logic           tsk_vld,  // DMA valid
-  output logic    [31:0] tsk_ctl,  // DMA control
-  input  logic    [31:0] tsk_sts,  // DMA status
-  input  logic           tsk_rdy   // DMA ready
+  // streams
+  sockit_spi_if.s        cmc  // command
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -149,11 +120,6 @@ logic  wen_dma, ren_dma;  // DMA control/status
 //
 logic    [31:0] spi_par;  // SPI parameterization
 logic    [31:0] spi_sts;  // SPI status
-logic    [31:0] spi_dat;  // SPI data
-
-// SPI command interface
-logic           cmo_trn;
-logic           cmi_trn;
 
 // data
 logic           dat_wld;  // write load
@@ -162,42 +128,41 @@ logic           dat_rld;  // read  load
 // DMA command interface
 
 ////////////////////////////////////////////////////////////////////////////////
-// register decoder                                                           //
+// read access                                                                //
 ////////////////////////////////////////////////////////////////////////////////
 
-// register write/read access signals
-assign {wen_spi, ren_spi} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd2) & ~reg_wrq}};  // SPI control/status
-assign {wen_dat, ren_dat} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd3) & ~reg_wrq}};  // SPI data
-assign {wen_dma, ren_dma} = {reg_wen, reg_ren} & {2{(reg_adr == 3'd5) & ~reg_wrq}};  // DMA control/status
+// read address
+always_ff @(posedge axi.ACLK)
+if (axi.ARVALID & axi.ARREADY)
+  raddr <= axi.ARADDR;
+end
+
+// read address channel is never delayed
+always_ff @(posedge axi.ACLK, negedge axi.ARESETn)
+if (~axi.ARESETn) begin
+  axi.ARREADY = 1'b0;
+end else begin
+  axi.ARREADY = 1'b1;
+end
 
 // read data
-always_comb
-case (reg_adr)
-  3'd0 : reg_rdt =      spi_cfg;  // SPI configuration
-  3'd1 : reg_rdt =      spi_par;  // SPI parameterization
-  3'd2 : reg_rdt =      spi_sts;  // SPI status
-  3'd3 : reg_rdt =      spi_dat;  // SPI data
-  3'd4 : reg_rdt = 32'hxxxxxxxx;  // SPI interrupts
-  3'd5 : reg_rdt =      tsk_sts;  // DMA status
-  3'd6 : reg_rdt =      adr_rof;  // address read  offset
-  3'd7 : reg_rdt =      adr_wof;  // address write offset
+always_ff @(posedge axi.ACLK)
+case (raddr)
+  3'd0 : axi.RDATA <=      spi_cfg;  // SPI configuration
+  3'd1 : axi.RDATA <=      spi_par;  // SPI parameterization
+  3'd2 : axi.RDATA <=      spi_sts;  // SPI status
+  3'd4 : axi.RDATA <= 32'hxxxxxxxx;  // SPI interrupts
+  3'd6 : axi.RDATA <=      adr_rof;  // address read  offset
+  3'd7 : axi.RDATA <=      adr_wof;  // address write offset
 endcase
 
-// wait request
-always_comb
-case (reg_adr)
-  3'd0 : reg_wrq = 1'b0;                                 // SPI configuration
-  3'd1 : reg_wrq = 1'b0;                                 // SPI parameterization
-  3'd2 : reg_wrq = reg_wen & ~cmo_rdy;                   // SPI control
-  3'd3 : reg_wrq = reg_wen & 1'b0 | reg_ren & ~dat_rld;  // SPI data
-  3'd4 : reg_wrq = 1'b0;                                 // SPI interrupts
-  3'd5 : reg_wrq = ~tsk_rdy;                             // DMA control/status
-  3'd6 : reg_wrq = 1'b0;                                 // address read  offset
-  3'd7 : reg_wrq = 1'b0;                                 // address write offset
-endcase
-
-// error response
-assign reg_err = 1'b0;
+// read data channel is never delayed
+always_ff @(posedge axi.ACLK, negedge axi.ARESETn)
+if (~axi.ARESETn) begin
+  axi.RREADY = 1'b0;
+end else begin // TODO condition
+  axi.RREADY = 1'b1;
+end
 
 ////////////////////////////////////////////////////////////////////////////////
 // interrupts                                                                 //
@@ -238,9 +203,6 @@ end
 // command output                                                             //
 ////////////////////////////////////////////////////////////////////////////////
 
-// command output transfer
-assign cmo_trn = cmo_vld & cmo_rdy;
-
 // data output
 always_ff @(posedge clk)
 if (wen_dat)  cmo_dat <= reg_wdt;
@@ -261,13 +223,6 @@ assign cmo_ctl = {reg_wdt[12:8], reg_wdt[6:0]};
 // command input register                                                     //
 ////////////////////////////////////////////////////////////////////////////////
 
-// command input transfer
-assign cmi_trn = cmi_vld & cmi_rdy;
-
-// data input
-always_ff @(posedge clk)
-if (cmi_trn)  spi_dat <= cmi_dat;
-
 // data input load status
 always_ff @(posedge clk, posedge rst)
 if (rst)             dat_rld <= 1'b0;
@@ -278,12 +233,5 @@ end
 
 // command input transfer ready
 assign cmi_rdy = ~dat_rld;
-
-////////////////////////////////////////////////////////////////////////////////
-// DMA control/status interface                                               //
-////////////////////////////////////////////////////////////////////////////////
-
-assign tsk_vld = wen_dma;
-assign tsk_ctl = reg_wdt;
 
 endmodule: sockit_spi_reg
