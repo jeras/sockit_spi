@@ -28,19 +28,17 @@ module sockit_spi_xip #(
   parameter NOP     = 32'h00000000,  // no operation instruction (returned on error)
   // port widths
   parameter XAW     =           24,  // bus address width
-  parameter SDW     =            8,  // serial data register width
-  parameter CDW     =           32   // command data width
+  parameter XDW     =            8,  // serial data register width
 )(
   // input bus (XIP requests)
   axi4_if.s              axi
   // configuration
-  input  logic  [32-1:0] spi_cfg,  // SPI/XIP/DMA configuration
-  input  logic  [32-1:0] adr_rof,  // address read  offset
-  input  logic  [32-1:0] adr_wof,  // address write offset
+  input  logic  [32-1:0] spi_cfg,  // configuration
+  input  logic [XAW-1:0] adr_off,  // address offset
   // streams
-  sockit_spi_if.s        cmc,  //
-  sockit_spi_if.s        cmo,  //
-  sockit_spi_if.d        cmi   //
+  sockit_spi_if.s        scw,  // command
+  sockit_spi_if.s        sdw,  // data write
+  sockit_spi_if.d        sdr   // data read
 );
 
 ////////////////////////////////////////////////////////////////////////////////

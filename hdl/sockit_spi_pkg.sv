@@ -21,8 +21,7 @@ parameter int unsigned SDL = 3;
 // SPI configuration
 typedef struct packed {
   logic [SSW-1:0] sss;  // slave select selector
-  logic [ 18-1:0] rsv;  // reserved
-  logic           m_s;  // SPI bus mode (0 - slave, 1 - master)
+  logic [ 19-1:0] rsv;  // reserved
   logic           dir;  // shift direction (0 - LSB first, 1 - MSB first)
   logic           soe;  // slave select output enable
   logic           coe;  // clock output enable

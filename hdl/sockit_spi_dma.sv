@@ -62,8 +62,6 @@ module sockit_spi_dma #(
 )(
   // AMBA AXI4
   axi4_if.m              axi,
-  // configuration
-  input  logic  [32-1:0] spi_cfg,
   // data streams
   sockit_spi_if.s        sdw,  // stream data write
   sockit_spi_if.d        sdr   // stream data read
@@ -73,7 +71,7 @@ module sockit_spi_dma #(
 // data write channel                                                         //
 ////////////////////////////////////////////////////////////////////////////////
 
-// read address options affect read data
+// write address options affect write response
 always_ff @ (posedge axi.ACLK)
 if (axi.AWVALID & axi.AWREADY) begin
   // store transfer ID
@@ -81,6 +79,25 @@ if (axi.AWVALID & axi.AWREADY) begin
   // AXI4 write response depends on whether a supported request was made
   axi.WRESP <= (axi.WRSIZE <= axi4_pkg::int2SIZE(DW)) ? axi4_pkg::OKEY
                                                       : axi4_pkg::SLVERR;
+end
+
+// wait for both address and data bus to be valid before declaring ready
+// also wait for previous write response to complete
+assign axi.AWREADY = axi.AWVALID & axi.WVALID & ~axi.BVALID;
+//TODO: next version might offer better performance, but it can also cause
+//combinatorial loops and long timing paths
+//assign axi.AWREADY = axi.AWVALID & axi.WVALID & (~axi.BVALID | axi.BREADY);
+
+// generate write response after confirming write address transfer
+always_ff @ (posedge axi.ACLK, negedge axi.ARESETn)
+if (~axi.ARESETn) begin
+  axi.BVALID <= 1'b0;
+end else begin
+  if (axi.AWREADY) begin
+    axi.BVALID <= 1'b1;
+  end else if (axi.BVALID & axi.BREADY) begin
+    axi.BVALID <= 1'b0;
+  end
 end
 
 // stream data write

@@ -76,31 +76,15 @@ module sockit_spi #(
   parameter SDL     =  $clog2(SDW),  // serial data register width logarithm
   parameter CDC     =         1'b0   // implement clock domain crossing
 )(
-  // system signals (used by the CPU interface)
-  input  logic           clk_cpu,     // clock for CPU interface
-  input  logic           rst_cpu,     // reset for CPU interface
-  input  logic           clk_spi,     // clock for SPI IO
-  input  logic           rst_spi,     // reset for SPI IO
-  // registers interface bus (slave)
-  axi4_lite.s            axi_reg,
-  // XIP interface bus (slave)
-  axi4.s                 axi_xip,
-  // DMA interface bus (slave)
-  axi4.s                 axi_xip,
-
+  // system signals (used by SPI interface)
+  input  logic   clk_spi,  // clock for SPI IO
+  input  logic   rst_spi,  // reset for SPI IO
+  // AMBA AXI4 slave interfaces
+  axi4_lite_if.s axi_reg,  // registers
+  axi4_if.s      axi_dma,  // DMA
+  axi4_if.s      axi_xip,  // XIP
   // SPI signals (at a higher level should be connected to tristate IO pads)
-  // serial clock
-  input  logic           spi_sclk_i,  // input (clock loopback)
-  output logic           spi_sclk_o,  // output
-  output logic           spi_sclk_e,  // output enable
-  // serial input output SIO[3:0] or {HOLD_n, WP_n, MISO, MOSI/3logic-bidir}
-  input  logic     [3:0] spi_sio_i,   // input
-  output logic     [3:0] spi_sio_o,   // output
-  output logic     [3:0] spi_sio_e,   // output enable
-  // active low slave select signal
-  input  logic [SSW-1:0] spi_ss_i,    // input  (requires inverter at the pad)
-  output logic [SSW-1:0] spi_ss_o,    // output (requires inverter at the pad)
-  output logic [SSW-1:0] spi_ss_e     // output enable
+  spi_if.m       spi_inf
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,38 +93,35 @@ module sockit_spi #(
 
 localparam CDW = 32;  // data width
 
+// type definitions
+typedef sockit_spi_pkg:cmd scw_t;
+typedef logic [DW-1:0] sdw_t;
+typedef logic [DW-1:0] sdr_t;
+
 // SPI/XIP/DMA configuration
 sockit_spi_pkg::cfg_t spi_cfg;
 
-// address offsets
-logic    [31:0] adr_rof;  // address read  offset
-logic    [31:0] adr_wof;  // address write offset
+// address offset
+logic [AW-1:0] adr_off;
 
-// arbitration locks
-logic  arb_lko;  // command output multiplexer/decode
-logic  arb_lki;  // command input demultiplexer/encoder
-logic  arb_xip;  // XIP access to the command interface
+// TODO: check clocks and resets, only important, if there is clock gating
 
-typedef sockit_spi_pkg:cmd qc_t;
-typedef logic [DW-1:0] qo_t;
-typedef logic [DW-1:0] qi_t;
-
-// xip streams
-sockit_spi_if #(.DT (qc_t)) scx (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-sockit_spi_if #(.DT (qo_t)) sox (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-sockit_spi_if #(.DT (qi_t)) six (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-// bus (reg/dat) streams
-sockit_spi_if #(.DT (qc_t)) scb (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-sockit_spi_if #(.DT (qo_t)) sob (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-sockit_spi_if #(.DT (qi_t)) sib (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-// cdc write
-sockit_spi_if #(.DT (qc_t)) qcw (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-sockit_spi_if #(.DT (qo_t)) qow (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-sockit_spi_if #(.DT (qi_t)) qiw (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-// cdc read
-sockit_spi_if #(.DT (qr_t)) qcr (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-sockit_spi_if #(.DT (qo_t)) qor (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
-sockit_spi_if #(.DT (qi_t)) qir (.clk (clk_cpu), .clr (1'b0), .rst (rst_cpu));
+// REG/DMA streams
+sockit_spi_if #(.DT (scw_t)) scw_reg (.clk (axi_xip.ACLK), .clr (1'b0), .rst (axi_xip.ARESETn));
+sockit_spi_if #(.DT (sdw_t)) sdw_dma (.clk (axi_xip.ACLK), .clr (1'b0), .rst (axi_xip.ARESETn));
+sockit_spi_if #(.DT (sdr_t)) sdr_dma (.clk (axi_xip.ACLK), .clr (1'b0), .rst (axi_xip.ARESETn));
+// XIP streams
+sockit_spi_if #(.DT (scw_t)) scw_xip (.clk (axi_xip.ACLK), .clr (1'b0), .rst (axi_xip.ARESETn));
+sockit_spi_if #(.DT (sdw_t)) sdw_xip (.clk (axi_xip.ACLK), .clr (1'b0), .rst (axi_xip.ARESETn));
+sockit_spi_if #(.DT (sdr_t)) sdr_xip (.clk (axi_xip.ACLK), .clr (1'b0), .rst (axi_xip.ARESETn));
+// CDC (Clock Domain aXi) streams
+sockit_spi_if #(.DT (scw_t)) scw_cdx (.clk (axi_xip.ACLK), .clr (1'b0), .rst (axi_xip.ARESETn));
+sockit_spi_if #(.DT (sdw_t)) sdw_cdx (.clk (axi_xip.ACLK), .clr (1'b0), .rst (axi_xip.ARESETn));
+sockit_spi_if #(.DT (sdr_t)) sdr_cdx (.clk (axi_xip.ACLK), .clr (1'b0), .rst (axi_xip.ARESETn));
+// CDC (Clock Domain Spi) streams
+sockit_spi_if #(.DT (scw_t)) scw_cds (.clk (clk_spi), .clr (1'b0), .rst (rst_spi));
+sockit_spi_if #(.DT (sdw_t)) sdw_cds (.clk (clk_spi), .clr (1'b0), .rst (rst_spi));
+sockit_spi_if #(.DT (sdr_t)) sdr_cds (.clk (clk_spi), .clr (1'b0), .rst (rst_spi));
 
 // SPI clocks
 logic           spi_cko;  // output registers
@@ -164,10 +145,24 @@ sockit_spi_reg #(
   // SPI/XIP/DMA configuration
   .spi_cfg  (spi_cfg),
   // address offsets
-  .adr_rof  (adr_rof),
-  .adr_wof  (adr_wof),
-  // command output
-  .cmc      (reg_cmc),
+  .adr_rof  (adr_off),
+  // command stream
+  .scw      (scw_reg),
+);
+
+////////////////////////////////////////////////////////////////////////////////
+// DMA instance                                                               //
+////////////////////////////////////////////////////////////////////////////////
+
+sockit_spi_dma #(
+  // port widths
+  .DW       (DAW)
+) dma (
+  // AMBA AXI4
+  .axi      (axi_dma),
+  // data streams
+  .sdw      (sdw_dma),
+  .sdr      (sdr_dma)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,103 +179,41 @@ sockit_spi_xip #(
   .axi      (axi_xip),
   // configuration
   .spi_cfg  (spi_cfg),
-  .adr_rof  (adr_rof),
-  .adr_wof  (adr_wof),
-  // streams
-  .cmc      (xip_cmc),
-  .cmo      (xip_cmo),
-  .cmi      (xip_cmi)
+  .adr_off  (adr_off),
+  // command/data streams
+  .scw      (scw_xip),
+  .sdw      (sdw_xip),
+  .sdr      (sdr_xip)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
-// DMA instance                                                               //
+// multiplexer/fork between XIP and REG+DMA                                   //
 ////////////////////////////////////////////////////////////////////////////////
 
-sockit_spi_dma #(
-  // port widths
-  .DAW      (DAW    )
-) dma (
-  // AMBA AXI4
-  .axi      (axi_dma),
-  // configuration
-  .spi_cfg  (spi_cfg),
-  // streams
-  .cmo      (dma_cmo),
-  .cmi      (dma_cmi)
-);
-
-////////////////////////////////////////////////////////////////////////////////
-// arbitration                                                                //
-////////////////////////////////////////////////////////////////////////////////
-
-// TODO
 assign arb_xip = 1'b0;  // TODO
 
-// command output multiplexer
-assign qow.vld = arb_xip ? xip_cmo.vld : arb_lko ? dma_cmo.vld : reg_cmo.vld;
-assign qow.dat = arb_xip ? xip_cmo.dat : arb_lko ? dma_cmo.dat : reg_cmo.dat;
-// command output decoder
-assign reg_cmo.rdy = qow.rdy & ~arb_xip & ~arb_lko;
-assign dma_cmo.rdy = qow.rdy & ~arb_xip &  arb_lko;
-assign xip_cmo.rdy = qow.rdy &  arb_xip;
-
-// command input demultiplexer
-assign reg_cmi.vld = qir.vld & ~arb_xip & ~arb_lki;
-assign dma_cmi.vld = qir.vld & ~arb_xip &  arb_lki;
-assign xip_cmi.vld = qir.vld &  arb_xip;
-assign {xip_cmi.dat, dma_cmi.dat} = {2{qir.dat}};
-// command input encoder
-assign qir.rdy = arb_xip ? xip_cmi.rdy : arb_lki ? dma_cmi.rdy : reg_cmi.rdy;
+//                                      select         port 0          port 1          common port
+sockit_spi_mux #(.DT (scw_t)) mux_scw (.sel (arb_xip), .si0 (scw_xip), .si1 (scw_reg), .sto (scw_cdx));  // command
+sockit_spi_mux #(.DT (sdw_t)) mux_sdw (.sel (arb_xip), .si0 (sdw_xip), .si1 (sdw_dma), .sto (sdw_cdx));  // data write
+sockit_spi_frk #(.DT (sdr_t)) frk_sdw (.sel (arb_xip), .so0 (sdr_xip), .so1 (sdr_dma), .sti (sdr_cdx));  // data read
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock domain crossing pipeline (optional) for data register                //
 ////////////////////////////////////////////////////////////////////////////////
 
+// for data read path CDC input and output ports are switched
+
 generate if (CDC) begin : cdc
 
-  // control
-  sockit_spi_cdc #(
-    .CW       (   1),
-    .DT       (qc_t)
-  ) cdc_quc (
-    .cdi      (qcw),
-    .cdo      (qcr)
-  );
-
-  // data output
-  sockit_spi_cdc #(
-    .CW       (   1),
-    .DT       (qo_t)
-  ) cdc_quo (
-    .cdi      (qow),
-    .cdo      (qor)
-  );
-
-  // data input
-  sockit_spi_cdc #(
-    .CW       (   1),
-    .DT       (qi_t)
-  ) cdc_qui (
-    .cdi      (qiw),
-    .cdo      (qir)
-  );
+sockit_spi_cdc #(.CW (1), .DT (scw_t)) cdc_scw (.cdi (scw_cdx), .cdo (scw_cds));  // control
+sockit_spi_cdc #(.CW (1), .DT (sdw_t)) cdc_sdw (.cdi (sdw_cdx), .cdo (sdw_cds));  // data write
+sockit_spi_cdc #(.CW (1), .DT (sdr_t)) cdc_sdr (.cdo (sdr_cdx), .cdi (sdr_cds));  // data read
 
 end else begin : syn
 
-  // command
-  assign qcr.vld = qcw.vld;
-  assign qcr.dat = qcw.dat;
-  assign qcw.rdy = qcr.rdy;
-
-  // data output
-  assign qor.vld = qow.vld;
-  assign qor.dat = qow.dat;
-  assign qow.rdy = qor.rdy;
-
-  // data input
-  assign qir.vld = qiw.vld;
-  assign qir.dat = qiw.dat;
-  assign qiw.rdy = qir.rdy;
+sockit_spi_pas #(.CW (1), .DT (scw_t)) pas_scw (.cdi (scw_cdx), .cdo (scw_cds));  // control
+sockit_spi_pas #(.CW (1), .DT (sdw_t)) pas_sdw (.cdi (sdw_cdx), .cdo (sdw_cds));  // data write
+sockit_spi_pas #(.CW (1), .DT (sdr_t)) pas_sdr (.cdo (sdr_cdx), .cdi (sdr_cds));  // data read
 
 end endgenerate
 
@@ -300,23 +233,12 @@ sockit_spi_ser #(
   .spi_cki  (spi_cki),
   // SPI configuration
   .spi_cfg  (spi_cfg),
-  // queue streams
+  // command/data streams
   .quc      (qcr),
   .quo      (qor),
   .qui      (qiw),
-
-  // SCLK (serial clock)
-  .spi_sclk_i  (spi_sclk_i),
-  .spi_sclk_o  (spi_sclk_o),
-  .spi_sclk_e  (spi_sclk_e),
-  // SIO  (serial input output) {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
-  .spi_sio_i   (spi_sio_i),
-  .spi_sio_o   (spi_sio_o),
-  .spi_sio_e   (spi_sio_e),
-  // SS_N (slave select - active low signal)
-  .spi_ss_i    (spi_ss_i),
-  .spi_ss_o    (spi_ss_o),
-  .spi_ss_e    (spi_ss_e)
+  // SPI interface
+  .spi      (spi_inf)
 );
 
 endmodule: sockit_spi

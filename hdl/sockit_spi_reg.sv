@@ -30,11 +30,9 @@
 //  adr | reg name, short description                                         //
 // -----+-------------------------------------------------------------------- //
 //  0x0 | spi_cfg - SPI configuration                                         //
-//  0x1 | spi_par - SPI parameterization (synthesis parameters, read only)    //
-//  0x2 | spi_ctl - SPI control/status                                        //
-//  0x4 | spi_irq - SPI interrupts                                            //
-//  0x6 | adr_rof - address read  offset                                      //
-//  0x7 | adr_wof - address write offset                                      //
+//  0x1 | spi_ctl - SPI control/status                                        //
+//  0x2 | spi_irq - SPI interrupts                                            //
+//  0x3 | adr_off - AXI address offset                                        //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -121,12 +119,6 @@ logic  wen_dma, ren_dma;  // DMA control/status
 logic    [31:0] spi_par;  // SPI parameterization
 logic    [31:0] spi_sts;  // SPI status
 
-// data
-logic           dat_wld;  // write load
-logic           dat_rld;  // read  load
-
-// DMA command interface
-
 ////////////////////////////////////////////////////////////////////////////////
 // read access                                                                //
 ////////////////////////////////////////////////////////////////////////////////
@@ -207,14 +199,6 @@ end
 always_ff @(posedge clk)
 if (wen_dat)  cmo_dat <= reg_wdt;
 
-// data output load status
-always_ff @(posedge clk, posedge rst)
-if (rst)             dat_wld <= 1'b0;
-else begin
-  if      (wen_dat)  dat_wld <= 1'b1;
-  else if (cmo_trn)  dat_wld <= 1'b0;
-end
-
 // command output
 assign cmo_vld = wen_spi;
 assign cmo_ctl = {reg_wdt[12:8], reg_wdt[6:0]};
@@ -222,16 +206,5 @@ assign cmo_ctl = {reg_wdt[12:8], reg_wdt[6:0]};
 ////////////////////////////////////////////////////////////////////////////////
 // command input register                                                     //
 ////////////////////////////////////////////////////////////////////////////////
-
-// data input load status
-always_ff @(posedge clk, posedge rst)
-if (rst)             dat_rld <= 1'b0;
-else begin
-  if      (cmi_trn)  dat_rld <= 1'b1;
-  else if (ren_dat)  dat_rld <= 1'b0;
-end
-
-// command input transfer ready
-assign cmi_rdy = ~dat_rld;
 
 endmodule: sockit_spi_reg

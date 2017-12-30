@@ -4,9 +4,9 @@ interface spi_if #(
 );
 
 // serial clock
-logic          sck_i;
-logic          sck_o;
-logic          sck_t;
+logic          clk_i;
+logic          clk_o;
+logic          clk_t;
 // quad IO [HOLD#, WP#, MISO, MOSI]
 logic [DW-1:0] sio_i;
 logic [DW-1:0] sio_o;
@@ -18,9 +18,9 @@ logic [SN-1:0] ssn_t;
 
 // master
 modport m (
-  input  sck_i,
-  output sck_o,
-  output sck_t,
+  input  clk_i,
+  output clk_o,
+  output clk_t,
   input  sio_i,
   output sio_o,
   output sio_t,
@@ -31,9 +31,9 @@ modport m (
 
 // slave
 modport s (
-  output sck_i,
-  input  sck_o,
-  input  sck_t,
+  output clk_i,
+  input  clk_o,
+  input  clk_t,
   output sio_i,
   input  sio_o,
   input  sio_t,

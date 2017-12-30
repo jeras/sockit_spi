@@ -44,18 +44,8 @@ module sockit_spi_ser #(
   sockit_spi_if.d        quc,   // command queue
   sockit_spi_if.d        quo,   // output  queue
   sockit_spi_if.s        qui,   // input   queue
-  // SCLK (serial clock)
-  input  logic           spi_sclk_i,  // input (clock loopback)
-  output logic           spi_sclk_o,  // output
-  output logic           spi_sclk_e,  // output enable
-  // SIO  (serial input output) {HOLD_n, WP_n, MISO, MOSI/3wire-bidir}
-  input  logic     [3:0] spi_sio_i,   // input
-  output logic     [3:0] spi_sio_o,   // output
-  output logic     [3:0] spi_sio_e,   // output enable
-  // SS_N (slave select - active low signal)
-  input  logic [SSW-1:0] spi_ss_i,    // input  (requires inverter at the pad)
-  output logic [SSW-1:0] spi_ss_o,    // output (requires inverter at the pad)
-  output logic [SSW-1:0] spi_ss_e     // output enable
+  // SPI interface
+  spi_if.m               spi
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -85,7 +75,7 @@ logic [4-1:0][SDW-1:0] spi_dti;
 assign spi_sclk = clk ^ cfg.pha;
 
 // clock source
-assign spi_clk = cfg.m_s ? clk : spi_sclk_i ^ (cfg.pol ^ cfg.pha);
+assign spi_clk = cfg.m_s ? clk : spi.sclk_i ^ (cfg.pol ^ cfg.pha);
 
 // register clocks
 assign spi_cko =  spi_clk;  // output registers
@@ -141,13 +131,13 @@ assign qui.dat = spi_dti;
 ////////////////////////////////////////////////////////////////////////////////
 
 // serial clock output
-assign spi_sclk_o = cfg.pol ^ (cyc.cke & ~(spi_sclk));
-assign spi_sclk_e = cfg.coe;
+assign spi.clk_o = cfg.pol ^ (cyc.cke & ~(spi_sclk));
+assign spi.clk_e = cfg.coe;
 
 
 // slave select output, output enable
-assign spi_ss_o =      cyc.sso  ;
-assign spi_ss_e = {SSW{cfg.soe}};
+assign spi.ssn_o =      cyc.sso  ;
+assign spi.ssn_e = {SSW{cfg.soe}};
 
 
 // data output
@@ -155,27 +145,27 @@ always @ (posedge spi_cko)
 if (quo.trn) begin
   spi_sdo <= quo.dat;
 end else begin
-  if (spi_sio_e[3])  spi_sdo[3] <= {spi_sdo[3][SDW-2:0], 1'bx};
-  if (spi_sio_e[2])  spi_sdo[2] <= {spi_sdo[2][SDW-2:0], 1'bx};
-  if (spi_sio_e[1])  spi_sdo[1] <= {spi_sdo[1][SDW-2:0], 1'bx};
-  if (spi_sio_e[0])  spi_sdo[0] <= {spi_sdo[0][SDW-2:0], 1'bx};
+  if (spi.sio_e[3])  spi_sdo[3] <= {spi_sdo[3][SDW-2:0], 1'bx};
+  if (spi.sio_e[2])  spi_sdo[2] <= {spi_sdo[2][SDW-2:0], 1'bx};
+  if (spi.sio_e[1])  spi_sdo[1] <= {spi_sdo[1][SDW-2:0], 1'bx};
+  if (spi.sio_e[0])  spi_sdo[0] <= {spi_sdo[0][SDW-2:0], 1'bx};
 end
 
-assign spi_sio_o[3] = spi_sdo[3][SDW-1];
-assign spi_sio_o[2] = spi_sdo[2][SDW-1];
-assign spi_sio_o[1] = spi_sdo[1][SDW-1];
-assign spi_sio_o[0] = spi_sdo[0][SDW-1];
+assign spi.sio_o[3] = spi_sdo[3][SDW-1];
+assign spi.sio_o[2] = spi_sdo[2][SDW-1];
+assign spi.sio_o[1] = spi_sdo[1][SDW-1];
+assign spi.sio_o[0] = spi_sdo[0][SDW-1];
 
 // data output enable
 always @(posedge spi_cko, posedge rst)
 if (rst) begin
-  spi_sio_e <= 4'h0;
+  spi.sio_e <= 4'h0;
 end else if (quc.trn) begin
   case (quc.dat.iom)
-    2'd0 : spi_sio_e <= {4{quc.dat.doe}} & 4'b0001;
-    2'd1 : spi_sio_e <= {4{quc.dat.doe}} & 4'b0001;
-    2'd2 : spi_sio_e <= {4{quc.dat.doe}} & 4'b0011;
-    2'd3 : spi_sio_e <= {4{quc.dat.doe}} & 4'b1111;
+    2'd0 : spi.sio_e <= {4{quc.dat.doe}} & 4'b0001;
+    2'd1 : spi.sio_e <= {4{quc.dat.doe}} & 4'b0001;
+    2'd2 : spi.sio_e <= {4{quc.dat.doe}} & 4'b0011;
+    2'd3 : spi.sio_e <= {4{quc.dat.doe}} & 4'b1111;
   endcase
 end
 
