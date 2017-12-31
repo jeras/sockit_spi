@@ -123,10 +123,6 @@ sockit_spi_if #(.DT (scw_t)) scw_cds (.clk (clk_spi), .clr (1'b0), .rst (rst_spi
 sockit_spi_if #(.DT (sdw_t)) sdw_cds (.clk (clk_spi), .clr (1'b0), .rst (rst_spi));
 sockit_spi_if #(.DT (sdr_t)) sdr_cds (.clk (clk_spi), .clr (1'b0), .rst (rst_spi));
 
-// SPI clocks
-logic           spi_cko;  // output registers
-logic           spi_cki;  // input  registers
-
 ////////////////////////////////////////////////////////////////////////////////
 // REG instance                                                               //
 ////////////////////////////////////////////////////////////////////////////////
@@ -228,9 +224,6 @@ sockit_spi_ser #(
   // system signals
   .clk      (clk_spi),
   .rst      (rst_spi),
-  // SPI clocks
-  .spi_cko  (spi_cko),
-  .spi_cki  (spi_cki),
   // SPI configuration
   .spi_cfg  (spi_cfg),
   // command/data streams

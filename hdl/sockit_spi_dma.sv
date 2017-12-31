@@ -25,18 +25,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
-// Handshaking protocol:                                                      //
-//                                                                            //
-// The DMA task protocol employ a handshaking mechanism. The data source sets //
-// the valid signal (tsk_vld) and the data drain confirms the transfer by     //
-// setting the ready signal (tsk_rdy).                                        //
-//                                                                            //
-//                       ----------   vld    ----------                       //
-//                       )      S | ------>  | D      (                       //
-//                       (      R |          | R      )                       //
-//                       )      C | <------  | N      (                       //
-//                       ----------   rdy    ----------                       //
-//                                                                            //
 // DMA task protocol:                                                         //
 //                                                                            //
 // The protocol uses a control (tsk_ctl) and a status (tsk_sts) signal. The   //

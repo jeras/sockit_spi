@@ -25,18 +25,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
-// Handshaking protocol:                                                      //
-//                                                                            //
-// Both the command and the queue protocol employ the same handshaking mech-  //
-// anism. The data source sets the valid signal (*_vld) and the data drain    //
-// confirms the transfer by setting the ready signal (*_rdy).                 //
-//                                                                            //
-//                       ----------   vld    ----------                       //
-//                       )      S | ------>  | D      (                       //
-//                       (      R |          | R      )                       //
-//                       )      C | <------  | N      (                       //
-//                       ----------   rdy    ----------                       //
-//                                                                            //
 // Command protocol:                                                          //
 //                                                                            //
 // The command protocol packet transfer contains CDW=32 data bits (same as    //

@@ -27,23 +27,13 @@ module sockit_spi_ser #(
   // port widths
   int unsigned SSW     = sockit_spi_pkg::SSW,  // slave select width
   int unsigned SDW     = sockit_spi_pkg::SDW,  // serial data register width
-  int unsigned SDL     = sockit_spi_pkg::SDL,  // serial data register width logarithm
-  int unsigned QCO     =        SDL+7,  // queue control output width
-  int unsigned QCI     =            4,  // queue control  input width
-  int unsigned QDW     =        4*SDW   // queue data width
 )(
-  // system signals
-  input  logic           clk,      // clock
-  input  logic           rst,      // reset
-  // SPI clocks
-  output logic           spi_cko,  // output registers
-  output logic           spi_cki,  // input  registers
   // SPI configuration
   input  sockit_spi_pkg::cfg_t spi_cfg,  // SPI/XIP/DMA configuration
-  // control/data streams
-  sockit_spi_if.d        quc,   // command queue
-  sockit_spi_if.d        quo,   // output  queue
-  sockit_spi_if.s        qui,   // input   queue
+  // command/data streams
+  sockit_spi_if.d        scw,   // command
+  sockit_spi_if.d        sdw,   // data write
+  sockit_spi_if.s        sdr,   // data read
   // SPI interface
   spi_if.m               spi
 );
@@ -53,8 +43,12 @@ module sockit_spi_ser #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // internal clocks, resets
-logic           spi_sclk;
 logic           spi_clk;
+logic           spi_rst;
+
+// SPI register clocks
+logic           spi_cko;  // MOSI registers
+logic           spi_cki;  // MISO registers
 
 // cycle control
 sockit_spi_pkg::cmd_t cyc;
@@ -68,46 +62,43 @@ logic [4-1:0][SDW-1:0] spi_sdi;
 logic [4-1:0][SDW-1:0] spi_dti;
 
 ////////////////////////////////////////////////////////////////////////////////
-// master/slave mode                                                          //
+// clock & reset                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-// clock driver source
-assign spi_sclk = clk ^ cfg.pha;
-
-// clock source
-assign spi_clk = cfg.m_s ? clk : spi.sclk_i ^ (cfg.pol ^ cfg.pha);
+assign spi_clk = scw.clk;
+assign spi_rst = scw.rst;
 
 // register clocks
-assign spi_cko =  spi_clk;  // output registers
-assign spi_cki = ~spi_clk;  // input  registers
+assign spi_cko =  spi_clk;  // MOSI registers
+assign spi_cki = ~spi_clk;  // MISO registers
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI cycle timing                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 // flow control for queue output
-assign quc.rdy = cyc_end;
-assign quo.rdy = cyc_end;
+assign scw.rdy = cyc_end;
+assign sdw.rdy = cyc_end;
 
 // flow control for queue input
-assign qui.vld = cyc.die & cyc.cke & cyc_end;
+assign sdr.vld = cyc.die & cyc.cke & cyc_end;
 
 // transfer length counter
 always @(posedge spi_cko, posedge rst)
-if (rst)              cyc.cnt <= {SDL{1'b0}};
+if (rst)              cyc.cnt <= '0;
 else begin
-  if       (quc.trn)  cyc.cnt <= quc.dat.cnt;
+  if       (scw.trn)  cyc.cnt <= scw.dat.cnt;
   else if (~cyc_end)  cyc.cnt <= cyc.cnt - 'd1;
 end
 
 assign cyc_end = ~|cyc.cnt;
 
 // clock enable
-always @(posedge spi_sclk, posedge rst)
+always @(posedge spi_cko, posedge rst)
 if (rst)             cyc.cke <= 1'b0;
 else begin
-  if      (quc.trn)  cyc.cke <= quc.dat.cke;
-  else if (quc.rdy)  cyc.cke <= 1'b0;
+  if      (scw.trn)  cyc.cke <= scw.dat.cke;
+  else if (scw.rdy)  cyc.cke <= 1'b0;
 end
 
 // IO control registers
@@ -117,21 +108,21 @@ if (rst) begin
   cyc.die <=      1'b0  ;
   cyc.iom <=      2'd1  ;
   cyc.lst <=      1'b0  ;
-end else if (quc.trn) begin
-  cyc.sso <= {SSW{quc.dat.sso}} & cfg.sss;
-  cyc.die <= quc.dat.die;
-  cyc.iom <= quc.dat.iom;
-  cyc.lst <= quc.dat.lst;
+end else if (scw.trn) begin
+  cyc.sso <= {SSW{scw.dat.sso}} & cfg.sss;
+  cyc.die <= scw.dat.die;
+  cyc.iom <= scw.dat.iom;
+  cyc.lst <= scw.dat.lst;
 end
 
-assign qui.dat = spi_dti;
+assign sdr.dat = spi_dti;
 
 ////////////////////////////////////////////////////////////////////////////////
 // slave select, clock, data (input, output, enable)                          //
 ////////////////////////////////////////////////////////////////////////////////
 
 // serial clock output
-assign spi.clk_o = cfg.pol ^ (cyc.cke & ~(spi_sclk));
+assign spi.clk_o = cfg.pol ^ (cyc.cke & ~(spi_clk ^ cfg.pha));
 assign spi.clk_e = cfg.coe;
 
 
@@ -139,46 +130,36 @@ assign spi.clk_e = cfg.coe;
 assign spi.ssn_o =      cyc.sso  ;
 assign spi.ssn_e = {SSW{cfg.soe}};
 
-
-// data output
+// shift register
 always @ (posedge spi_cko)
-if (quo.trn) begin
-  spi_sdo <= quo.dat;
+if (sdw.trn) begin
+  spi_sdo <= sdw.dat;
 end else begin
-  if (spi.sio_e[3])  spi_sdo[3] <= {spi_sdo[3][SDW-2:0], 1'bx};
+  case (scw.dat.iom)
+    2'd0 : spi_sdo <= { spi_sdo[32-1-:1] & 4'b0001;
+    2'd1 : spi_sdo <= { spi_sdo[32-1-:1] & 4'b0001;
+    2'd2 : spi_sdo <= { spi_sdo[32-1-:1] & 4'b0011;
+    2'd3 : spi_sdo <= { spi_sdo[32-1-:1] & 4'b1111;
+  endcase
+  spi_sdo <= {spi_sdo[3][SDW-2:0], 1'bx};
   if (spi.sio_e[2])  spi_sdo[2] <= {spi_sdo[2][SDW-2:0], 1'bx};
   if (spi.sio_e[1])  spi_sdo[1] <= {spi_sdo[1][SDW-2:0], 1'bx};
   if (spi.sio_e[0])  spi_sdo[0] <= {spi_sdo[0][SDW-2:0], 1'bx};
 end
 
-assign spi.sio_o[3] = spi_sdo[3][SDW-1];
-assign spi.sio_o[2] = spi_sdo[2][SDW-1];
-assign spi.sio_o[1] = spi_sdo[1][SDW-1];
-assign spi.sio_o[0] = spi_sdo[0][SDW-1];
+assign spi.sio_o = spi_sdo[32-1-:4];
 
 // data output enable
 always @(posedge spi_cko, posedge rst)
 if (rst) begin
   spi.sio_e <= 4'h0;
-end else if (quc.trn) begin
-  case (quc.dat.iom)
-    2'd0 : spi.sio_e <= {4{quc.dat.doe}} & 4'b0001;
-    2'd1 : spi.sio_e <= {4{quc.dat.doe}} & 4'b0001;
-    2'd2 : spi.sio_e <= {4{quc.dat.doe}} & 4'b0011;
-    2'd3 : spi.sio_e <= {4{quc.dat.doe}} & 4'b1111;
+end else if (scw.trn) begin
+  case (scw.dat.iom)
+    2'd0 : spi.sio_e <= {4{scw.dat.doe}} & 4'b0001;
+    2'd1 : spi.sio_e <= {4{scw.dat.doe}} & 4'b0001;
+    2'd2 : spi.sio_e <= {4{scw.dat.doe}} & 4'b0011;
+    2'd3 : spi.sio_e <= {4{scw.dat.doe}} & 4'b1111;
   endcase
 end
 
-
-// data input
-always @ (posedge spi_cki)
-if (cyc.die) begin
-  spi_sdi <= spi_dti;
-end
-
-assign spi_dti[3] = {spi_sdi[3][SDW-2:0], spi_sio_i[3]};
-assign spi_dti[2] = {spi_sdi[2][SDW-2:0], spi_sio_i[2]};
-assign spi_dti[1] = {spi_sdi[1][SDW-2:0], spi_sio_i[1]};
-assign spi_dti[0] = {spi_sdi[0][SDW-2:0], spi_sio_i[0]};
-
-endmodule
+endmodule: sockit_spi_ser
