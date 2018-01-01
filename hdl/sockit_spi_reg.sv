@@ -59,16 +59,11 @@ module sockit_spi_reg #(
 ////////////////////////////////////////////////////////////////////////////////
 
 logic    [31:0] spi_sts;  // SPI status
+logic    [31:0] reg_irq;  //
 
 ////////////////////////////////////////////////////////////////////////////////
 // read access                                                                //
 ////////////////////////////////////////////////////////////////////////////////
-
-// read address
-always_ff @(posedge axi.ACLK)
-if (axi.ARVALID & axi.ARREADY)
-  raddr <= axi.ARADDR;
-end
 
 // read address channel is never delayed
 always_ff @(posedge axi.ACLK, negedge axi.ARESETn)
@@ -80,11 +75,11 @@ end
 
 // read data
 always_ff @(posedge axi.ACLK)
-case (raddr)
-  2'd0 : axi.RDATA <= cfg;
-  2'd1 : axi.RDATA <= spi_sts;
-  2'd2 : axi.RDATA <= reg_irq;
-  2'd3 : axi.RDATA <= off;
+case (axi.ARADDR[2+:2])
+  2'd0: axi.RDATA <= cfg;
+  2'd1: axi.RDATA <= spi_sts;
+  2'd2: axi.RDATA <= reg_irq;
+  2'd3: axi.RDATA <= off;
 endcase
 
 // read data channel is never delayed
@@ -104,9 +99,11 @@ always_ff @(posedge axi.ACLK, negedge axi.ARESETn)
 if (~axi.ARESETN) begin
   cfg <= RST;
   off <= OFF;
-end else if (reg_wen) begin
-  if (reg_adr == 2'd0)  cfg <= axi.WDATA & CFG_MSK | CFG_RST & ~CFG_MSK;
-  if (reg_adr == 2'd3)  off <= axi.WDATA[XAW-1:0];
+end else if (axi.WVALID & axi.WREADY) begin
+  case (axi.AWADDR[2+:2])
+    2'd0: cfg <= axi.WDATA & MSK | RST & ~MSK;
+    2'd3: off <= axi.WDATA[XAW-1:0];
+  endcase
 end
 
 ////////////////////////////////////////////////////////////////////////////////

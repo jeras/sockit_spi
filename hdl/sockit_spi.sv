@@ -91,7 +91,7 @@ module sockit_spi #(
 localparam int unsigned DW = 32;  // data width
 
 // type definitions
-typedef sockit_spi_pkg:cmd scw_t;
+typedef sockit_spi_pkg::cmd_t scw_t;
 typedef logic [DW-1:0] sdw_t;
 typedef logic [DW-1:0] sdr_t;
 
@@ -139,7 +139,7 @@ sockit_spi_reg #(
   // address offsets
   .off      (adr_off),
   // command stream
-  .scw      (scw_reg),
+  .scw      (scw_reg)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -209,8 +209,7 @@ end endgenerate
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_ser #(
-  .SSW      (SSW),
-  .SDW      (SDW)
+  .SSW      (SSW)
 ) ser (
   // system signals
   .clk      (clk_spi),

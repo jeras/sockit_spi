@@ -37,4 +37,4 @@ enum logic [1:0] {
   DECERR = 2'b11
 } RESP;
 
-endpackage axi4_pkg;
+endpackage: axi4_pkg

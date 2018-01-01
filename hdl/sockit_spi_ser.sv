@@ -25,8 +25,7 @@
 
 module sockit_spi_ser #(
   // port widths
-  int unsigned SSW = sockit_spi_pkg::SSW,  // slave select width
-  int unsigned SDW = sockit_spi_pkg::SDW,  // serial data register width
+  int unsigned SSW = sockit_spi_pkg::SSW  // slave select width
 )(
   // SPI configuration
   input  sockit_spi_pkg::cfg_t cfg,  // SPI/XIP/DMA configuration
@@ -41,6 +40,8 @@ module sockit_spi_ser #(
 ////////////////////////////////////////////////////////////////////////////////
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
+
+localparam SDW = 8;
 
 // internal clocks, resets
 logic           spi_clk;
@@ -84,8 +85,8 @@ assign sdw.rdy = cyc_end;
 assign sdr.vld = cyc.die & cyc.cke & cyc_end;
 
 // transfer length counter
-always @(posedge spi_cko, posedge rst)
-if (rst)              cyc.cnt <= '0;
+always @(posedge spi_cko, posedge spi_rst)
+if (spi_rst)          cyc.cnt <= '0;
 else begin
   if       (scw.trn)  cyc.cnt <= scw.dat.cnt;
   else if (~cyc_end)  cyc.cnt <= cyc.cnt - 'd1;
@@ -94,16 +95,16 @@ end
 assign cyc_end = ~|cyc.cnt;
 
 // clock enable
-always @(posedge spi_cko, posedge rst)
-if (rst)             cyc.cke <= 1'b0;
+always @(posedge spi_cko, posedge spi_rst)
+if (spi_rst)         cyc.cke <= 1'b0;
 else begin
   if      (scw.trn)  cyc.cke <= scw.dat.cke;
   else if (scw.rdy)  cyc.cke <= 1'b0;
 end
 
 // IO control registers
-always @(posedge spi_cko, posedge rst)
-if (rst) begin
+always @(posedge spi_cko, posedge spi_rst)
+if (spi_rst) begin
   cyc.sso <= {SSW{1'b0}};
   cyc.die <=      1'b0  ;
   cyc.iom <=      2'd1  ;
@@ -133,23 +134,20 @@ always @ (posedge spi_cko)
 if (sdw.trn) begin
   spi_sdo <= sdw.dat;
 end else begin
+  // TODO: recode shift register
   case (scw.dat.iom)
-    2'd0 : spi_sdo <= { spi_sdo[32-1-:1] & 4'b0001;
-    2'd1 : spi_sdo <= { spi_sdo[32-1-:1] & 4'b0001;
-    2'd2 : spi_sdo <= { spi_sdo[32-1-:1] & 4'b0011;
-    2'd3 : spi_sdo <= { spi_sdo[32-1-:1] & 4'b1111;
+    2'd0 : spi_sdo <= spi_sdo[32-1-:1];
+    2'd1 : spi_sdo <= spi_sdo[32-1-:1];
+    2'd2 : spi_sdo <= spi_sdo[32-1-:1];
+    2'd3 : spi_sdo <= spi_sdo[32-1-:1];
   endcase
-  spi_sdo <= {spi_sdo[3][SDW-2:0], 1'bx};
-  if (spi.sio_e[2])  spi_sdo[2] <= {spi_sdo[2][SDW-2:0], 1'bx};
-  if (spi.sio_e[1])  spi_sdo[1] <= {spi_sdo[1][SDW-2:0], 1'bx};
-  if (spi.sio_e[0])  spi_sdo[0] <= {spi_sdo[0][SDW-2:0], 1'bx};
 end
 
 assign spi.sio_o = spi_sdo[32-1-:4];
 
 // data output enable
-always @(posedge spi_cko, posedge rst)
-if (rst) begin
+always @(posedge spi_cko, posedge spi_rst)
+if (spi_rst) begin
   spi.sio_e <= 4'h0;
 end else if (scw.trn) begin
   case (scw.dat.iom)

@@ -30,9 +30,9 @@ module sockit_spi_xip #(
   int unsigned   XAW = 24   // offset address width
 )(
   // input bus (XIP requests)
-  axi4_if.s              axi
+  axi4_if.s              axi,
   // configuration
-  input  sockit_spi_pkg::cfg_t cfg;  // configuration
+  input  sockit_spi_pkg::cfg_t cfg,  // configuration
   input  logic [XAW-1:0] off,  // address offset
   // streams
   sockit_spi_if.s        scw,  // command

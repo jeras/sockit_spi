@@ -40,13 +40,20 @@ module sockit_spi_dma #(
 // data write channel                                                         //
 ////////////////////////////////////////////////////////////////////////////////
 
+// burst counter
+logic [8-1:0] cnt;
+
+////////////////////////////////////////////////////////////////////////////////
+// data write channel                                                         //
+////////////////////////////////////////////////////////////////////////////////
+
 // write address options affect write response
 always_ff @ (posedge axi.ACLK)
 if (axi.AWVALID & axi.AWREADY) begin
   // store transfer ID
   axi.WID <= axi.AWID;
   // AXI4 write response depends on whether a supported request was made
-  axi.WRESP <= (axi.WRSIZE <= axi4_pkg::int2SIZE(DW)) ? axi4_pkg::OKEY
+  axi.WRESP <= (axi.WRSIZE <= axi4_pkg::int2SIZE(DW)) ? axi4_pkg::OKAY
                                                       : axi4_pkg::SLVERR;
 end
 
@@ -84,7 +91,7 @@ if (axi.ARVALID & axi.ARREADY) begin
   // store transfer ID
   axi.RID <= axi.ARID;
   // AXI4 read response depends on whether a supported request was made
-  axi.RRESP <= (axi.ARSIZE <= axi4_pkg::int2SIZE(DW)) ? axi4_pkg::OKEY
+  axi.RRESP <= (axi.ARSIZE <= axi4_pkg::int2SIZE(DW)) ? axi4_pkg::OKAY
                                                       : axi4_pkg::SLVERR;
 end
 

@@ -2,7 +2,7 @@
 //                                                                            //
 //  SPI (3 wire, dual, quad) master                                           //
 //                                                                            //
-//  generic handshaking interface                                             //
+//  generic handshaking interface, stream multiplexer                         //
 //                                                                            //
 //  Copyright (C) 2008-2017  Iztok Jeras                                      //
 //                                                                            //
@@ -23,59 +23,25 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-// Handshaking protocol:                                                      //
-//                                                                            //
-// Both the command and the queue protocol employ the same handshaking mech-  //
-// anism. The data source sets the valid signal (*_vld) and the data drain    //
-// confirms the transfer by setting the ready signal (*_rdy).                 //
-//                                                                            //
-//                       ----------   vld    ----------                       //
-//                       )      S | ------>  | D      (                       //
-//                       (      R |          | R      )                       //
-//                       )      C | <------  | N      (                       //
-//                       ----------   rdy    ----------                       //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-interface sockit_spi_if #(
+module sockit_spi_mux #(
   // data type
   parameter type DT = logic [32-1:0]
 )(
-  input  logic clk,  // clock
-  input  logic rst,  // reset (asynchronous)
-  input  logic clr   // clear (synchronous)
+  // select
+  input  logic    sel,
+  // input streams
+  sockit_spi_if.d si0,
+  sockit_spi_if.d si1,
+  // output stream
+  sockit_spi_if.d sto
 );
 
-// signals
-logic vld;  // valid
-DT    dat;  // data
-logic rdy;  // ready
+// forward signals
+assign sto.vld = sel ? si1.vld : si0.vld;
+assign sto.dat = sel ? si1.dat : si0.dat;
 
-logic trn;  // transfer
+// backpressure signals
+assign si0.rdy = ~sel & sto.rdy;
+assign si1.rdy =  sel & sto.rdy;
 
-// transfer
-assign trn = vld & rdy;
-
-// source
-modport s (
-  input  clk,
-  input  rst,
-  input  clr,
-  output vld,
-  output dat,
-  input  rdy
-);
-
-// drain
-modport d (
-  input  clk,
-  input  rst,
-  input  clr,
-  input  vld,
-  input  dat,
-  output rdy
-);
-
-endinterface: sockit_spi_if
+endmodule: sockit_spi_mux
