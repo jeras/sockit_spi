@@ -25,16 +25,15 @@
 
 module sockit_spi_xip #(
   // configuration
-  parameter NOP     = 32'h00000000,  // no operation instruction (returned on error)
+  logic [32-1:0] NOP = 32'h00000000,  // no operation instruction (returned on error)
   // port widths
-  parameter XAW     =           24,  // bus address width
-  parameter XDW     =            8,  // serial data register width
+  int unsigned   XAW = 24   // offset address width
 )(
   // input bus (XIP requests)
   axi4_if.s              axi
   // configuration
-  input  logic  [32-1:0] spi_cfg,  // configuration
-  input  logic [XAW-1:0] adr_off,  // address offset
+  input  sockit_spi_pkg::cfg_t cfg;  // configuration
+  input  logic [XAW-1:0] off,  // address offset
   // streams
   sockit_spi_if.s        scw,  // command
   sockit_spi_if.s        sdw,  // data write

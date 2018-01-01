@@ -25,11 +25,11 @@
 
 module sockit_spi_ser #(
   // port widths
-  int unsigned SSW     = sockit_spi_pkg::SSW,  // slave select width
-  int unsigned SDW     = sockit_spi_pkg::SDW,  // serial data register width
+  int unsigned SSW = sockit_spi_pkg::SSW,  // slave select width
+  int unsigned SDW = sockit_spi_pkg::SDW,  // serial data register width
 )(
   // SPI configuration
-  input  sockit_spi_pkg::cfg_t spi_cfg,  // SPI/XIP/DMA configuration
+  input  sockit_spi_pkg::cfg_t cfg,  // SPI/XIP/DMA configuration
   // command/data streams
   sockit_spi_if.d        scw,   // command
   sockit_spi_if.d        sdw,   // data write
@@ -107,12 +107,10 @@ if (rst) begin
   cyc.sso <= {SSW{1'b0}};
   cyc.die <=      1'b0  ;
   cyc.iom <=      2'd1  ;
-  cyc.lst <=      1'b0  ;
 end else if (scw.trn) begin
   cyc.sso <= {SSW{scw.dat.sso}} & cfg.sss;
   cyc.die <= scw.dat.die;
   cyc.iom <= scw.dat.iom;
-  cyc.lst <= scw.dat.lst;
 end
 
 assign sdr.dat = spi_dti;

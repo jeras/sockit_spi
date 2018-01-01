@@ -23,25 +23,6 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-// DMA task protocol:                                                         //
-//                                                                            //
-// The protocol uses a control (tsk_ctl) and a status (tsk_sts) signal. The   //
-// control signal uses handshaking while the status signal does not. The      //
-// control signal is a command from REG to DMA to start a DMA sequence.       //
-//                                                                            //
-// Control signal fields:                                                     //
-// [31   ] - iod - command input/output direction (0 - input, 1 - output)     //
-// [30: 0] - len - DMA sequence length in Bytes                               //
-//                                                                            //
-// The status signal is primarily used to control the command arbiter. While  //
-// a DMA sequence is processing the DMA should have exclusive access to the   //
-// command bus. The status signal is also connected to REG, so that the CPU   //
-// can poll DMA status and interrupts can be generated.                       //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 module sockit_spi_dma #(
   // bus properties
   parameter ENDIAN = "BIG",  // endian options include "BIG", "LITTLE"

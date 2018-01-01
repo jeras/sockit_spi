@@ -62,19 +62,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module sockit_spi #(
-  // configuration (register reset values and masks)
-  parameter CFG_RST = 32'h00000000,  // configuration register reset value
-  parameter CFG_MSK = 32'hffffffff,  // configuration register implementation mask
-  parameter ADR_ROF = 32'h00000000,  // address write offset
-  parameter ADR_WOF = 32'h00000000,  // address read  offset
-  //
-  parameter NOP     = 32'h00000000,  // no operation instruction for the given CPU
-  parameter XAW     =           24,  // XIP address width
-  parameter DAW     =           32,  // DMA address width
-  parameter SSW     =            8,  // slave select width
-  parameter SDW     =            8,  // serial data register width
-  parameter SDL     =  $clog2(SDW),  // serial data register width logarithm
-  parameter CDC     =         1'b0   // implement clock domain crossing
+  // configuration/parameterization register parameters
+  sockit_spi_pkg::cfg_t RST = 32'h00000000,  // reset value
+  sockit_spi_pkg::cfg_t MSK = 32'hffffffff,  // implementation mask
+  // AXI parameters
+  int unsigned   XAW =         24,  // XIP address width
+  int unsigned   OFF = 24'h000000,  // AXI address offset reset value
+  logic [32-1:0] NOP = 32'h00000000,  // no operation instruction for the given CPU
+  // SPI protocol parameters
+  int unsigned SSW =    8,  // slave select width
+  bit          CDC = 1'b0   // implement clock domain crossing
 )(
   // system signals (used by SPI interface)
   input  logic   clk_spi,  // clock for SPI IO
@@ -91,7 +88,7 @@ module sockit_spi #(
 // local parameters and signals                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-localparam CDW = 32;  // data width
+localparam int unsigned DW = 32;  // data width
 
 // type definitions
 typedef sockit_spi_pkg:cmd scw_t;
@@ -102,7 +99,7 @@ typedef logic [DW-1:0] sdr_t;
 sockit_spi_pkg::cfg_t spi_cfg;
 
 // address offset
-logic [AW-1:0] adr_off;
+logic [XAW-1:0] adr_off;
 
 // TODO: check clocks and resets, only important, if there is clock gating
 
@@ -128,20 +125,19 @@ sockit_spi_if #(.DT (sdr_t)) sdr_cds (.clk (clk_spi), .clr (1'b0), .rst (rst_spi
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_reg #(
-  // configuration
-  .CFG_RST  (CFG_RST),
-  .CFG_MSK  (CFG_MSK),
-  .ADR_ROF  (ADR_ROF),
-  .ADR_WOF  (ADR_WOF),
-  // port widths
-  .XAW      (XAW    )
+  // configuration/parameterization
+  .RST      (RST),
+  .MSK      (MSK),
+  // XIP
+  .XAW      (XAW),
+  .OFF      (OFF)
 ) rgs (
   // AMBA AXI4-lite
   .axi      (axi_reg),
   // SPI/XIP/DMA configuration
-  .spi_cfg  (spi_cfg),
+  .cfg      (spi_cfg),
   // address offsets
-  .adr_rof  (adr_off),
+  .off      (adr_off),
   // command stream
   .scw      (scw_reg),
 );
@@ -150,10 +146,7 @@ sockit_spi_reg #(
 // DMA instance                                                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-sockit_spi_dma #(
-  // port widths
-  .DW       (DAW)
-) dma (
+sockit_spi_dma dma (
   // AMBA AXI4
   .axi      (axi_dma),
   // data streams
@@ -166,16 +159,14 @@ sockit_spi_dma #(
 ////////////////////////////////////////////////////////////////////////////////
 
 sockit_spi_xip #(
-  // configuration
-  .NOP      (NOP    ),
-  // port widths
-  .XAW      (XAW    )
+  .NOP      (NOP),
+  .XAW      (XAW)
 ) xip (
   // AMBA AXI4
   .axi      (axi_xip),
   // configuration
-  .spi_cfg  (spi_cfg),
-  .adr_off  (adr_off),
+  .cfg      (spi_cfg),
+  .off      (adr_off),
   // command/data streams
   .scw      (scw_xip),
   .sdw      (sdw_xip),
@@ -186,7 +177,7 @@ sockit_spi_xip #(
 // multiplexer/fork between XIP and REG+DMA                                   //
 ////////////////////////////////////////////////////////////////////////////////
 
-assign arb_xip = 1'b0;  // TODO
+assign arb_xip = 1'b0;  // TODO: should come from a configuration register
 
 //                                      select         port 0          port 1          common port
 sockit_spi_mux #(.DT (scw_t)) mux_scw (.sel (arb_xip), .si0 (scw_xip), .si1 (scw_reg), .sto (scw_cdx));  // command
