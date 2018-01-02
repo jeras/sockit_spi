@@ -95,7 +95,7 @@ assign sdw.rdy = lst;
 assign sdr.vld = scw.dat.die & scw.dat.cke & lst;
 
 // transfer length counter
-always @(posedge spi_cko, posedge spi_rst)
+always @(posedge spi_clk, posedge spi_rst)
 if (spi_rst)         cnt <= '0;
 else begin
   if      (scw.trn)  cnt <= scw.dat.cnt;

@@ -3,7 +3,7 @@ interface axi4_if #(
   int unsigned DW = 32,    // data width
   int unsigned SW = DW/8,  // select width
   int unsigned IW = 1,     // ID width
-  int unsigned LW = 4      // length width
+  int unsigned LW = 8      // length width
 )(
   // global signals
   input logic ACLK,
