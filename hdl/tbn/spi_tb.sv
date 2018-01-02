@@ -796,7 +796,6 @@ initial  $readmemh("dma_mem.hex", dma_mem);
 sockit_spi #(
   .XAW         (XAW),
   .SSW         (SSW),
-  .SDW         (SDW),
   .CDC         (CDC)
 ) sockit_spi (
   // system signals (used by the CPU bus interface)
@@ -867,7 +866,6 @@ assign spi_ss_i =          spi_ss_n;
 sockit_spi #(
   .XAW         (XAW),
   .SSW         (1),
-  .SDW         (SDW),
   .CDC         (CDC)
 ) sockit_spi_slv (
   // system signals (used by the CPU bus interface)

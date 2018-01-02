@@ -41,8 +41,6 @@ module sockit_spi_ser #(
 // local signals                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-localparam SDW = 8;
-
 // internal clocks, resets
 logic           spi_clk;
 logic           spi_rst;
@@ -51,16 +49,18 @@ logic           spi_rst;
 logic           spi_cko;  // MOSI registers
 logic           spi_cki;  // MISO registers
 
-// cycle control
-sockit_spi_pkg::cmd_t cyc;
-logic           cyc_end;  // cycle end
+// bit counter
+// TODO: parameterize counter size
+logic  [14-1:0] cnt;  // counter
+logic           lst;  // last bit
 
-// output data signals
-logic [4-1:0][SDW-1:0] spi_sdo;
+// serial data IO data
+logic   [4-1:0] spi_sdo;  // serial data output
+logic   [4-1:0] spi_sdi;  // serial data input
 
-// input data signals
-logic [4-1:0][SDW-1:0] spi_sdi;
-logic [4-1:0][SDW-1:0] spi_dti;
+// shift register
+logic  [32-1:0] spi_sro;  // shift register output
+logic  [32-1:0] spi_sri;  // shift register input
 
 ////////////////////////////////////////////////////////////////////////////////
 // clock & reset                                                              //
@@ -74,76 +74,102 @@ assign spi_cko =  spi_clk;  // MOSI registers
 assign spi_cki = ~spi_clk;  // MISO registers
 
 ////////////////////////////////////////////////////////////////////////////////
+// read stream
+////////////////////////////////////////////////////////////////////////////////
+
+assign sdr.dat = spi_sri;
+
+////////////////////////////////////////////////////////////////////////////////
+// write stream
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
 // SPI cycle timing                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 // flow control for queue output
-assign scw.rdy = cyc_end;
-assign sdw.rdy = cyc_end;
+assign scw.rdy = lst;
+assign sdw.rdy = lst;
 
 // flow control for queue input
-assign sdr.vld = cyc.die & cyc.cke & cyc_end;
+assign sdr.vld = scw.dat.die & scw.dat.cke & lst;
 
 // transfer length counter
 always @(posedge spi_cko, posedge spi_rst)
-if (spi_rst)          cyc.cnt <= '0;
+if (spi_rst)         cnt <= '0;
 else begin
-  if       (scw.trn)  cyc.cnt <= scw.dat.cnt;
-  else if (~cyc_end)  cyc.cnt <= cyc.cnt - 'd1;
+  if      (scw.trn)  cnt <= scw.dat.cnt;
+  else if (~lst)     cnt <= cnt - 'd1;
 end
 
-assign cyc_end = ~|cyc.cnt;
-
-// clock enable
-always @(posedge spi_cko, posedge spi_rst)
-if (spi_rst)         cyc.cke <= 1'b0;
-else begin
-  if      (scw.trn)  cyc.cke <= scw.dat.cke;
-  else if (scw.rdy)  cyc.cke <= 1'b0;
-end
-
-// IO control registers
-always @(posedge spi_cko, posedge spi_rst)
-if (spi_rst) begin
-  cyc.sso <= {SSW{1'b0}};
-  cyc.die <=      1'b0  ;
-  cyc.iom <=      2'd1  ;
-end else if (scw.trn) begin
-  cyc.sso <= {SSW{scw.dat.sso}} & cfg.sss;
-  cyc.die <= scw.dat.die;
-  cyc.iom <= scw.dat.iom;
-end
-
-assign sdr.dat = spi_dti;
+assign lst = ~|cnt;
 
 ////////////////////////////////////////////////////////////////////////////////
 // slave select, clock, data (input, output, enable)                          //
 ////////////////////////////////////////////////////////////////////////////////
 
 // serial clock output
-assign spi.clk_o = cfg.pol ^ (cyc.cke & ~(spi_clk ^ cfg.pha));
+assign spi.clk_o = cfg.pol ^ (scw.dat.cke & ~(spi_clk ^ cfg.pha));
 assign spi.clk_e = cfg.coe;
 
 
 // slave select output, output enable
-assign spi.ssn_o =      cyc.sso  ;
-assign spi.ssn_e = {SSW{cfg.soe}};
+assign spi.ssn_o = {SSW{scw.dat.sso}} & cfg.sss;
+assign spi.ssn_e = {SSW{    cfg.soe}};
 
-// shift register
-always @ (posedge spi_cko)
-if (sdw.trn) begin
-  spi_sdo <= sdw.dat;
+
+// serial data input (register)
+always @(posedge spi_cki, posedge spi_rst)
+if (spi_rst) begin
+  spi_sdi <= 4'h0;
 end else begin
-  // TODO: recode shift register
-  case (scw.dat.iom)
-    2'd0 : spi_sdo <= spi_sdo[32-1-:1];
-    2'd1 : spi_sdo <= spi_sdo[32-1-:1];
-    2'd2 : spi_sdo <= spi_sdo[32-1-:1];
-    2'd3 : spi_sdo <= spi_sdo[32-1-:1];
-  endcase
+  if (scw.trn) begin
+    case (scw.dat.iom)
+      // TODO: check how this is implemented on FPGA, feedback or clock enable
+      2'd0 : spi_sdi <= spi.sio_i & 4'b0001;
+      2'd1 : spi_sdi <= spi.sio_i & 4'b0001;
+      2'd2 : spi_sdi <= spi.sio_i & 4'b0011;
+      2'd3 : spi_sdi <= spi.sio_i & 4'b1111;
+    endcase
+  end
 end
 
-assign spi.sio_o = spi_sdo[32-1-:4];
+
+// shift register input
+always_comb
+case (scw.dat.iom)
+  2'd0 : spi_sri <= {spi_sro[32-1:0], spi_sdi[1-1:0]};
+  2'd1 : spi_sri <= {spi_sro[32-1:0], spi_sdi[1-1:0]};
+  2'd2 : spi_sri <= {spi_sro[32-2:0], spi_sdi[2-1:0]};
+  2'd3 : spi_sri <= {spi_sro[32-4:0], spi_sdi[4-1:0]};
+endcase
+
+// shift register
+always @ (posedge spi_cko, posedge spi_rst)
+if (spi_rst) begin
+  spi_sro <= '0;
+end else begin
+  if (sdw.trn) begin
+    spi_sro <= sdw.dat;
+  end else begin
+    spi_sro <= spi_sri;
+  end
+end
+
+
+// serial data output
+always @(posedge spi_cko, posedge spi_rst)
+if (spi_rst) begin
+  spi.sio_e <= 4'h0;
+end else if (scw.trn) begin
+  case (scw.dat.iom)
+    // TODO: for hold_n and wp_n a different approach might be better
+    2'd0 : spi.sio_o <= spi_sro[32-1-1+:1] & 4'b0001;
+    2'd1 : spi.sio_o <= spi_sro[32-1-1+:1] & 4'b0001;
+    2'd2 : spi.sio_o <= spi_sro[32-2-1+:2] & 4'b0011;
+    2'd3 : spi.sio_o <= spi_sro[32-4-1+:4] & 4'b1111;
+  endcase
+end
 
 // data output enable
 always @(posedge spi_cko, posedge spi_rst)
@@ -151,6 +177,7 @@ if (spi_rst) begin
   spi.sio_e <= 4'h0;
 end else if (scw.trn) begin
   case (scw.dat.iom)
+    // TODO: for hold_n and wp_n a different approach might be better
     2'd0 : spi.sio_e <= {4{scw.dat.doe}} & 4'b0001;
     2'd1 : spi.sio_e <= {4{scw.dat.doe}} & 4'b0001;
     2'd2 : spi.sio_e <= {4{scw.dat.doe}} & 4'b0011;
