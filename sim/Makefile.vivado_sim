@@ -8,7 +8,11 @@ PATH_TBN=../hdl/tbn
 # TODO: VIP for AXI4 memory mapped interfaces, and ZYNQ PS
 
 # RTL files
-RTL  = $(PATH_RTL)/sockit_spi_cdc.sv
+RTL  = $(PATH_RTL)/if/axi4_pkg.sv
+RTL += $(PATH_RTL)/if/axi4_if.sv
+RTL += $(PATH_RTL)/if/axi4_lite_if.sv
+RTL += $(PATH_RTL)/sockit_spi_pkg.sv
+RTL += $(PATH_RTL)/sockit_spi_cdc.sv
 RTL += $(PATH_RTL)/sockit_spi_dma.sv
 RTL += $(PATH_RTL)/sockit_spi_reg.sv
 RTL += $(PATH_RTL)/sockit_spi_rpi.sv

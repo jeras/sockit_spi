@@ -50,9 +50,9 @@ reg clk_cpu, rst_cpu;
 reg clk_spi, rst_spi;
 
 // AXI4 interfaces
-axi4_lite_if #(.AW ( 4), .DW (32)) axi_reg (.ACLK (clk_cpu) .ARESETn (rst_cpu));
-axi4_if      #(.AW (12), .DW (32)) axi_dma (.ACLK (clk_cpu) .ARESETn (rst_cpu));
-axi4_if      #(.AW (24), .DW (32)) axi_xip (.ACLK (clk_cpu) .ARESETn (rst_cpu));
+axi4_lite_if #(.AW ( 4), .DW (32)) axi_reg (.ACLK (clk_cpu), .ARESETn (rst_cpu));
+axi4_if      #(.AW (12), .DW (32)) axi_dma (.ACLK (clk_cpu), .ARESETn (rst_cpu));
+axi4_if      #(.AW (24), .DW (32)) axi_xip (.ACLK (clk_cpu), .ARESETn (rst_cpu));
 
 // DMA memory
 reg  [DDW-1:0] dma_mem [0:DMA_SIZ-1];

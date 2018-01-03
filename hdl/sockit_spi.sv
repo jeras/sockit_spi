@@ -177,6 +177,7 @@ sockit_spi_xip #(
 // multiplexer/fork between XIP and REG+DMA                                   //
 ////////////////////////////////////////////////////////////////////////////////
 
+logic arb_xip;
 assign arb_xip = 1'b0;  // TODO: should come from a configuration register
 
 //                                      select         port 0          port 1          common port
@@ -217,9 +218,9 @@ sockit_spi_ser #(
   // SPI configuration
   .spi_cfg  (spi_cfg),
   // command/data streams
-  .quc      (qcr),
-  .quo      (qor),
-  .qui      (qiw),
+  .scw      (scw_cds),
+  .sdw      (sdw_cds),
+  .sdr      (sdr_cds),
   // SPI interface
   .spi      (spi_inf)
 );

@@ -48,7 +48,7 @@
 
 module sockit_spi_cdc #(
   int unsigned CW = 1,  // counter width
-  type         DT       // data type
+  type         DT = logic [8-1:0]     // data type
 )(
   sockit_spi_if.d cdi,  // input port
   sockit_spi_if.s cdo   // output port
