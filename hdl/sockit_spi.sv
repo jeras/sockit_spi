@@ -212,11 +212,8 @@ end endgenerate
 sockit_spi_ser #(
   .SSW      (SSW)
 ) ser (
-  // system signals
-  .clk      (clk_spi),
-  .rst      (rst_spi),
   // SPI configuration
-  .spi_cfg  (spi_cfg),
+  .cfg      (spi_cfg),
   // command/data streams
   .scw      (scw_cds),
   .sdw      (sdw_cds),

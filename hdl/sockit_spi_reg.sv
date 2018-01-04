@@ -96,7 +96,7 @@ end
 
 // XIP/DMA address offsets
 always_ff @(posedge axi.ACLK, negedge axi.ARESETn)
-if (~axi.ARESETN) begin
+if (~axi.ARESETn) begin
   cfg <= RST;
   off <= OFF;
 end else if (axi.WVALID & axi.WREADY) begin

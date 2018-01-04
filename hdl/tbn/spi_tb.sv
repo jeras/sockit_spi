@@ -37,6 +37,8 @@ localparam CDC = 1'b1;
 
 // length of test array/string
 localparam ARL = 8*256;
+localparam ADW = 32;
+localparam XAW = 24;
 localparam STL =   256;
 
 localparam DMA_SIZ = 1024;
@@ -55,7 +57,7 @@ axi4_if      #(.AW (12), .DW (32)) axi_dma (.ACLK (clk_cpu), .ARESETn (rst_cpu))
 axi4_if      #(.AW (24), .DW (32)) axi_xip (.ACLK (clk_cpu), .ARESETn (rst_cpu));
 
 // DMA memory
-reg  [DDW-1:0] dma_mem [0:DMA_SIZ-1];
+//reg  [DDW-1:0] dma_mem [0:DMA_SIZ-1];
 
 // SPI interface
 spi_if spi();
@@ -127,14 +129,6 @@ always  #5 clk_spi <= ~clk_spi;
 
 // test sequence
 initial begin
-  // initialize error counter
-  tst_err = 0;
-
-  // put register interface into idle
-  reg_wen <= 1'b0;
-  reg_ren <= 1'b0;
-  // put XIP interface into idle
-  xip_ren <= 1'b0;
   // reset generation
   rst_cpu  = 1'b1;
   rst_spi  = 1'b1;
@@ -306,23 +300,6 @@ begin
 end
 endtask
 
-// convert number of bits into transfer length
-function [4:0] num2len (
-  input integer num,
-  input   [1:0] iom
-);
-  integer       tmp;
-begin
-  case (iom)
-    2'd0 : tmp = num     - 1;  // 3-wire
-    2'd1 : tmp = num     - 1;  // SPI   
-    2'd2 : tmp = num / 2 - 1;  // dual  
-    2'd3 : tmp = num / 4 - 1;  // quad  
-  endcase
-  num2len = tmp[4:0];
-end
-endfunction
-
 // command
 function [31:0] iowr_cmd (
   input   [4:0] len,  // transfer length (in the range from 1 to SDW bits)
@@ -340,14 +317,14 @@ endfunction
 function [31:0] iowr_cmd_idl (
   input integer num   // clock periods
 );  //                         len,           pkm, iom, die, doe, sso, cke
-  iowr_cmd_idl = iowr_cmd (num2len(num, 'd1), 'b0, 'd1, 'b0, 'b0, 'b0, 'b0);
+  iowr_cmd_idl = iowr_cmd (num, 'b0, 'd1, 'b0, 'b0, 'b0, 'b0);
 endfunction
 
 // command (delay with slave select active)
 function [31:0] iowr_cmd_dly (
   input integer num   // clock periods
 );  //                         len          , pkm, iom, die, doe, sso, cke
-  iowr_cmd_dly = iowr_cmd (num2len(num, 'd1), 'b0, 'd1, 'b0, 'b0, 'b1, 'b0);
+  iowr_cmd_dly = iowr_cmd (num, 'b0, 'd1, 'b0, 'b0, 'b1, 'b0);
 endfunction
 
 // command (data transfer output)
@@ -355,7 +332,7 @@ function [31:0] iowr_cmd_dto (
   input integer num,  // transfer size in number in bits
   input   [1:0] iom   // SPI data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
 );  //                         len          , pkm, iom, die, doe, sso, cke
-  iowr_cmd_dto = iowr_cmd (num2len(num, iom), 'b0, iom, 'b0, 'b1, 'b1, 'b1);
+  iowr_cmd_dto = iowr_cmd (num, 'b0, iom, 'b0, 'b1, 'b1, 'b1);
 endfunction
 
 // command (data transfer output)
@@ -363,7 +340,7 @@ function [31:0] iowr_cmd_dti (
   input integer num,  // transfer size in number in bits
   input   [1:0] iom   // SPI data mode (0-3wire, 1-SPI, 2-duo, 3-quad)
 );  //                         len          , pkm, iom, die, doe, sso, cke
-  iowr_cmd_dti = iowr_cmd (num2len(num, iom), 'b1, iom, 'b1, 'b0, 'b1, 'b1);
+  iowr_cmd_dti = iowr_cmd (num, 'b1, iom, 'b1, 'b0, 'b1, 'b1);
 endfunction
 
 // command (data transfer duplex)
@@ -371,7 +348,7 @@ function [31:0] iowr_cmd_dtd (
   input integer num,  // transfer size in number in bits
   input         pkm   // packeting mode (0 - remainder last, 1 - remainder first)
 );  //                         len          , pkm, iom, die, doe, sso, cke
-  iowr_cmd_dtd = iowr_cmd (num2len(num, 'd1), pkm, 'd1, 'b1, 'b1, 'b1, 'b1);
+  iowr_cmd_dtd = iowr_cmd (num, pkm, 'd1, 'b1, 'b1, 'b1, 'b1);
 endfunction
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -551,154 +528,52 @@ begin
 end
 endtask
 
-// function integer str_cmp (
-// )
-//   str_cmp = 0;
-//   for (n=0; n<ARL; n=n+1) begin
-//     ary_cmp = ary_cmp + (tst_ari [n] !== slave_spi.ary_o [n]);
-//   end
-// endfunction
-
 ////////////////////////////////////////////////////////////////////////////////
 // register bus tasks                                                         //
 ////////////////////////////////////////////////////////////////////////////////
 
-// Avalon MM cycle transfer cycle end status
-assign reg_trn = (reg_ren | reg_wen) & ~reg_wrq;
-
-task reg_cyc;
-  input            r_w;  // 0-read or 1-write cycle
-  input  [AAW-1:0] adr;
-  input  [ABW-1:0] ben;
-  input  [ADW-1:0] wdt;
-  output [ADW-1:0] rdt;
-// task reg_cyc (
-//   input            r_w,  // 0-read or 1-write cycle
-//   input  [AAW-1:0] adr,
-//   input  [ABW-1:0] ben,
-//   input  [ADW-1:0] wdt,
-//   output [ADW-1:0] rdt
-// );
-begin
-//  $display ("REG cycle start: T=%10tns, %s adr=%08x ben=%04b wdt=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
-  // start an Avalon cycle
-  reg_ren <= ~r_w;
-  reg_wen <=  r_w;
-  reg_adr <=  adr;
-  reg_ben <=  ben;
-  reg_wdt <=  wdt;
-  // wait for waitrequest to be retracted
-  @ (posedge clk_cpu); while (~reg_trn) @ (posedge clk_cpu);
-  // end Avalon cycle
-  reg_ren <=      1'b0  ;
-  reg_wen <=      1'b0  ;
-  reg_adr <= {AAW{1'bx}};
-  reg_ben <= {ABW{1'bx}};
-  reg_wdt <= {ADW{1'bx}};
-  // read data
-  rdt = reg_rdt;
-//  $display ("REG cycle end  : T=%10tns, rdt=%08x", $time/1000.0, rdt);
-end
-endtask
-
-// IO register write
-task IOWR (input [AAW-1:0] adr,  input [ADW-1:0] wdt);
-  reg [ADW-1:0] rdt;
-begin
-  reg_cyc (1'b1, adr, 4'hf, wdt, rdt);
-end
-endtask
-
-// IO register read
-task IORD (input [AAW-1:0] adr, output [ADW-1:0] rdt);
-begin
-  reg_cyc (1'b0, adr, 4'hf, {ADW{1'bx}}, rdt);
-end
-endtask
-
-// polling for end of cycle
-task POLL (input [AAW-1:0] adr,  input [ADW-1:0] msk);
-  reg [ADW-1:0] rdt;
-begin
-  rdt = msk;
-  while (rdt & msk)
-  IORD (adr, rdt);
-end
-endtask
-
-// idle for a specified number of clock periods
-task IDLE (input integer num);
-begin
-  repeat (num) @ (posedge clk_cpu);
-end
-endtask
+//// IO register write
+//task IOWR (input [AAW-1:0] adr,  input [ADW-1:0] wdt);
+//  reg [ADW-1:0] rdt;
+//begin
+//  reg_cyc (1'b1, adr, 4'hf, wdt, rdt);
+//end
+//endtask
+//
+//// IO register read
+//task IORD (input [AAW-1:0] adr, output [ADW-1:0] rdt);
+//begin
+//  reg_cyc (1'b0, adr, 4'hf, {ADW{1'bx}}, rdt);
+//end
+//endtask
+//
+//// polling for end of cycle
+//task POLL (input [AAW-1:0] adr,  input [ADW-1:0] msk);
+//  reg [ADW-1:0] rdt;
+//begin
+//  rdt = msk;
+//  while (rdt & msk)
+//  IORD (adr, rdt);
+//end
+//endtask
+//
+//// idle for a specified number of clock periods
+//task IDLE (input integer num);
+//begin
+//  repeat (num) @ (posedge clk_cpu);
+//end
+//endtask
 
 ////////////////////////////////////////////////////////////////////////////////
 // XIP bus tasks                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 
-// transfer cycle end status
-assign xip_trn = (xip_ren | xip_wen) & ~xip_wrq;
-
-task xip_cyc;
-  input            r_w;  // 0-read or 1-write cycle
-  input  [XAW-1:0] adr;
-  input  [XBW-1:0] ben;
-  input  [XDW-1:0] wdt;
-  output [XDW-1:0] rdt;
-// task reg_cyc (
-//   input            r_w,  // 0-read or 1-write cycle
-//   input  [XAW-1:0] adr,
-//   input  [XBW-1:0] ben,
-//   input  [XDW-1:0] wdt,
-//   output [XDW-1:0] rdt
-// );
-begin
-//  $display ("XIP cycle start: T=%10tns, %s adr=%08x ben=%04b wdt=%08x", $time/1000.0, r_w?"write":"read ", adr, ben, wdt);
-  // begin cycle
-  xip_ren <= ~r_w;
-  xip_wen <=  r_w;
-  xip_adr <=  adr;
-  xip_ben <=  ben;
-  xip_wdt <=  wdt;
-  // wait for waitrequest to be retracted
-  @ (posedge clk_cpu); while (~xip_trn) @ (posedge clk_cpu);
-  // end cycle
-  xip_ren <=      1'b0  ;
-  xip_wen <=      1'b0  ;
-  xip_adr <= {XAW{1'bx}};
-  xip_ben <= {XBW{1'bx}};
-  xip_wdt <= {XDW{1'bx}};
-  // read data
-  rdt = xip_rdt;
-//  $display ("XIP cycle end  : T=%10tns, rdt=%08x", $time/1000.0, rdt);
-end
-endtask
-
 ////////////////////////////////////////////////////////////////////////////////
 // DMA memory model                                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-// write access
-always @ (posedge clk_cpu)
-if (dma_wen & ~dma_wrq) begin
-  if (dma_ben[3])  dma_mem[dma_adr[DAW-1:2]][8*3+:8] = dma_wdt[8*3+:8];
-  if (dma_ben[2])  dma_mem[dma_adr[DAW-1:2]][8*2+:8] = dma_wdt[8*2+:8];
-  if (dma_ben[1])  dma_mem[dma_adr[DAW-1:2]][8*1+:8] = dma_wdt[8*1+:8];
-  if (dma_ben[0])  dma_mem[dma_adr[DAW-1:2]][8*0+:8] = dma_wdt[8*0+:8];
-end
-
-// read access
-assign dma_rdt = (dma_ren & ~dma_wrq) ? dma_mem[dma_adr[DAW-1:2]] : 32'hxxxxxxxx;
-
-// timing TODO randomization
-assign dma_wrq = 1'b0;
-
-// error response
-assign dma_err = 1'b0;
-
 // initializing memory contents
-initial  $readmemh("dma_mem.hex", dma_mem);
+//initial  $readmemh("dma_mem.hex", dma_mem);
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI controller master instance                                             //
@@ -717,7 +592,7 @@ sockit_spi #(
   .axi_dma  (axi_dma),
   .axi_xip  (axi_xip),
   // SPI signals (should be connected to tristate IO pads)
-  .spi      (spi)
+  .spi_inf  (spi)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -725,16 +600,16 @@ sockit_spi #(
 ////////////////////////////////////////////////////////////////////////////////
 
 // clock
-bufif1 spi_sclk_b  (spi_sclk, spi.sclk_o, spi.sclk_e);
-assign spi.sclk_i = spi_sclk;
+bufif1 spi_clk_b  (spi_sclk, spi.clk_o, spi.clk_e);
+assign spi.clk_i = spi_sclk;
 
 // data
 bufif1 spi_sio_b [3:0] ({spi_hold_n, spi_wp_n, spi_miso, spi_mosi}, spi.sio_o, spi.sio_e);
 assign spi.sio_i =      {spi_hold_n, spi_wp_n, spi_miso, spi_mosi};
 
 // slave select (active low)
-bufif1 spi_ss_b [SSW-1:0] (spi_ss_n, ~spi.ss_o, spi.ss_e);
-assign spi.ss_i =          spi_ss_n;
+bufif1 spi_ssn_b [SSW-1:0] (spi_ss_n, ~spi.ssn_o, spi.ssn_e);
+assign spi.ssn_i =          spi_ss_n;
 
 ////////////////////////////////////////////////////////////////////////////////
 // SPI slave (serial Flash)                                                   //

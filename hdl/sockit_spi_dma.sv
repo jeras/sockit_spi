@@ -51,9 +51,9 @@ logic [8-1:0] cnt;
 always_ff @ (posedge axi.ACLK)
 if (axi.AWVALID & axi.AWREADY) begin
   // store transfer ID
-  axi.WID <= axi.AWID;
+  axi.BID <= axi.AWID;
   // AXI4 write response depends on whether a supported request was made
-  axi.WRESP <= (axi.WRSIZE <= axi4_pkg::int2SIZE(DW)) ? axi4_pkg::OKAY
+  axi.BRESP <= (axi.AWSIZE <= axi4_pkg::int2SIZE(DW)) ? axi4_pkg::OKAY
                                                       : axi4_pkg::SLVERR;
 end
 
